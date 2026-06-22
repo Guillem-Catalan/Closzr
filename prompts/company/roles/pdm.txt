@@ -1,0 +1,83 @@
+## ROLE: PDM (Partner Development Manager)
+
+The PDM manages the relationship with the partner organization itself
+— NOT with the end prospects. The PDM's clients are the bankers, telco
+agents, and partner sales reps who refer leads to Factorial.
+
+The PDM's job is to:
+1. Train partner sales teams on Factorial's value proposition
+2. Keep partner reps engaged and referring quality leads
+3. Coordinate joint campaigns, events, and promotions
+4. Resolve operational issues (lead handoff, commission, onboarding)
+5. Grow the volume and quality of leads from the partnership
+
+PDM calls are NOT sales calls to prospects. They are internal
+partnership management calls. Evaluate them differently.
+
+---
+
+## EVALUATION FRAMEWORK — PARTNER HEALTH
+
+Instead of BANT or MEDDIC, PDM calls are evaluated on:
+
+**Engagement** — Is the partner rep actively engaged with Factorial?
+- **Strong**: Partner rep is proactively sharing leads, asking questions,
+  following up on previous referrals
+- **Moderate**: Partner rep responds when contacted but doesn't initiate
+- **Weak**: Partner rep is unresponsive or disengaged
+
+**Training Quality** — Does the partner rep understand Factorial?
+- **Strong**: Can articulate the value proposition, knows which clients fit
+- **Moderate**: Has a basic understanding but confuses products or pricing
+- **Weak**: Cannot explain Factorial to their clients
+
+**Lead Quality** — Are the referred leads well-qualified?
+- **Strong**: Leads match ICP, have real needs, are decision-makers
+- **Moderate**: Leads are relevant but not fully qualified
+- **Weak**: Leads are random, too small, or clearly not a fit
+
+**Collaboration** — Is there a productive working relationship?
+- **Strong**: Clear cadence, shared targets, joint planning
+- **Moderate**: Some coordination but ad-hoc
+- **Weak**: No structure, no follow-up, no accountability
+
+---
+
+## WHAT TO EVALUATE IN PDM CALLS
+
+**Training / enablement calls:**
+- Does the PDM explain Factorial clearly and concisely?
+- Does the PDM tailor the pitch to the partner's client base?
+- Does the PDM give concrete examples relevant to the partner's sector?
+- Does the PDM provide ready-to-use materials or talking points?
+
+**Pipeline review calls:**
+- Does the PDM follow up on previously referred leads?
+- Does the PDM share results (won/lost) with the partner?
+- Does the PDM acknowledge the partner's effort?
+- Are concrete next actions agreed?
+
+**Strategic planning calls:**
+- Is there a clear plan for the next period (campaigns, events, targets)?
+- Does the PDM listen to the partner's constraints and adapt?
+- Is there mutual accountability?
+
+**Escalation / problem calls:**
+- Does the PDM take ownership of issues?
+- Is the resolution concrete and time-bound?
+- Does the PDM protect the relationship while solving the problem?
+
+---
+
+## DEAL LIFECYCLE — PDM
+
+PDMs don't own deals — they enable PBDs and PAEs by keeping the
+partner engaged and the lead flow healthy. Evaluate the PDM on:
+
+- Volume of leads generated through their partner relationship
+- Quality of the partner engagement (active vs passive)
+- Effectiveness of training (do the partner's reps understand Factorial?)
+- Problem resolution speed and quality
+
+When deal history is provided for a specific partner, evaluate the
+PDM's impact on the overall pipeline quality and volume trends.

@@ -1,0 +1,107 @@
+## ROLE: SDR (Sales Development Representative)
+
+The SDR is the top of the funnel in direct sales.
+Their job is to prospect, qualify leads, and book meetings with AEs.
+SDRs work both outbound (cold calls, emails, LinkedIn) and inbound
+(responding to demo requests, form submissions, event leads).
+
+Unlike PBDs who have a partner warm introduction, SDRs often start
+cold — the prospect doesn't know Factorial and may not be expecting
+the call. This makes the first 30 seconds critical.
+
+The SDR works high volume. Many calls won't connect or will be
+quickly dismissed. What matters is: when they DO connect, how well
+do they qualify and convert to a booked meeting?
+
+---
+
+## EVALUATION FRAMEWORK — BANT
+
+Same framework as PBD. BANT accumulates across all touches with
+the same prospect.
+
+Each pillar is evaluated as:
+- **Confirmed** — explicit, validated evidence
+- **Partial** — mentioned or touched on but not fully qualified
+- **Missing** — not raised in any interaction so far
+
+The four pillars:
+
+**Budget** — Was cost sensitivity or current spend addressed?
+In cold context, this can be lighter than partner channel —
+understanding if they pay for any HR tool today is enough for
+Partial. Confirmed requires explicit budget discussion.
+
+**Authority** — Did the SDR identify who decides? In cold calls,
+this is often harder. At minimum: "Are you the person who would
+evaluate this?" or "Who else would need to be involved?"
+
+**Need** — Did the SDR find a real, specific pain? Not "we need
+to digitalize" — something concrete: "we track hours on Excel",
+"our payroll provider complains about our data quality",
+"we lose 2 hours/week managing absences manually".
+
+**Timing** — Is there urgency? A regulatory deadline, a growth
+phase, an expiring contract with current tool, a new office opening?
+Even "we're evaluating solutions this quarter" counts.
+
+---
+
+## COLD CALL STRUCTURE
+
+**Phase 1 — Hook (first 15 seconds)**
+Must earn the right to continue the conversation.
+
+- PASS: Relevant hook that creates curiosity. References the
+  prospect's industry, company size, or a specific trigger.
+  "I noticed you're in [industry] with [X] employees..."
+- FLAG: Generic opener that could apply to anyone.
+- FAIL: Sounds like a telemarketer. No personalization.
+
+**Phase 2 — Qualify**
+Quickly assess fit and find the pain.
+
+- PASS: Asks smart questions that reveal needs naturally.
+  Listens more than talks. Finds a specific pain.
+- FLAG: Asks questions but doesn't listen to answers or
+  pivots to pitch too early.
+- FAIL: Goes straight to pitch without any discovery.
+
+**Phase 3 — Book**
+Convert interest into a scheduled meeting.
+
+- PASS: Meeting booked with date/time, confirmed attendees,
+  clear agenda for the AE.
+- FLAG: Interest shown but no concrete meeting scheduled.
+- FAIL: Call ends without a next step.
+
+---
+
+## OBJECTION HANDLING — SDR
+
+Common cold objections and expected handling:
+- "I'm not interested" → Pivot to a specific pain, don't accept at face value
+- "Send me an email" → "I'd rather show you in 15 min, would [date] work?"
+- "We already have a solution" → "What are you using? What do you like/dislike?"
+- "I don't have time" → "I understand. When would be a better time this week?"
+- "How much does it cost?" → "It depends on your setup. Let me show you what
+  applies to your case in a quick call."
+
+---
+
+## DEAL LIFECYCLE — SDR
+
+**Prospecting** — Research, outreach sequences, social selling.
+Evaluate effort and targeting quality.
+
+**First contact** — The cold call or first response.
+Evaluate hook quality and qualification attempt.
+
+**Follow-up** — Persistence without being pushy.
+Evaluate cadence and multi-channel approach.
+
+**Booking** — The conversion moment.
+Evaluate meeting quality (right person, right time, AE prepared).
+
+When deal history is provided, evaluate in context of total
+attempts and what was learned in previous touches.

@@ -1,0 +1,109 @@
+## ROLE: PBD (Partner Business Developer)
+
+The PBD is the top of the funnel in the partner channel.
+Their job is to qualify the lead and book a demo with a PAE.
+They never discuss price, never run demos, and never go deep into
+product features. If a prospect asks for pricing — the PBD deflects
+and pivots to booking the demo.
+
+The PBD works a high volume of calls — many will be voicemails,
+gatekeepers, or wrong contacts. That is normal. What matters is
+execution quality on the calls that connect with a real prospect.
+
+The PBD's second job is to engage with the partner sales force
+to generate the maximum amount of leads.
+
+---
+
+## EVALUATION FRAMEWORK — BANT
+
+BANT is a deal-level framework. It accumulates across all calls
+to the same prospect — a pillar qualified in a previous call
+remains valid unless contradicted. When deal history is provided,
+evaluate BANT in the context of everything learned so far.
+
+Each pillar is evaluated as:
+- **Confirmed** — explicit, validated evidence in the transcript
+  or previous calls
+- **Partial** — mentioned or touched on but not fully qualified
+- **Missing** — not raised in any interaction so far
+
+The four pillars:
+
+**Budget** — Was pricing, budget ownership, or cost sensitivity
+addressed? Understanding whether the prospect uses another tool
+or is considering alternatives also counts as a budget signal
+— even without a concrete number.
+
+**Authority** — Did the rep identify who makes the decision? Is it
+the person on the call or someone else? If the champion is not the
+decision-maker, the rep should identify their role in the process
+and who else needs to be involved.
+
+**Need** — Did the rep uncover a specific, named pain point relevant
+to Factorial's features? Not a generic "we have HR processes" — a
+concrete problem: manual clock-ins, payroll errors, shift management
+chaos, document chaos. The prospect must have verbalized it.
+
+**Timing** — Is there a concrete timeframe — a trigger event, a
+deadline, a moment of urgency? A time range is valid if no specific
+date exists.
+
+---
+
+## SCRIPT COMPLIANCE
+
+**Phase 1 — Opener**
+Must establish context. How the rep opens depends on the channel
+(partner referral vs outbound — see channel context).
+
+- PASS: Clear, warm opener with context established
+- FLAG: Context mentioned but without warm framing
+- FAIL: Generic opener with no context or rapport
+
+**Phase 2 — Industry Pivot**
+Goal: reach a specific, named pain point for this prospect.
+
+- PASS: Rep identified the sector and pivoted to a vertical-specific
+  pain. OR surfaced a concrete pain directly from the prospect's
+  own words.
+- FLAG: Pivot attempted but pain was generic — not tailored.
+- FAIL: No pivot, no specific pain identified. Same generic pitch.
+
+Sector reference:
+- Construction / Agriculture → paper clock-ins, seasonal workers
+- Healthcare / Hospitality → shift management, sick leave cover
+- Transport / Logistics → expense reports, mileage tracking
+- Consulting / IT / SaaS → performance reviews, ATS
+- Retail → geolocation clock-ins, multi-location planning
+
+**Phase 3 — Close**
+The rep must secure a concrete next step — ideally a scheduled demo.
+
+- PASS: Demo booked with specific date/time + confirmed + participants
+- FLAG: Next step agreed but date/time vague or not confirmed
+- FAIL: No next step, or open-ended "I'll send you info"
+
+Key closing techniques:
+- Value Tie-Down: "¿Te merece la pena 45 minutos?"
+- Two-Slot Close: exactly two specific time slots offered
+- Calendar Anchor: "¿Tienes el calendario a mano?"
+
+---
+
+## DEAL LIFECYCLE — PBD
+
+**Early attempts** — Voicemails, no answers, wrong numbers, gatekeepers.
+Evaluate execution quality, not outcome.
+
+**First connection** — BANT begins to accumulate. Goal: qualify enough
+to justify a demo and attempt to book it.
+
+**Subsequent connections** — BANT should progress. If a pillar remains
+Missing after two connected calls, that is a gap.
+
+**Demo booked** — The ideal outcome. Evaluate the quality of the booking.
+
+When deal history is provided, always evaluate the current call in the
+context of how many times the PBD has already tried, what has been
+qualified so far, and what was agreed in the last interaction.

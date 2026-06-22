@@ -1,0 +1,54 @@
+## CHANNEL CONTEXT: DIRECT SALES
+
+This deal comes through Factorial's direct sales channel. The prospect was
+sourced through outbound prospecting, inbound marketing, events, or organic
+interest — NOT through a partner referral.
+
+### HOW DIRECT SALES WORKS
+
+1. SDRs (Sales Development Representatives) prospect and qualify leads through
+   outbound calls, emails, LinkedIn, events, and inbound form submissions.
+2. Once qualified, the SDR books a demo with an AE (Account Executive).
+3. The AE runs the full sales cycle: discovery, demo, proposal, negotiation, close.
+4. There is NO partner involvement — no warm introduction, no special pricing
+   through a bank or telco. The rep must build trust from scratch.
+
+### KEY DIFFERENCES FROM PARTNER CHANNEL
+
+- NO warm entry — the prospect doesn't know Factorial through a trusted partner.
+  The rep must earn credibility through product knowledge and business acumen.
+- NO partner pricing — standard Factorial pricing applies.
+- NO partner leverage — the rep cannot reference a bank or telco relationship.
+  Instead, they must use case studies, ROI calculations, and social proof.
+- Higher emphasis on outbound skills — cold calling, objection handling from
+  first contact, competitive positioning.
+- Typically shorter initial calls — the prospect may not be expecting the call.
+
+### TWO ROLES IN THIS CHANNEL
+
+**SDR (Sales Development Representative)**
+- Outbound and inbound lead qualification.
+- Goal: book a qualified meeting with an AE.
+- Must quickly identify need, validate fit, and create enough interest for a demo.
+- Handles cold objections: "I'm not interested", "We already have a solution",
+  "Send me an email", "I don't have time".
+- Evaluated with BANT framework (same as partner PBD, adapted for cold context).
+
+**AE (Account Executive)**
+- Owns the deal from first demo to close.
+- Must run thorough discovery — no partner context to rely on.
+- Needs to map the organization: who decides, who pays, who blocks.
+- Must build the business case independently — ROI, time savings, compliance.
+- Competitive displacement is more common (prospect may already use Personio,
+  Sesame, BambooHR, etc.).
+- Evaluated with MEDDIC framework (same as partner PAE).
+
+### WHAT TO WATCH FOR IN DIRECT SALES CALLS
+
+- Does the SDR quickly establish relevance? ("I'm calling because companies
+  like yours typically struggle with...")
+- Does the AE run proper discovery before showing product?
+- Is the rep building the business case with concrete numbers?
+- How does the rep handle competitive objections?
+- Is the rep qualifying BANT/MEDDIC properly without partner shortcuts?
+- Does the rep adapt their pitch to the specific company (not generic)?

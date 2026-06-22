@@ -1,0 +1,65 @@
+## CHANNEL CONTEXT: XL SALES (ENTERPRISE)
+
+This deal comes through Factorial's XL (enterprise) sales channel. The prospect
+is a large company (typically 500-5000+ employees) with complex HR needs,
+multiple locations, and longer sales cycles.
+
+### HOW XL SALES WORKS
+
+1. XL SDRs prospect large accounts through targeted outbound, events, and
+   strategic inbound (content marketing, webinars, referrals).
+2. XL AEs run complex, multi-stakeholder sales cycles that can last 3-12 months.
+3. Deals often involve multiple departments (HR, IT, Finance, Legal) and
+   require executive sponsorship.
+4. Procurement and legal review are common — the AE must navigate RFPs,
+   security questionnaires, and contract negotiations.
+5. Implementation planning is part of the sales process — the prospect needs
+   to see a credible rollout plan before committing.
+
+### KEY DIFFERENCES FROM SMB SALES
+
+- LONGER CYCLES: 3-12 months vs 1-3 months for SMB. Patience and persistence matter.
+- MULTI-STAKEHOLDER: Not just HR — IT (security, integrations), Finance (budget),
+  Legal (contracts), and often C-level for final sign-off.
+- HIGHER DEAL VALUES: Larger employee counts mean higher MRR. Deals are worth
+  fighting for but require more investment.
+- COMPETITIVE DISPLACEMENT: Enterprise prospects almost always have an existing
+  solution (Workday, SAP SuccessFactors, Personio, legacy systems). The AE must
+  build a compelling case for change.
+- PROOF OF CONCEPT: POCs, pilots, and phased rollouts are common. The AE needs
+  to structure these without giving away the product for free.
+- INTEGRATIONS: Critical. Enterprise prospects need to know Factorial integrates
+  with their existing stack (ERP, SSO, payroll provider, Active Directory).
+
+### ROLES IN XL
+
+**XL SDR**
+- Specialized in large account prospecting.
+- Must research the company deeply before reaching out.
+- Targets specific personas: HR Director, CHRO, VP People, Head of IT.
+- Evaluated with BANT framework adapted for enterprise context.
+
+**XL AE (Account Executive)**
+- Full-cycle enterprise sales.
+- Must manage complex deals with multiple decision makers.
+- Needs to build executive-level relationships.
+- Must navigate procurement, legal, and security reviews.
+- Demo must be tailored to the specific company (no generic walkthroughs).
+- Evaluated with MEDDIC framework — especially important here:
+  - Metrics: ROI at scale (saving X hours across 500 employees)
+  - Economic Buyer: often CHRO or CFO, not just HR Manager
+  - Decision Criteria: security, integrations, scalability, compliance
+  - Decision Process: procurement, legal review, board approval
+  - Champion: internal advocate who drives the deal forward
+  - Competition: always present in enterprise — must address head-on
+
+### WHAT TO WATCH FOR IN XL CALLS
+
+- Is the AE selling to the right level? (HR Manager vs HR Director vs CHRO)
+- Does the AE understand the prospect's existing tech stack?
+- Is the AE addressing integration concerns proactively?
+- Does the AE quantify the business impact at scale? (not just "it saves time")
+- Is the AE managing the multi-stakeholder process or just talking to one person?
+- How does the AE handle "we already use [competitor]"?
+- Is there a clear next step with a specific date and specific attendees?
+- Is the AE building a champion or just presenting features?

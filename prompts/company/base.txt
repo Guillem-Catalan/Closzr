@@ -1,0 +1,101 @@
+## FACTORIAL — COMPANY CONTEXT
+
+Factorial is a horizontal HR SaaS platform headquartered in Barcelona, Spain.
+It connects HR, IT, and Finance in a single platform for mid-market companies
+(typically 50-2000 employees, though it serves from 20 to 5000+).
+
+Factorial operates across Spain, Portugal, Italy, Germany, France, UK, Mexico,
+Brazil, and LATAM. Each market has its own sales teams and go-to-market strategy.
+
+### PRODUCT SUITE
+
+Factorial's platform is modular. Companies can start with one module and expand.
+The main modules are:
+
+- **Core HR**: Employee database, org chart, document management, digital signatures,
+  onboarding workflows, offboarding, custom fields and workflows.
+
+- **Time Management**: Clock-in/clock-out (app, web, terminal, geolocation),
+  shift planning and rotation, absence and holiday management, overtime tracking,
+  work calendar by location. This is often the entry point for companies that need
+  to comply with time tracking regulations.
+
+- **Payroll Preparation**: Factorial does NOT generate payslips — the company's
+  external payroll provider (Gestoría in Spain, Steuerberater in Germany, etc.) does.
+  Factorial prepares and organizes all payroll variables (hours, absences, bonuses,
+  deductions) and exports them in the format the payroll provider needs.
+  CRITICAL: Never say Factorial "does payroll" — it prepares payroll data.
+
+- **Talent Management**: Performance reviews, OKRs and goal tracking, skills matrix,
+  training and development plans, career paths. Includes 360 feedback and
+  competency assessments.
+
+- **Recruitment (ATS)**: Job posting, candidate pipeline, interview scheduling,
+  scorecards, offer management, career page builder.
+
+- **Expenses**: Expense report submission, approval workflows, receipt scanning via
+  OCR, corporate card integration, policy enforcement, payroll bridge for automatic
+  reimbursement. CRITICAL: Factorial Expenses is NOT just a receipt scanner — it is
+  a Financial Control Platform with a Payroll Bridge.
+
+- **Engagement**: Continuous feedback loops, pulse surveys, eNPS, anonymous channels,
+  recognition and kudos. CRITICAL: Factorial Engagement is NOT a survey tool — it is
+  a Continuous Feedback Loop designed to measure and improve employee satisfaction
+  in real time.
+
+- **Document Management**: Digital document storage, e-signatures, templates,
+  automatic generation of contracts and documents, compliance tracking.
+
+- **Analytics & Reports**: Custom dashboards, headcount analytics, turnover analysis,
+  absenteeism reports, compensation benchmarking, custom report builder.
+
+- **Integrations**: API, Slack, Google Workspace, Microsoft 365, major ERPs (SAP,
+  A3, DATEV, Zucchetti), payroll providers, SSO (SAML/OIDC).
+
+### PRODUCT HARD ERRORS — flag as CRITICAL if a rep says any of these:
+
+- Factorial does NOT generate payslips — the Gestoría/payroll provider does.
+  Factorial only prepares the payroll data.
+- Factorial Engagement is NOT a survey tool — it is a Continuous Feedback Loop.
+- Factorial Expenses is NOT a receipt scanner — it is a Financial Control Platform
+  with a Payroll Bridge.
+- Factorial is NOT just a time tracking or HR compliance tool — it is a horizontal
+  platform connecting HR, IT, and Finance.
+- Factorial does NOT replace ERPs — it integrates with them.
+- Factorial is NOT only for Spain — it operates in 10+ countries with localized
+  compliance per market.
+
+### IDEAL CUSTOMER PROFILE (ICP)
+
+High-fit companies typically have:
+- 50-2000 employees (sweet spot: 100-500)
+- Manual HR processes (Excel, paper, outdated tools)
+- Need for time tracking compliance (legal requirement in Spain, Germany, etc.)
+- Multiple locations or remote workers
+- Growing headcount (need scalable HR processes)
+- Currently using fragmented tools (one for time, another for payroll, another for recruitment)
+
+Industries that fit well: Services, hospitality, retail, healthcare, manufacturing,
+logistics, construction, technology, consulting, education.
+
+Industries that fit less: Very small businesses (<20 employees), public sector,
+companies with highly custom ERP-integrated HR workflows they don't want to change.
+
+### PRICING MODEL
+
+Factorial uses per-employee-per-month (PEPM) pricing. Plans vary by market and
+modules selected. There are typically 3-4 tiers. Custom pricing for large accounts.
+Onboarding fee is separate and varies by complexity.
+Partners may offer special partner pricing to their clients.
+
+### COMPETITIVE LANDSCAPE
+
+Main competitors vary by market:
+- Spain: Personio, Sesame, Kenjo, Factorial is market leader
+- Germany: Personio (dominant), HRworks, Factorial growing
+- Italy: Zucchetti (legacy), Factorial disrupting
+- France: PayFit, Lucca, Factorial entering
+- General: BambooHR, HiBob, Workday (enterprise), SAP SuccessFactors (enterprise)
+
+Factorial differentiates on: all-in-one platform (vs point solutions), ease of use,
+speed of implementation, local compliance per country, competitive pricing.

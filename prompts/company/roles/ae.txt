@@ -1,0 +1,114 @@
+## ROLE: AE (Account Executive — Direct Sales)
+
+The AE in direct sales owns the full deal cycle from first demo to close.
+Unlike PAEs in the partner channel, AEs do NOT have a partner warm entry.
+They must build trust, demonstrate value, and close entirely on their own.
+
+The AE receives qualified leads from SDRs but must do their own discovery
+— SDR qualification is lighter than PBD qualification. The AE should not
+assume anything and must validate everything in the first meeting.
+
+The AE's job is NOT to demo features. It is to run proper discovery,
+understand the business impact, map the decision-making process, build
+a champion, handle objections with substance, and drive to close.
+
+---
+
+## EVALUATION FRAMEWORK — MEDDIC
+
+Same framework as PAE. MEDDIC accumulates across all calls.
+Evaluate each pillar in the context of everything learned so far.
+
+Each pillar is evaluated as:
+- **Confirmed** — explicit, validated evidence
+- **Partial** — mentioned or partially explored but not fully qualified
+- **Missing** — not raised in any interaction so far
+- **N/A** — not applicable to this call type
+
+The six pillars:
+
+**Metrics** — Has the AE quantified the business impact?
+In direct sales, this is even more critical than partner channel
+because there is no partner trust to fall back on. The AE must
+build the ROI case: "You told me you spend X hours/month on
+manual processes — that's €Y/year in wasted time."
+
+**Economic Buyer** — Who signs the contract? In SMB it might be
+the CEO directly. In mid-market, the CFO or HR Director. The AE
+must ask: "Who else needs to approve this decision?"
+
+**Decision Criteria** — What are the must-haves? Price, features,
+integrations, security, implementation timeline? In direct sales,
+competitive criteria are often more explicit because the prospect
+is comparing actively.
+
+**Decision Process** — What happens between "we like it" and
+"we sign"? Legal review? Board approval? Multiple departments?
+The AE must map this early, not discover it at closing.
+
+**Champion** — Who inside the prospect is fighting for Factorial?
+The AE must consciously build this person. Give them ammunition:
+ROI slides, comparison sheets, internal pitch materials.
+
+**Competition** — In direct sales, competition is almost always
+present. The prospect is evaluating 2-3 alternatives. The AE must
+know which ones and address them directly, not avoid the topic.
+
+---
+
+## DEAL HEALTH & FORECAST
+
+Three critical questions:
+1. Is Factorial among the functional favorites?
+2. Is the price in an agreed range?
+3. Is there a specific signature date range?
+
+**GREEN** — Two or three confirmed
+**AMBER** — One missing or vague
+**RED** — Two or three missing
+
+---
+
+## DISCOVERY vs DEMO BALANCE
+
+A common AE mistake is showing product too early. The first meeting
+should be 70% discovery, 30% product. Only show what is relevant to
+the prospect's specific pain.
+
+- PASS: AE asked discovery questions before showing product. Demo
+  was tailored to specific pains mentioned by the prospect.
+- FLAG: Some discovery but AE showed full product walkthrough
+  regardless of what the prospect said.
+- FAIL: Generic demo with no discovery. Same presentation for everyone.
+
+---
+
+## OBJECTION HANDLING — AE
+
+Common objections in direct sales:
+- "We already use [Competitor]" → "What made you look at alternatives?"
+- "It's too expensive" → "Compared to what? Let me show you the ROI."
+- "We need [specific feature]" → "Let me show you how we solve that."
+- "I need to check with my boss" → "Great, can we schedule a call with them?"
+- "The timing isn't right" → "When would be better, and what changes then?"
+- "We need an integration with [X]" → Address honestly. If yes, show it.
+  If not yet, give a timeline.
+
+---
+
+## DEAL LIFECYCLE — AE
+
+**First meeting** — Discovery + tailored demo. Must leave with clear
+MEDDIC progress and a concrete next step.
+
+**Follow-up** — Deepen discovery, involve additional stakeholders,
+resolve technical concerns, send proposal.
+
+**Negotiation** — Price discussion, contract terms, implementation plan.
+Must maintain value-based selling, not just discount.
+
+**Closing** — Drive to signature. Create legitimate urgency.
+Handle last-minute objections.
+
+When deal history is provided, evaluate in context of deal stage
+and what should have been accomplished by now.

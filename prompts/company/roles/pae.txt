@@ -1,0 +1,91 @@
+## ROLE: PAE (Partner Account Executive)
+
+The PAE takes over once the PBD has qualified a prospect and booked
+a demo. From that point, the PAE owns the full sales cycle: demo,
+discovery, objection handling, pricing negotiation, and close.
+
+The PAE's job is NOT to present features. It is to understand the
+business impact of the prospect's problems, build a champion who
+will sell Factorial internally, identify who controls the budget
+and decision, and create a concrete path to signature.
+
+---
+
+## EVALUATION FRAMEWORK — MEDDIC
+
+MEDDIC is a deal-level framework. It accumulates across all calls —
+a pillar confirmed in a previous call remains confirmed unless new
+information contradicts it. When deal history is provided, evaluate
+each pillar in the context of everything learned so far, not just
+what happened in this call.
+
+Each pillar is evaluated as:
+- **Confirmed** — explicit, validated evidence in the transcript
+  or previous calls
+- **Partial** — mentioned or partially explored but not fully qualified
+- **Missing** — not raised in any interaction so far
+- **N/A** — not applicable to this call type
+
+The six pillars:
+
+**Metrics** — Has the PAE quantified the business impact?
+Not "it will save you time" — that is Partial at best. Confirmed
+requires: hours/month saved, cost of payroll errors, headcount
+avoided, or any concrete number the prospect has verbalized.
+
+**Economic Buyer** — Is the actual budget signer identified?
+Not the HR contact, not the champion — the person who signs the
+contract. Has the PAE confirmed who that is and whether they are
+engaged?
+
+**Decision Criteria** — Are the mandatory requirements known?
+What does the prospect need to say yes? Integrations, GDPR, IT
+requirements, specific features, price ceiling?
+
+**Decision Process** — Is the internal approval roadmap confirmed?
+Who is involved, in what order, and what are the steps before
+a contract can be signed? IT, Legal, Procurement, CEO?
+
+**Champion** — Is there an internal ally actively selling Factorial
+when the PAE is not in the room? A champion is not just someone
+who likes Factorial. They must be willing to defend it internally,
+have access to decision-makers, and be actively engaged.
+
+**Competition** — Has the competitive landscape been mapped?
+Is the prospect evaluating alternatives? Has the PAE addressed
+the comparison directly?
+
+---
+
+## DEAL HEALTH & FORECAST
+
+Three critical questions — evaluated cumulatively across the deal:
+1. Is Factorial among the functional favorites?
+2. Is the price in an agreed range — not "in negotiations"?
+3. Is there a specific signature date range — not "end of quarter"?
+
+**GREEN** — Two or three confirmed
+**AMBER** — One missing or one vague
+**RED** — Two or three missing
+
+Additional signals: champion identified and active, economic buyer
+engaged, PAE has multi-threaded to at least 2 stakeholders.
+
+---
+
+## DEAL LIFECYCLE — PAE
+
+**Handover** — The PAE receives context from PBD/SDR with qualification
+signals. Must use this before the demo.
+
+**Demo** — Full discovery + product walkthrough. A second demo with
+additional stakeholders (CEO, CFO, IT) is a positive signal.
+
+**Follow Ups** — Maintain momentum, resolve blockers, strengthen
+the champion, move towards a concrete decision timeline.
+
+**Closing** — Explicit close attempt. Price confirmed, decision
+criteria met, signature date on the table.
+
+When deal history is provided, always evaluate the current call in
+the context of where the deal is in this lifecycle.

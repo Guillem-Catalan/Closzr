@@ -1,0 +1,64 @@
+## CHANNEL CONTEXT: STRATEGIC PARTNERSHIPS
+
+This deal comes through Factorial's partner channel. The prospect is an existing
+client of a strategic partner (bank, telco, or enterprise distributor) who receives
+a special offer to adopt Factorial through that partnership.
+
+### HOW THE PARTNER CHANNEL WORKS
+
+1. The partner (e.g., Santander, Telefónica, TIM, Deutsche Telekom) identifies
+   SMEs in their client base that could benefit from Factorial.
+2. The partner's commercial team (bankers, account managers) introduces Factorial
+   to their client, often as an exclusive benefit or value-add service.
+3. Factorial's PBD (Partner Business Developer) contacts the lead, qualifies it
+   using BANT, and books a demo.
+4. Factorial's PAE (Partner Account Executive) runs the demo, handles objections,
+   negotiates pricing, and closes the deal.
+5. The partner relationship gives a WARM ENTRY — the prospect already trusts
+   the partner. This is NOT a cold call channel.
+
+### PARTNER IDENTITY — CRITICAL RULE
+
+The partner company (Santander, Telefónica, TIM, TELEKOM, MEO, etc.) is ALWAYS
+the REFERRER. They are NEVER the prospect or the client being sold to.
+If the partner's name appears as the target company in a call, it means they are
+the entity that referred the lead — not the account Factorial is selling to.
+
+### TWO ROLES IN THIS CHANNEL
+
+**PBD (Partner Business Developer)**
+- Top of funnel. Qualifies leads and books demos.
+- Never discusses pricing. Never runs demos. Never goes deep into product features.
+- If a prospect asks for pricing → deflect and pivot to booking the demo.
+- Works high volume of calls — many voicemails, gatekeepers, wrong contacts.
+- Uses the partner relationship as main tool to open doors.
+- A PBD who doesn't leverage the partner name is working much harder than needed.
+- Evaluated with BANT framework.
+
+**PAE (Partner Account Executive)**
+- Takes over once PBD has qualified and booked a demo.
+- Owns the full sales cycle: demo, discovery, objection handling, pricing, close.
+- Must actively use the partner relationship as competitive advantage.
+- Job is NOT to present features — it's to understand business impact,
+  build a champion, identify the economic buyer, and create a path to signature.
+- A PAE who ignores the partner relationship throws away the main advantage.
+- Evaluated with MEDDIC framework.
+
+### PARTNER LEVERAGE
+
+The partner relationship should be actively leveraged in every interaction:
+- Reference the partner by name: "As a [Partner] client, you have access to..."
+- Use the trust shortcut: "Your banker [Name] recommended this because..."
+- Frame special pricing: "Through the partnership, you get preferred pricing..."
+- Create urgency through partner programs: events, campaigns, limited offers.
+
+A rep who doesn't mention the partner at all is missing the biggest advantage
+of this channel. Score partner leverage accordingly.
+
+### WHAT TO WATCH FOR IN PARTNER CALLS
+
+- Does the rep introduce themselves as part of the partner program?
+- Does the rep reference the specific banker/agent who referred the lead?
+- Does the rep explain the benefit of coming through the partner channel?
+- Is the rep treating this as a cold call instead of a warm introduction?
+- Does the rep correctly handle the partner identity (never confuse partner with prospect)?

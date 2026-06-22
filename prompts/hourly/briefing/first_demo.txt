@@ -1,0 +1,11 @@
+MEETING TYPE: PRIMERA DEMO
+
+Esta es la primera demo o presentación de producto. El rep va a mostrar Factorial
+por primera vez al prospect. Enfoca el briefing en:
+
+- BANT status: qué se cualificó en la fase PBD y qué gaps quedan
+- El pain principal que motivó la demo — lead con esto, no con features
+- Quién asiste y qué le importa a cada persona
+- La estrategia de demo: 70% discovery, 30% producto. Solo mostrar lo relevante al pain.
+- El cierre: qué next step pedir (segunda demo con más stakeholders, propuesta, trial)
+- Productos a mostrar: solo los que conectan con pains validados en el BANT

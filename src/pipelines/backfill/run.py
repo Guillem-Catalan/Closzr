@@ -157,14 +157,22 @@ def _fetch_team_deals(team: str) -> list[dict]:
     """Fetch all active deals for a team, ordered by stage priority + MRR."""
     stages = list(ACTIVE_STAGES)
 
-    resp = (
-        supabase.table(_I["deals_table"])
-        .select("*")
-        .eq(_I["deal_col_team"], team)
-        .in_(_I["deal_col_stage"], stages)
-        .execute()
-    )
-    deals = resp.data or []
+    deals = []
+    offset = 0
+    while True:
+        resp = (
+            supabase.table(_I["deals_table"])
+            .select("*")
+            .eq(_I["deal_col_team"], team)
+            .in_(_I["deal_col_stage"], stages)
+            .range(offset, offset + 999)
+            .execute()
+        )
+        batch = resp.data or []
+        deals.extend(batch)
+        if len(batch) < 1000:
+            break
+        offset += 1000
 
     # Filter out partner company deals
     filtered = []

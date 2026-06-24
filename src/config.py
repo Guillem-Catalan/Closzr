@@ -183,25 +183,30 @@ PARTNERS_ORGCHART = {
     },
 
     # ====================================================================
-    # MEXICO — equipo independiente (antes subteam de Santander)
+    # SANTANDER CHANNEL — equipo México (antes "Mexico")
+    # Deals con partner association → team del partner (ej: "Santander Mexico")
+    # Deals sin partner → team = "Santander Channel"
     # ====================================================================
 
-    "Mexico": {
+    "Santander Channel": {
         "active": False,
         "leadership": {
-            "director": {"email": "francesc.terns@factorial.co", "name": "Francesc Terns", "role": "Channel Manager Mexico"},
+            "director_1": {"email": "francesc.terns@factorial.co", "name": "Francesc Terns", "role": "Channel Manager Mexico"},
+            "director_2": {"email": "ernesto.blanco@factorial.co", "name": "Ernesto Blanco Sierra", "role": "Director Mexico"},
         },
         "pbd": {
             "diego.hernandez@factorial.co",
-            "marta.ruiz@factorial.co",        # doble rol: PBD Santander ES + PBD México
+            "marta.ruiz@factorial.co",
         },
         "pae": {
             "diana.bernal@factorial.co",
             "ernesto.blanco@factorial.co",
             "cristian.ramos@factorial.co",
             "daniela.orozco@factorial.co",
-            "diego.hernandez@factorial.co",    # doble rol: PBD + PAE
-            "xavier.fortuny@factorial.co",     # PAE Sant ES, lleva algunos deals MX
+            "diego.hernandez@factorial.co",
+            "xavier.fortuny@factorial.co",
+            "eduardo.mahr@factorial.co",
+            "fabiola.villalobos@factorial.co",
         },
     },
 }
@@ -383,10 +388,18 @@ PARTNER_IDENTITY = {
         "lang_file": "lang_en.txt",
         "tz": "Europe/Berlin",
     },
-    "Mexico": {
+    "Santander Mexico": {
         "partner_names": {"santander mexico", "santander mx", "santander méxico"},
         "partner_domains": {"gruposantander.es", "gruposantander.com", "santander.com"},
         "prompt_partner_label": "Santander Mexico",
+        "lang": "es",
+        "lang_file": "lang_es_startup.txt",
+        "tz": "America/Mexico_City",
+    },
+    "Santander Channel": {
+        "partner_names": set(),
+        "partner_domains": set(),
+        "prompt_partner_label": "Santander Channel",
         "lang": "es",
         "lang_file": "lang_es_startup.txt",
         "tz": "America/Mexico_City",
@@ -514,7 +527,6 @@ SYNC_STRATEGY = {
     "default_mode": "incremental",
     "full_sync_interval_hours": 168,    # full sync semanal
     "incremental_lookback_minutes": 70, # 70 min para no perder deals entre runs de 60 min
-    "batch_owner_ids_per_group": 5,     # max filterGroups en HubSpot search = 5
 }
 
 # --- Core trigger ---
@@ -531,55 +543,30 @@ CORE_TRIGGER = {
     "supabase_column": "last_activity_hs",       # columna en Supabase para comparar
 }
 
-# --- Fase 1: config por partner ---
+# --- Partner object mapping (HubSpot custom object → team) ---
 
-PARTNER_SEARCH = {
-    "Santander": {
-        "hs_partner_names": ["Santander"],                          # 5,385 deals en active pipelines
-        "hs_team_values": ["Partners - PAE ES Santander"],
-        "hs_dealname_tokens": ["santander"],
-        "hs_campaign_token": "#4767807590",
-    },
-    "Telefonica": {
-        "hs_partner_names": ["Telefonica", "Telefónica"],           # 2,094 deals
-        "hs_team_values": [
-            "Partners - PAE ES Telefonica",
-            "Partners - PAE ES Telefónica",
-            "Partners - PAE ES",
-        ],
-        "hs_dealname_tokens": ["telefonica", "telefónica"],
-    },
-    "TIM": {
-        "hs_partner_names": ["TIM"],                                # 1,180 deals
-        "hs_team_values": ["Partners - PAE IT", "Partners - PBD IT TIM", "Partners - PDM IT"],
-        "hs_campaign_token": "#25968646986",
-    },
-    "TELEKOM": {
-        "hs_partner_names": ["Deutsche Telekom"],                   # 1,924 deals
-        "hs_team_values": ["Partners - PAE DACH", "Partners - PDM DACH"],
-        "hs_campaign_token": "#25359694224",
-    },
-    "Mexico": {
-        "hs_team_values": ["Partners - PBD LATAM", "Partners - PDM LATAM"],
-        "hs_dealname_tokens": ["SANTANDER MX"],
-    },
+PARTNER_OBJECT_TYPE_ID = "2-3229093"
+
+# HubSpot Partner object ID → team name
+PARTNER_OBJECT_MAP = {
+    "4767807590":    "Santander",       # Santander
+    "401845373146":  "Santander Mexico",# Santander México
+    "28079747484":   "Santander",       # Santander PT
+    "4767660726":    "Telefonica",      # Telefonica
+    "25968646986":   "TIM",             # TIM
+    "25359694224":   "TELEKOM",         # Deutsche Telekom
+    "34458760336":   "MEO",             # MEO / Altice
 }
 
-# --- Fase 2: team_string overrides (Mexico) ---
-
-TEAM_STRING_SEARCH = {
-    "Partners - PBD LATAM": "Mexico",
-}
-
-# --- Fase 3: pipelines por tipo de equipo para busqueda by_owner ---
-
-OWNER_SEARCH_PIPELINES = {
-    # DS busca en Sales + OB SDR + IB SDR (no XL pipelines)
-    "DS": ["Sales Pipeline", "OB SDR Pipeline", "IB SDR Pipeline"],             # ~19,136 deals
-    # XL busca en XL pipelines + Sales
-    "XL": ["XL Account Pipeline", "XL SDR Pipeline", "Sales Pipeline"],         # ~5,487 deals
-    # Partners PAEs en non-partner pipelines (captura deals sin partner_name)
-    "Partners": ["Sales Pipeline", "OB SDR Pipeline", "IT AE Pipeline", "IT SDR Pipeline"],
+# HubSpot Partner object ID → partner display name
+PARTNER_NAMES = {
+    "4767807590":    "Santander",
+    "401845373146":  "Santander México",
+    "28079747484":   "Santander PT",
+    "4767660726":    "Telefonica",
+    "25968646986":   "TIM",
+    "25359694224":   "Deutsche Telekom",
+    "34458760336":   "MEO / Altice",
 }
 
 # --- 4c. HubSpot owner ID por email (para busqueda by_owner) ---
@@ -626,11 +613,13 @@ HUBSPOT_OWNER_IDS = {
     "diego.hernandez@factorial.co": {"id": "133287347", "name": "Diego Osvaldo Hernandez Vicuña"},
     "edgar.ybarguengoitia@factorial.co": {"id": "85521152", "name": "Edgar Ybargüengoitia"},
     "edoardo.rapezzi@factorial.co": {"id": "86687949", "name": "Edoardo Rapezzi"},
+    "eduardo.mahr@factorial.co": {"id": "554934310", "name": "Eduardo Mahr"},
     "eduardo.zafra@factorial.co": {"id": "561316186", "name": "Eduardo Zafra"},
     "emilio.fabbro@factorial.co": {"id": "77408871", "name": "Emilio Fabbro"},
     "enrique.gautier@factorial.co": {"id": "76126161", "name": "Enrique Gautier Bolz"},
     "ernesto.blanco@factorial.co": {"id": "80909459", "name": "Ernesto Blanco Sierra"},
     "fiona.durr@factorial.co": {"id": "82557508", "name": "Fiona Dürr"},
+    "fabiola.villalobos@factorial.co": {"id": "94319291", "name": "Fabiola Villalobos Damian"},
     "francesc.terns@factorial.co": {"id": "82179188", "name": "Francesc Terns"},
     "gabriel.lichtenstein@factorial.co": {"id": "32550082", "name": "Gabriel Lichtenstein"},
     "gerard.ghneim@factorial.co": {"id": "311993943", "name": "Gerard Ghneim Peroy"},
@@ -700,45 +689,6 @@ HUBSPOT_OWNER_IDS = {
 }
 
 HUBSPOT_ACCOUNT_ID = "4960096"
-
-# --- 4d. Deal routing — como asignar cada deal a un equipo ---
-#
-# Regla 1: Partners Distribution + SDR Partner → SIEMPRE Partners.
-#          partner_name determina Santander/Telefonica/TIM/TELEKOM.
-# Regla 2: Sales/OB SDR/IB SDR/etc → el OWNER determina el equipo.
-#          Deal con partner_name=Santander pero AE=Tania Diaz (DS) → DS Tania.
-# Regla 3: Mexico → team_string 'Partners - PBD LATAM' (partner_name no fiable).
-# Regla 4: Pipelines excluidos (Onboarding, Upselling, Churn, etc.) → ignorar.
-
-PIPELINE_RULES: dict[str, str] = {
-    "Partners Distribution": "partners",
-    "SDR Partner Opportunities Pipeline": "partners",
-    "Sales Pipeline": "by_owner",
-    "OB SDR Pipeline": "by_owner",
-    "IB SDR Pipeline": "by_owner",
-    "XL Account Pipeline": "by_owner",
-    "XL SDR Pipeline": "by_owner",
-    "IT AE Pipeline": "by_owner",
-    "IT SDR Pipeline": "by_owner",
-}
-
-PARTNER_NAME_MAP: dict[str, str] = {
-    "Santander": "Santander",
-    "Telefonica": "Telefonica",
-    "Telefónica": "Telefonica",
-    "TIM": "TIM",
-    "Deutsche Telekom": "TELEKOM",
-}
-
-TEAM_STRING_OVERRIDES: dict[str, str] = {
-    "Partners - PBD LATAM": "Mexico",
-    "Partners - PDM LATAM": "Mexico",
-}
-
-# Mismos pipelines excluidos pero en lowercase (para comparacion case-insensitive en routing)
-EXCLUDE_PIPELINES_LOWER = frozenset(
-    HUBSPOT_PIPELINE_IDS[pid].lower() for pid in EXCLUDE_PIPELINE_IDS
-)
 
 
 # ============================================================================
@@ -1853,6 +1803,7 @@ ATLAS_CONFIG = {
 INTELLIGENCE_CONFIG = {
     # ── Prompts ──────────────────────────────────────────────────────────────
     "system_prompt_path": "core/intelligence/system.txt",
+    "product_catalog_path": "core/intelligence/product_catalog.txt",
     "base_prompt_path": "company/base.txt",
     "channel_prompts": {
         "partners": "company/channels/partners.txt",
@@ -2102,7 +2053,8 @@ SYNC_CONFIG = {
 # 15. THRESHOLDS
 # ============================================================================
 
-MAX_DEALS_PER_CYCLE = 30
+MAX_DEALS_PER_CYCLE = 50
+CORE_TIMEOUT_MINUTES = 55
 UPSERT_BATCH_SIZE = 500
 MIN_TRANSCRIPT_LENGTH = 100
 MIN_TRANSCRIPT_FOR_AUDIT = 200
@@ -2632,31 +2584,14 @@ def get_slack_channel_by_name(name: str) -> str | None:
     return None
 
 
-def get_deal_team(pipeline: str, partner_name: str | None,
-                  owner_email: str | None, team_string: str | None = None
-                  ) -> str | None:
-    """Devuelve el nombre del equipo al que pertenece un deal, o None si excluido."""
-    if pipeline and pipeline.lower() in EXCLUDE_PIPELINES_LOWER:
-        return None
-    rule = PIPELINE_RULES.get(pipeline)
-    if rule == "partners":
-        if team_string and team_string in TEAM_STRING_OVERRIDES:
-            return TEAM_STRING_OVERRIDES[team_string]
-        if partner_name and partner_name in PARTNER_NAME_MAP:
-            return PARTNER_NAME_MAP[partner_name]
-        return None
-    if rule == "by_owner":
-        if owner_email:
-            teams = _EMAIL_TO_TEAMS.get(owner_email, [])
-            if len(teams) == 1:
-                return teams[0]
-            if len(teams) > 1 and partner_name:
-                mapped = PARTNER_NAME_MAP.get(partner_name)
-                if mapped and mapped in teams:
-                    return mapped
-            if teams:
-                return teams[0]
-        return None
+def get_deal_team(partner_id: str | None, owner_email: str | None) -> str | None:
+    """Assign team via partner association ID or owner email."""
+    if partner_id and partner_id in PARTNER_OBJECT_MAP:
+        return PARTNER_OBJECT_MAP[partner_id]
+    if owner_email:
+        teams = _EMAIL_TO_TEAMS.get(owner_email, [])
+        if teams:
+            return teams[0]
     return None
 
 

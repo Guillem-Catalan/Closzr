@@ -1,0 +1,415 @@
+## FACTORIAL PRODUCT CATALOG — for product intelligence analysis
+
+Each module solves specific pains. When analyzing conversations, map prospect pains
+to these modules. When recommending, connect the product to the pain the prospect
+actually expressed — never do a generic feature dump.
+
+Use pricing to estimate MRR impact of recommendations. Architecture: per-seat means
+price × employees/month. Fixed means flat fee/month. Business and Enterprise are tiers.
+
+---
+
+## CORE PLATFORM
+
+### Employee Platform / Core HR
+Architecture: Per seat | Business: €1.1 | Enterprise: €1.7
+What it does: Employee database, org chart, document management with unlimited e-signatures,
+onboarding/offboarding workflows, custom tasks and notifications, report library, agreements,
+communities, smart document templates, movement history with audit log, custom SQL reports.
+Pains it solves:
+- "Tenemos la info de empleados repartida entre Excel, carpetas y emails"
+- "El onboarding es caótico — cada manager lo hace a su manera"
+- "Firmamos contratos en papel, tardamos días en recogerlos"
+- "No tenemos un organigrama actualizado"
+How to pitch: Foundation of everything. "Una sola fuente de verdad para toda la empresa.
+Los contratos se firman digitalmente en minutos. El onboarding del nuevo empleado está
+listo antes de que llegue."
+Always included as the base. Every customer has this.
+
+### One (AI Credits Platform)
+Architecture: Fixed fee per credit pack
+Starter: 1000 credits €109/mo | Growth: 2000 credits €199/mo | Scale: 5000 credits €549/mo
+XL: Starter 10k €999/mo | Growth 20k €1,750/mo | Mid 40k €3,000/mo | Scale 100k €7,000/mo
+What it does: AI agent that multiplies team potential. Co-creates surveys and courses,
+handles frequent employee questions, AI-powered ticket classification, transcription of
+1:1 meetings, AI analysis of performance reviews.
+Pains: "El equipo de HR pierde tiempo respondiendo las mismas preguntas", "No tenemos
+capacidad para crear contenido formativo"
+Pitch when: companies wanting to scale HR without adding headcount.
+
+### Ticketing
+What it does: Centralized employee request inbox. AI-powered ticket classification,
+automated routing and assignment, real-time status tracking, SLA monitoring, context
+auto-fill from HR data, analytics and resolution reporting.
+Pains: "Los empleados preguntan por Slack, email, en persona — perdemos peticiones",
+"No sabemos cuánto tardamos en resolver cada tipo de petición"
+Pitch when: 100+ employees with high volume of HR requests.
+
+---
+
+## TIME & OPERATIONS
+
+### Time Tracking
+Architecture: Per seat | Business: €2.8 | Enterprise: €4.3
+What it does: Clock-in/clock-out (mobile app, QR code, ID number, web), geolocation,
+geofencing alerts, break management (fixed/semi-flexible/flexible), overtime control
+(extra, complementary, special hours), real-time attendance dashboard, auto-fill timesheets,
+multiple time tracking policies, export of detailed reports.
+Pains it solves:
+- "Hacemos los fichajes en papel / Excel / con una hoja de firmas"
+- "No sabemos cuántas horas extras se hacen realmente"
+- "El control horario nos da problemas con la inspección de trabajo"
+- "Los empleados fichan desde diferentes ubicaciones y no lo controlamos"
+How to pitch: Legal compliance (mandatory in ES, DE, IT, FR). "Cumples la ley desde
+el primer día. Las horas van directo a nómina sin copiar datos. Sabes en tiempo real
+quién está y quién no."
+Cross-sell: Always pairs with Time Off (98% co-adoption) and Shift Management (if shifts).
+Benchmark: 81% adoption. Entry point for most companies.
+
+### Time Off
+Architecture: Per seat | Business: €2.8 | Enterprise: €4.3
+What it does: Absence and holiday management, unlimited time off policies, multi-level
+approvals, blocked periods, prorated tenure, overtime compensation with time off or payroll,
+multiple calendar views, flexible cycles, attachment support.
+Pains it solves:
+- "Gestionamos las vacaciones por email / WhatsApp"
+- "No sabemos quién está de vacaciones hasta que llega el día"
+- "Los saldos de días los calculamos en Excel — siempre hay errores"
+- "El proceso de aprobación es un caos con varios niveles"
+How to pitch: "Todo el equipo ve quién está de vacaciones, sin preguntar. Las solicitudes
+se aprueban desde el móvil en un click. Los saldos se calculan automáticamente."
+Cross-sell: 98% co-adoption with Time Tracking — ALWAYS sell together.
+Benchmark: 84% adoption. Most adopted product overall.
+
+### Shift Management
+Architecture: Per seat | Business: €2.7 | Enterprise: €4.0
+What it does: Shift planning with drag-and-drop, automatic scheduling based on coverage,
+rotating shift templates, shift swapping via mobile app (with manager approval), conflict
+alerts, break management during shifts, mass shift assignment, exportable plans.
+Pains it solves:
+- "Los turnos los hacemos en Excel y tardamos horas"
+- "Tenemos rotaciones y es un caos cuadrarlas"
+- "Cuando alguien falta no sabemos quién puede cubrir"
+- "El encargado pierde medio día montando el cuadrante"
+- "Los cambios de turno se gestionan por WhatsApp"
+How to pitch: Time saved (typical: 4-8h/week). "Los turnos se montan con drag-and-drop,
+con alertas si hay conflictos. Los empleados piden cambios desde la app y el manager
+aprueba en un click. El turno asignado ya marca el fichaje — un solo sistema."
+Cross-sell: 97% co-adoption with Time Tracking. Primary pain in Hospitality/Healthcare.
+Benchmark: 31% overall. 65% Hospitality, 43% Healthcare, 50% Food & Beverage.
+
+### Project Management
+Architecture: Per seat | Business: €2.8 | Enterprise: €4.3
+What it does: Project creation, resource allocation, task management (Kanban view, subtasks,
+deadlines), budget tracking, cost and hour tracking per project, profitability analysis,
+quote-to-project conversion, flexible billing rates, classification internal/external
+and billable/non-billable.
+Pains it solves:
+- "No sabemos cuántas horas dedicamos a cada proyecto"
+- "No controlamos la rentabilidad por proyecto / cliente"
+- "Tenemos subcontratas y no rastreamos sus horas"
+- "Creamos presupuestos pero luego no hacemos seguimiento"
+How to pitch: Profitability visibility. "Las horas fichadas se imputan al proyecto
+automáticamente. Ves en tiempo real si un proyecto es rentable o no. Los presupuestos
+se convierten en proyectos con un click."
+Cross-sell: 100% co-adoption with Time Tracking. Strong in Construction (25%), Consulting.
+Benchmark: 10% adoption.
+
+### Space Management
+Architecture: Per seat | Business: €1.0
+What it does: Desk booking, meeting room management, shared area reservations,
+multi-device access (web and mobile), customizable time slots.
+Pains: "No sabemos quién viene a la oficina cada día", "Las salas se reservan por email
+y siempre hay conflictos"
+Pitch when: hybrid/remote work model, multiple offices, hot desking, post-COVID return.
+
+---
+
+## TALENT & PEOPLE
+
+### Performance
+Architecture: Per seat | Business: €2.8 | Enterprise: €4.5
+What it does: 180° and 360° reviews, AI analysis and summaries, OKRs and KPI tracking,
+competency assessment with spider chart, 9-box grid for high/low performers, heatmap
+and bell curve, action plans from evaluations, evaluation agreements (create, sign, download),
+weighting of sections and evaluators, talent analytics.
+Pains it solves:
+- "No tenemos evaluaciones de desempeño formales"
+- "Queremos implementar OKRs pero no tenemos herramienta"
+- "No sabemos quiénes son nuestros top performers ni quién necesita apoyo"
+- "Las evaluaciones las hacemos en Word/Excel y se pierden"
+How to pitch: "Crea una cultura de feedback continuo. Identifica a tus top performers
+con el 9-box grid. La IA resume las evaluaciones para que el manager tome decisiones,
+no lea documentos. Empresas que evalúan retienen un 30% más."
+Cross-sell: Performance + Engagement co-adopt 80%. ALWAYS pitch together.
+Benchmark: 21% overall. 52% in 500+ employees. MRR uplift: +€566/month.
+
+### Engagement
+Architecture: Per seat | Business: €2.1 | Enterprise: €4.5
+What it does: eNPS surveys with analytics, workplace climate surveys and reports,
+team pulse surveys, custom survey templates, 1:1 video calls with AI transcription,
+AI chat to analyze 1:1 meetings, employee context dashboard (pulse, goals, evaluations),
+AI-generated reports on pulse trends.
+CRITICAL: NOT a survey tool — Continuous Feedback Loop for real-time satisfaction.
+Pains it solves:
+- "No sabemos cómo está el clima laboral hasta que es tarde"
+- "Hacemos una encuesta anual pero cuando llegan los resultados ya es tarde"
+- "Tenemos rotación alta y no entendemos por qué"
+- "Los managers no hacen 1:1s porque no saben cómo estructurarlos"
+How to pitch: Retention and culture. "El eNPS te dice cada semana cómo está tu equipo.
+Los 1:1s guiados por IA ayudan a los managers sin preparación previa. Detectas problemas
+antes de que la gente se vaya."
+Cross-sell: 96% of Engagement users also have Performance — inseparable.
+Benchmark: 17% overall. 53% UK, 41% Mexico, 31% Brazil. MRR uplift: +€606/month.
+
+### Trainings
+Architecture: Per seat | Business: €2.8
+What it does: Training catalog, request and approval workflows, knowledge tests,
+attendance and completion tracking, internal documents and materials, mobile access,
+analytics and KPI dashboard, integration with Performance for development plans,
+satisfaction and effectiveness surveys, course validity and recertification alerts,
+automatic certificate generation, FUNDAE automation (Spain).
+Pains it solves:
+- "La formación se gestiona con Excel / no tenemos registro"
+- "No sabemos qué certificaciones están caducadas"
+- "No podemos demostrar las horas de formación a la inspección"
+- "Queremos vincular la formación con el desarrollo profesional"
+How to pitch: "Olvida el Excel. Crea planes de formación vinculados a las evaluaciones de
+desempeño. Los certificados se generan automáticamente. En España, FUNDAE automatizado."
+Cross-sell: 71% of Trainings users also have Performance.
+Benchmark: 20% overall. MRR uplift: +€615/month.
+
+### LMS (Learning Management System)
+Architecture: Per seat | Business: €2.0
+Bundle: LMS + AI Literacy (EU AI Act) €2.5 | Trainings + LMS + AI €4.5
+What it does: Native course builder, multi-step modules (text, video, quizzes), automatic
+completion tracking, course catalog, certification and diploma generation, mobile access,
+AI co-creation of quizzes and e-learning content (via One), SCORM import.
+Pains: "Necesitamos crear cursos propios pero no tenemos plataforma", "Tenemos que cumplir
+con la normativa EU AI Act y no sabemos cómo"
+Pitch when: regulated industries needing compliance training, EU AI Act compliance,
+companies wanting to create internal knowledge base.
+
+### Recruitment (ATS)
+Architecture: Per seat €2.5 Business OR Fixed tiers:
+5 Active Jobs: €98.9 / €143.3 | 10 Jobs: €154.4 / €232.2 | Unlimited: €276.7 / €332.2
+What it does: Job posting on 250+ portals (LinkedIn, Indeed, InfoJobs), AI Top Match
+to highlight candidates, customizable hiring stages, email automation, killer questions,
+push notifications, collaboration with unlimited hiring managers, GDPR consent management,
+analytics (time-to-hire, funnel, diversity, sources), bulk CV import, talent pool AI selection.
+Pains it solves:
+- "Recibimos CVs por email y los perdemos"
+- "No tenemos un proceso de selección estandarizado"
+- "Publicamos ofertas manualmente en cada portal"
+- "No sabemos cuánto tardamos en contratar ni de dónde vienen los candidatos"
+How to pitch: "Publica en 250+ portales con un click. La IA destaca los mejores candidatos.
+Los managers colaboran directamente — sin forwards de CVs. Cuando firma, su onboarding
+ya está listo en Factorial."
+Cross-sell: 59% also have Performance.
+Benchmark: 11% adoption. Highest MRR uplift: +€850/month.
+
+### Trust Channel (Whistleblower)
+Architecture: Per seat | Business: €1.0
+What it does: Anonymous and confidential reporting channel, two-way communication,
+centralized case management, multiple sending channels, smart alerts, complete audit log.
+GDPR compliant.
+Pains: "Tenemos que cumplir con la directiva de denuncias pero no tenemos canal",
+"Queremos un canal anónimo pero seguro para reportar irregularidades"
+Pitch when: 50+ employees (mandatory in EU), regulated industries, compliance focus.
+
+---
+
+## FINANCE & PAYROLL
+
+### Compensation
+Architecture: Per seat | Business: €2.5
+What it does: Guided collaborative payroll cycle, automatic sync of time off/schedule/
+benefits/expenses with payroll, mass compensation creation, integration with payroll
+software, SEPA payment generation, payslip distribution with intelligent document reading,
+financial workspace with cost evolution visibility.
+CRITICAL: Factorial does NOT generate payslips — prepares data for the payroll provider.
+Pains it solves:
+- "Pasamos las horas a la gestoría a mano cada mes"
+- "Siempre hay errores en la nómina por datos incorrectos"
+- "No tenemos visibilidad de los costes salariales"
+- "La comunicación con la gestoría es por email y Excel"
+How to pitch: "Las horas, ausencias y gastos van directo a nómina sin copiar datos.
+El ciclo de nómina es colaborativo — managers y empleados participan. Detectas errores
+automáticamente antes de enviar a la gestoría."
+Cross-sell: 43% co-adoption with Shift Management.
+Benchmark: 9% adoption, 28% in Germany. MRR uplift: +€601/month.
+
+### Payroll Connect
+Architecture: Per seat | Business: €4.0
+What it does: Direct integration with payroll provider software (a3innuva, DATEV, etc.),
+automatic sync of hires/terminations/absences/disability, real-time data sharing,
+eliminates manual data entry between HR and payroll.
+Pains: "Enviamos altas y bajas a la gestoría por email — a veces se pierden",
+"La gestoría nos pide datos que ya tenemos en el sistema pero hay que reenviarlos"
+Pitch when: companies with complex payroll operations, multiple locations, frequent changes.
+
+### Expenses
+Architecture: Fixed fee (€43.3 Business / €76.7 Enterprise) + per-user tiers:
+1-20 users: €4.0/€6.0 | 21-50: €3.2/€4.8 | 51-100: €2.8/€4.2 | 100+: €2.0/€3.0
+CRITICAL: NOT just a receipt scanner — Financial Control Platform with Payroll Bridge.
+What it does: AI-powered receipt scanning (OCR) on mobile and web, AEAT certification (Spain),
+Factorial Cards with limits and usage control, multi-stage approval workflows, real-time
+expense tracking with smart alerts, linking to projects, multi-currency support, SEPA payments,
+payroll reimbursement bridge, contractor expense declarations.
+Pains it solves:
+- "Los tickets de gasolina / dietas se pierden"
+- "Cuadramos gastos a final de mes y siempre hay errores"
+- "El proceso de aprobación de gastos es manual — emails ida y vuelta"
+- "Los reembolsos tardan semanas"
+- "No tenemos control de las tarjetas de empresa"
+How to pitch: "Foto del ticket desde el móvil, la IA rellena el formulario. Aprobación
+multi-nivel automática. El reembolso va directo a la nómina — cero intervención manual.
+Las tarjetas Factorial te dan control en tiempo real de cada gasto."
+Benchmark: 14% adoption. 21% Trading & Distribution, 19% Transportation. MRR uplift: +€399/month.
+
+### Procurement
+Architecture: Fixed by company size:
+XS (1-20): €149/mo | S (21-70): €399/mo | M (71-200): €599/mo | L (201-500): €799/mo | XL (500+): €999/mo
+What it does: Centralized purchase requests and orders, custom approval workflows by type,
+smart invoice digitization (OCR), automatic bank reconciliation with AI, full supplier
+management, SEPA payments, single-use cards linked to orders, accounting integration (ERP,
+chart of accounts), treasury visibility with movements and balances.
+Pains it solves:
+- "Las compras se aprueban por email y nadie sabe el estado"
+- "Las facturas se pierden entre departamentos"
+- "No sabemos cuánto hemos gastado hasta fin de mes"
+- "La conciliación bancaria la hacemos a mano"
+How to pitch: "Control de gasto antes de que ocurra. Cada compra pasa por el flujo de
+aprobación correcto. Las facturas se digitalizan con IA y se concilian automáticamente."
+Pitch when: companies with many purchase orders, multiple approvers, budget discipline.
+
+### Headcount Planning
+Architecture: Per seat | Business: €2.5
+What it does: Position planning with role/level/salary/date, shared approval workspace
+for HR and Finance, real-time tracking of approved vs pending roles, planned vs actual
+hires reconciliation.
+Pains: "No sabemos cuántas posiciones tenemos abiertas realmente", "Finance y HR no
+están alineados en el plan de contratación"
+Pitch when: growing companies, annual planning cycles, CFO involvement, 100+ employees.
+
+### CRM (New)
+Architecture: Fixed | €30.0/month
+What it does: Client record management, deals and pipelines, quote generation and tracking,
+quote-to-invoice conversion, invoice preview and sending, payment tracking, in-app messages.
+Pitch when: consulting/services companies needing lightweight CRM integrated with projects.
+
+### Benefits Standard (Retribución Flexible)
+Architecture: Per seat | Business: €3.0
+What it does: Flexible compensation plans (meals, transport, childcare, training, wellness),
+real-time balance check (mobile and desktop), integration with payroll, preconfigured
+categories, digital card (Apple/Google Wallet), integrated tax compliance.
+Pains: "Queremos ofrecer retribución flexible pero es complejo de gestionar",
+"Los empleados no entienden sus beneficios"
+Pitch when: Spanish market primarily (retribución flexible), employee value proposition.
+
+### Benefits Plus
+Architecture: Per seat | Business: €5.0
+Extended benefits with custom packages.
+
+### Wellhub
+Architecture: Per seat | Business: €5.0
+What it does: Gym and wellness subscriptions for employees.
+Pitch when: companies focused on employee wellbeing, talent attraction.
+
+### Salary Advance
+Architecture: Per seat | Business: €1.0
+What it does: On-demand salary access for employees.
+
+---
+
+## IT & SECURITY
+
+### IT Inventory
+Architecture: Per seat | Business: €2.5
+What it does: Device creation/assignment/retirement with workflows, full device history,
+bulk import, device filtering and grouping, onboarding integration for automatic device
+suggestion, NIS 2 Directive compliant handover documents, CSV/XLSX export.
+Pains: "No sabemos qué dispositivos tiene cada empleado", "Cuando alguien se va no
+recuperamos los equipos a tiempo"
+Pitch when: companies with laptop/device fleet, remote workers, security/compliance focus.
+
+### MDM (Mobile Device Management)
+What it does: Standardized device setup, disk encryption (FileVault/BitLocker), firewall
+and password policies, remote lock/wipe, real-time inventory dashboard. SOC 2/ISO/GDPR ready.
+Pitch when: security-conscious companies, regulated industries, remote workforce.
+
+### SaaS Management (Software Management)
+Architecture: Per seat | Business: €0.6
+What it does: License tracking, usage monitoring, automatic provisioning via AI Agent
+or SAML, access grant/update/revoke based on HR data (joins/moves/leaves).
+Pains: "No sabemos cuántas licencias pagamos que nadie usa",
+"Cuando alguien se va tardamos días en revocar accesos"
+Pitch when: companies with 20+ SaaS tools, security concerns, cost optimization.
+
+### Device Provisioning
+What it does: Device ordering/rental from marketplace, standard kits by role/team,
+direct shipping to employees, automatic recovery on offboarding.
+Pitch when: fast-growing companies, remote-first, frequent onboarding.
+
+### Policies
+Architecture: Per seat | Business: €1.0
+What it does: Policy distribution, acknowledgment tracking, compliance management.
+Pitch when: regulated industries, companies with updated policies needing sign-off.
+
+---
+
+## INTEGRATIONS (by partners)
+
+- Business Central: Per seat €1.5 (with floor)
+- Netsuite: Fixed €140/mo
+- SAGE 200 (Spain only): Per seat €1.5 (with floor)
+- Milena (Spain only): Per seat €1.5 (with floor)
+- Suprema Xiptic (biometric terminals): Per seat €1.0
+- a3innuva (Spain): Payroll sync — hires, terminations, absences, disability
+
+---
+
+## BUNDLES
+
+- **Spending Management**: Expenses + Procurement bundled: Fixed €65.6 / €98.9 + per-user
+- **Trainings + LMS + AI Literacy**: €4.5/seat — compliance + learning in one
+- **Planning plans**: Time Tracking + Time Off + Shifts + Core as starter bundle
+
+---
+
+## PRICING NOTES
+
+- All prices EUR, monthly. Yearly = 10% discount.
+- Business vs Enterprise: Enterprise has more features, higher price.
+- Minimum a la carte ARPU: €100/month.
+- Per-seat = price × number of employees/month.
+- Fixed = flat monthly fee regardless of company size.
+- Onboarding fee: separate, typically 6 sessions ~€414 (discountable).
+
+## VALUE PROPOSITIONS (use in pitch scripts)
+
+- 78.9% time saved on manual/admin tasks (Kienbaum study)
+- 636h saved per year for managers, 522h for senior/exec, 60h per employee
+- For 100 employees: save up to €12,099 in employee costs, avoid 3,360h of manual tasks
+- 15,500+ customers, 950,000+ daily users, €400M+ investment
+- ISO 27001, SOC2 Type II, ENS High certified
+- Support: phone + ticket + chat, 3-5h avg response time, 7 languages
+
+## MODULE MAPPING (benchmark field → module name)
+
+When referencing benchmark data, use these module names consistently:
+- Time Management = time_tracking + time_off columns
+- Shift Management = shift_management column
+- Talent Management = performance + trainings columns
+- Recruitment = recruitment column
+- Expenses = expenses + accounts_payable columns
+- Engagement = engagement column
+- Payroll Preparation = compensations column
+- Projects = projects column
+
+## MRR LADDER (average MRR by number of modules)
+
+1 module: €266/month | 2 modules: €402/month | 3 modules: €667/month
+4 modules: €976/month | 5 modules: €1,285/month | 6+: €1,888+/month
+
+Use this to quantify the expansion opportunity for the prospect.

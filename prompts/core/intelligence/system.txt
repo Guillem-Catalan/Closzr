@@ -950,59 +950,97 @@ DO NOT repeat what action_signal says (that's WHAT to do, this is HOW to approac
 
 ## SECTION 3: product_intel
 
-Product intelligence extracted from this interaction.
-Only populate if products were actually discussed or if there's a clear upsell opportunity
-based on pains mentioned by the prospect.
-Do NOT invent opportunities if no relevant evidence exists in the conversation.
+Product intelligence for this deal. Analyze what products were discussed, how well they
+were pitched, what pains the prospect expressed that map to Factorial products, and what
+the rep should do next regarding product.
+
+You have 3 sources of evidence — use ALL of them and always cite which source backs
+each recommendation:
+
+**SOURCE 1 — CONVERSATIONS (primary)**
+The transcripts, emails, and notes you just analyzed. Look for:
+- Explicit pains the prospect verbalized ("hacemos los turnos en Excel", "perdemos tickets")
+- Products the rep pitched and how the prospect reacted
+- Products the rep pitched BADLY (generic feature dump, wrong positioning, missed ROI)
+- Pains expressed but NOT connected to any product by the rep
+- Competitor mentions ("usamos Sesame para fichajes", "tenemos Personio")
+
+**SOURCE 2 — DEAL CONTEXT (historical)**
+The full history of prior interactions. Look for:
+- Products pitched in earlier calls that weren't followed up
+- Pains mentioned before that are still unresolved
+- How product conversations evolved over time
+- Products the prospect rejected and why (don't re-recommend these without new evidence)
+
+**SOURCE 3 — PRODUCT BENCHMARK (statistical)**
+Injected in the user prompt as "PRODUCT BENCHMARK" (if available). Contains adoption rates
+for companies similar to this prospect (same sector, country, size). Use this to:
+- Validate recommendations: "65% of companies like yours use Shift Management"
+- Identify exploration opportunities even without explicit pain
+- Quantify the expansion potential (MRR gap)
+- Support cross-sell: "80% of companies with Performance also have Engagement"
+
+IMPORTANT: benchmark alone is NOT enough to recommend a product. Always combine with
+context from conversations or logical inference from the prospect's profile. Benchmark
+is social proof, not the reason.
+
+Refer to the PRODUCT CATALOG (injected in the system prompt) for module definitions,
+pain mappings, pitch strategies, and cross-sell patterns.
 
 ```
 "product_intel": {
 ```
 
-### products_discussed (array of objects)
+### product_assessment (string)
 
-Products mentioned, pitched, or asked about in this interaction.
-Map to Factorial's product modules: Core HR, Time Management, Payroll Preparation,
-Talent Management, Recruitment (ATS), Expenses, Engagement, Document Management,
-Analytics & Reports, Integrations.
+Free-form assessment of the product situation in this deal. Write what is relevant —
+this can be 2 lines or 15 lines depending on how much product activity there is.
+
+Cover whatever applies:
+- What products have been pitched across ALL interactions (not just the latest)
+- How well each was pitched — did the rep connect to a specific pain or do a feature dump?
+- What pains the prospect expressed that clearly map to Factorial products
+- What products the prospect is already using (competitors) and what that means
+- Whether the rep is under-selling (only pitching 1-2 products when more apply)
+- What the overall product strategy should be for this deal
+
+If no products were discussed and no relevant pains detected, write a short note saying so.
+
+### product_actions (array of objects)
+
+Actionable product recommendations. Each action MUST have:
+- The specific product
+- The type of action
+- WHY (evidence from conversations, deal context, or benchmark — cite the source)
+- HOW to pitch it or fix it (concrete script the rep can use, connected to the prospect's reality)
 
 ```
 [{
-  "product": "Time Management",
-  "context": "Prospect mentioned chaos with manual clock-ins for 150 employees",
-  "reception": "positive"
+  "product": "Shift Management",
+  "type": "pitch_from_pain",
+  "text": "El prospect dijo 'el encargado pierde medio día cuadrando turnos' (call 12/03). Pitchear: 'las rotaciones automáticas eliminan esas 4h/semana. Además el turno asignado marca directamente el fichaje — un solo sistema para turnos y control horario.' El 65% de empresas de Hospitality con 50-100 empleados ya lo tienen."
 }]
 ```
-reception: "positive" | "neutral" | "negative" | "not_discussed"
 
-Empty array [] if no products were discussed.
+Types (use what fits, not limited to these):
+- **pitch_from_pain**: prospect expressed a pain that maps to this product. Rep hasn't pitched it yet.
+- **fix_pitch**: rep pitched this product but did it poorly. Explain what was wrong and how to reposition.
+- **explore**: no explicit pain detected, but benchmark data suggests this product fits. Suggest discovery questions.
+- **upsell**: prospect already has/wants product A, and cross-sell data shows product B pairs naturally.
+- **bundle**: two or more products should be pitched together because they reinforce each other.
+- **deepen**: product was pitched superficially. Rep should go deeper on specific features/ROI.
 
-### upsell_opportunity (object or null)
+No limit on number of actions. Include as many as are justified by evidence.
+Empty array [] ONLY if there is genuinely nothing to recommend (very early deal, no conversations yet).
 
-Is there a product the prospect NEEDS based on pains they expressed, but the rep hasn't pitched?
-Only populate if there's REAL EVIDENCE from the conversation — not speculation.
+### expansion_summary (string or null)
 
-```
-{
-  "detected": true,
-  "product": "Shift Planning",
-  "reason": "Prospect mentioned managing 3 rotating shifts manually — this was identified as
-    a major time drain but the rep only showed Time Management clock-ins",
-  "how_to_pitch": "Connect with the time tracking pain already validated — if clock-ins are
-    chaotic, shift planning is the root cause. Show how automated rotation planning would
-    eliminate the 4 hours/week the prospect mentioned spending on manual scheduling."
-}
-```
-Set to null if no real upsell opportunity detected.
+One-line summary of the expansion opportunity based on benchmark data.
+Format: current state vs benchmark, with the gap.
 
-### pitch_quality (string or null)
+Example: "2 productos, €200/mes. Empresas similares (Construction, ES, 51-100 emp): 3.7 productos, €604/mes. Gap: +1.7 productos, +€404/mes."
 
-If products were pitched, how well did the rep do it?
-- Did they connect the product to a specific pain the prospect expressed?
-- Did they show ROI or business impact?
-- Or was it a generic feature dump disconnected from the prospect's reality?
-
-null if no products were pitched.
+null if no benchmark data available or if deal is too early for this analysis.
 
 ```
 }

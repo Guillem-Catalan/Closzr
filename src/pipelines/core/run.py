@@ -13,12 +13,14 @@ Each phase updates its columns in deal_ui via parser.
 Everything from config.
 """
 
+import time
 import traceback
 
 from src.config import (
     INTELLIGENCE_CONFIG,
     ACTIVE_STAGES,
     MAX_DEALS_PER_CYCLE,
+    CORE_TIMEOUT_MINUTES,
 )
 from src.db.client import supabase
 from src.pipelines.core.sync import run as sync_run
@@ -89,9 +91,18 @@ def run(full: bool = False):
 
     ok = 0
     failed = 0
+    timed_out = False
     failures: list[str] = []
+    start_time = time.time()
+    timeout_seconds = CORE_TIMEOUT_MINUTES * 60
 
     for i, deal in enumerate(stale_deals, 1):
+        elapsed = time.time() - start_time
+        if elapsed > timeout_seconds:
+            print(f"\n  ⏱ Timeout ({CORE_TIMEOUT_MINUTES}min) — {i-1} deals processed, {len(stale_deals)-i+1} remaining for next run")
+            timed_out = True
+            break
+
         deal_uuid = deal[_I["deal_col_id"]]
         deal_name = deal.get(_I["deal_col_deal_name"]) or "?"
         crm_id = deal.get(_I["deal_col_crm_id"]) or ""

@@ -186,23 +186,51 @@ def detect_today() -> dict[str, dict]:
         except Exception as e:
             print(f"    Source 1 ({team}): {e}")
 
-    # ── Source 2: deal_meetings ──
+    # ── Source 2: HubSpot meetings API — search meetings today directly ──
     try:
-        r2 = (
-            supabase.table(_H["deal_meetings_table"])
-            .select(f"{_H['deal_meetings_deal_col']}, {_H['deal_meetings_start_col']}")
-            .gte(_H["deal_meetings_start_col"], earliest)
-            .lt(_H["deal_meetings_start_col"], latest)
-            .not_.is_(_H["deal_meetings_deal_col"], "null")
-            .execute()
-        )
-        for m in (r2.data or []):
-            did = m[_H["deal_meetings_deal_col"]]
-            team = deal_team_map.get(did, "")
-            if team and _is_today_for_team(m.get(_H["deal_meetings_start_col"], ""), team):
-                results[did] = {"team": team, "rep": deal_owner_map.get(did, "")}
+        from src.integrations import hubspot
+        r2 = hubspot.post("/crm/v3/objects/meetings/search", {
+            "filterGroups": [{"filters": [
+                {"propertyName": "hs_meeting_start_time", "operator": "GTE", "value": earliest},
+                {"propertyName": "hs_meeting_start_time", "operator": "LT", "value": latest},
+                {"propertyName": "hs_meeting_outcome", "operator": "IN", "value": "SCHEDULED;COMPLETED"},
+            ]}],
+            "properties": ["hs_meeting_start_time"],
+            "limit": 100,
+        })
+        meeting_ids = [str(m["id"]) for m in (r2 or {}).get("results", [])]
+
+        # Resolve meeting → deal via associations
+        for i in range(0, len(meeting_ids), 100):
+            batch = meeting_ids[i:i + 100]
+            assoc_data = hubspot.post(
+                "/crm/v4/associations/meetings/deals/batch/read",
+                {"inputs": [{"id": mid} for mid in batch]},
+            )
+            if not assoc_data:
+                continue
+            for result in assoc_data.get("results", []):
+                to_list = result.get("to", [])
+                if not to_list:
+                    continue
+                deal_hs_id = str(to_list[0].get("toObjectId", ""))
+                if not deal_hs_id:
+                    continue
+                # Resolve hs_deal_id → deal_uuid
+                deal_resp = (
+                    supabase.table(_I["deals_table"])
+                    .select(f"{_I['deal_col_id']}, {_I['deal_col_team']}")
+                    .eq(_I["deal_col_deal_id"], deal_hs_id)
+                    .limit(1)
+                    .execute()
+                )
+                if deal_resp.data:
+                    did = deal_resp.data[0][_I["deal_col_id"]]
+                    team = deal_resp.data[0].get(_I["deal_col_team"]) or ""
+                    if team and did not in results:
+                        results[did] = {"team": team, "rep": deal_owner_map.get(did, "")}
     except Exception as e:
-        print(f"    Source 2 (deal_meetings): {e}")
+        print(f"    Source 2 (HubSpot meetings API): {e}")
 
     # ── Source 3: Google Calendar → resolve to deals ──
     source1_2_ids = set(results.keys())

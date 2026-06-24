@@ -116,7 +116,7 @@ def normalize(raw: dict, fallback_email: str = "", fallback_name: str = "") -> d
         "duracion_segundos": int(raw.get("duration", 0)),
         "owner_email": owner_email,
         "owner_nombre": owner.get("name", ""),
-        "rol": role or "PAE",
+        "rol": "PAE" if role in ("AE", "PAE", None) else role,
         "tags": tags,
         "team": "Partners",
         "crm_id": "",

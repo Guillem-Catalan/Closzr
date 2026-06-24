@@ -487,7 +487,7 @@ def _build_call_row(deal_team: str = "", **kwargs) -> dict:
         "fecha": kwargs.get("fecha"),
         "owner_email": kwargs.get("owner_email"),
         "owner_nombre": kwargs.get("owner_name", ""),
-        "rol": role or "PAE",
+        "rol": "PAE" if role in ("AE", "PAE", None) else role,
         "tags": kwargs.get("tags", []),
         "team": deal_team,
         "duracion_segundos": kwargs.get("duration_s", 0),
@@ -521,6 +521,83 @@ def _read_prompt(relative_path: str) -> str:
     return (PROMPTS_DIR / relative_path).read_text(encoding="utf-8").strip()
 
 
+def _fetch_product_benchmark(atlas: dict | None, deal: dict) -> str | None:
+    """Fetch product adoption stats for the deal's segment. Returns formatted text or None."""
+    sector = atlas.get("industry") if atlas else None
+    country = (atlas.get("country") or deal.get(_C.get("deal_col_country", "")) or "").upper()
+    seats = int(atlas.get("company_size") or deal.get("num_employees") or 0)
+
+    if seats <= 20: size = "1-20"
+    elif seats <= 50: size = "21-50"
+    elif seats <= 100: size = "51-100"
+    elif seats <= 250: size = "101-250"
+    elif seats <= 500: size = "251-500"
+    else: size = "500+"
+
+    # Try most specific first, then broaden
+    keys_to_try = []
+    if sector and size:
+        keys_to_try.append(f"{sector}|{size}")
+    if sector and country:
+        keys_to_try.append(f"{sector}|{country}")
+    if sector:
+        keys_to_try.append(sector)
+    if country and size:
+        keys_to_try.append(f"{country}|{size}")
+
+    segment_data = None
+    segment_key = None
+    for key in keys_to_try:
+        try:
+            r = supabase.table("product_stats").select("data").eq("stat_type", "segment").eq("stat_key", key).limit(1).execute()
+            if r.data:
+                segment_data = json.loads(r.data[0]["data"]) if isinstance(r.data[0]["data"], str) else r.data[0]["data"]
+                segment_key = key
+                break
+        except Exception:
+            continue
+
+    if not segment_data:
+        return None
+
+    # Build text
+    lines = [f"Segment: {segment_key} ({segment_data['sample_size']} companies)"]
+    lines.append(f"Avg: {segment_data['avg_products']} products, €{segment_data['avg_mrr']}/month, {segment_data['avg_seats']} employees")
+    lines.append("Adoption rates:")
+    for module, pct in sorted(segment_data.get("adoption", {}).items(), key=lambda x: -x[1]):
+        if pct >= 5:
+            lines.append(f"  - {module}: {pct}%")
+
+    # Add cross-sell data
+    try:
+        cross = supabase.table("product_stats").select("data").eq("stat_type", "cross_sell").execute()
+        if cross.data:
+            lines.append("Cross-sell patterns:")
+            for row in cross.data:
+                d = json.loads(row["data"]) if isinstance(row["data"], str) else row["data"]
+                module = d.get("module", "")
+                top = sorted(d.get("cross_sell", {}).items(), key=lambda x: -x[1].get("probability", 0))[:2]
+                if top:
+                    pairs = ", ".join(f"{m} ({info['probability']}%)" for m, info in top)
+                    lines.append(f"  - If {module} → also have: {pairs}")
+    except Exception:
+        pass
+
+    # Add MRR ladder
+    try:
+        ladder = supabase.table("product_stats").select("data").eq("stat_type", "mrr_ladder").limit(1).execute()
+        if ladder.data:
+            d = json.loads(ladder.data[0]["data"]) if isinstance(ladder.data[0]["data"], str) else ladder.data[0]["data"]
+            lines.append("MRR by product count:")
+            for n in sorted(d, key=int):
+                if int(n) <= 6:
+                    lines.append(f"  - {n} products: €{d[n]['avg_mrr']}/month")
+    except Exception:
+        pass
+
+    return "\n".join(lines)
+
+
 def _build_system_prompt(deal: dict) -> str:
     """Build system prompt from deal context — stage determines role, team determines channel.
     The code doesn't decide who's who — it just loads the right frameworks for Claude to use."""
@@ -538,6 +615,7 @@ def _build_system_prompt(deal: dict) -> str:
         parts.append(_read_prompt(_C["role_prompts"][role_prompt_key]))
 
     parts.append(_read_prompt(_C["system_prompt_path"]))
+    parts.append(_read_prompt(_C["product_catalog_path"]))
 
     lang_file = _get_lang_from_team(team)
     lang_path = PROMPTS_DIR / lang_file
@@ -618,6 +696,13 @@ def _build_user_prompt(deal, deal_context, atlas, prev_snapshot, prev_pbd, items
     else:
         lines.append("(no company linked — no atlas available)")
     lines.append("")
+
+    # Product benchmark for this deal's segment
+    benchmark = _fetch_product_benchmark(atlas, deal)
+    if benchmark:
+        lines.append("## PRODUCT BENCHMARK — companies similar to this prospect")
+        lines.append(benchmark)
+        lines.append("")
 
     lines.append("## DEAL CONTEXT — ALREADY PROCESSED HISTORY")
     lines.append(deal_context.strip() if deal_context and deal_context.strip() else "No prior interactions. First analysis.")
@@ -978,17 +1063,22 @@ def _write_pbd_snapshot(deal: dict, pbd_data: dict) -> bool:
 def _write_product_intel(deal: dict, product_intel: dict) -> bool:
     if not product_intel:
         return True
-    products = product_intel.get("products_discussed") or []
-    upsell = product_intel.get("upsell_opportunity")
-    if not products and not upsell:
+    assessment = product_intel.get("product_assessment")
+    actions = product_intel.get("product_actions")
+    expansion = product_intel.get("expansion_summary")
+    if not assessment and not actions:
         return True
     try:
-        row = {_C["product_col_deal_id"]: deal.get(_C["deal_col_id"]), _C["product_col_snapshot_date"]: TODAY}
-        if products:
-            row[_C["product_col_products"]] = json.dumps(products, ensure_ascii=False)
-        if upsell:
-            row[_C["product_col_upsell"]] = json.dumps(upsell, ensure_ascii=False)
-        row[_C["product_col_pitch"]] = product_intel.get("pitch_quality")
+        row = {
+            _C["product_col_deal_id"]: deal.get(_C["deal_col_id"]),
+            _C["product_col_snapshot_date"]: TODAY,
+        }
+        if assessment:
+            row["product_assessment"] = assessment
+        if actions:
+            row["product_actions"] = json.dumps(actions, ensure_ascii=False)
+        if expansion:
+            row["expansion_summary"] = expansion
         row = {k: v for k, v in row.items() if v is not None}
         supabase.table(_C["product_signals_table"]).upsert(row, on_conflict=_C["product_upsert_key"]).execute()
         return True
@@ -1033,7 +1123,7 @@ def _fetch_previous_pbd_snapshot(hs_deal_id: str) -> dict | None:
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════════
 
-def run(deal_uuid: str) -> dict | None:
+def run(deal_uuid: str, max_comms: int | None = MAX_COMMS_PER_BATCH, max_tokens: int | None = None) -> dict | None:
     """Process a deal: fetch comms from HubSpot+Modjo, analyze with Claude, write everything."""
 
     print(f"\n  INTELLIGENCE: {deal_uuid}")
@@ -1070,9 +1160,9 @@ def run(deal_uuid: str) -> dict | None:
         return None
 
     overflow = False
-    if len(items) > MAX_COMMS_PER_BATCH:
-        print(f"    {len(items)} comms — capping to {MAX_COMMS_PER_BATCH}")
-        items = items[:MAX_COMMS_PER_BATCH]
+    if max_comms and len(items) > max_comms:
+        print(f"    {len(items)} comms — capping to {max_comms}")
+        items = items[:max_comms]
         overflow = True
 
     calls = sum(1 for it in items if it["type"] in ("call", "call_no_transcript"))
@@ -1090,7 +1180,7 @@ def run(deal_uuid: str) -> dict | None:
 
     print(f"    Claude ({len(user_prompt)} user, {len(system_prompt)} system)...")
     try:
-        response_text = claude.analyze(system_prompt, user_prompt, model=MODEL_DEFAULT, max_tokens=MAX_TOKENS_AUDIT)
+        response_text = claude.analyze(system_prompt, user_prompt, model=MODEL_DEFAULT, max_tokens=max_tokens or MAX_TOKENS_AUDIT)
     except Exception as e:
         print(f"    ✗ Claude failed: {e}")
         return None
@@ -1197,6 +1287,7 @@ def run(deal_uuid: str) -> dict | None:
         "snapshot": snapshot_ok,
         "pbd_snapshot": is_pbd_stage and raw_pbd is not None,
         "done": can_mark_done,
+        "has_pending": has_pending or overflow,
     }
 
 

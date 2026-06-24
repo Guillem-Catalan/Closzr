@@ -28,6 +28,15 @@ from src.db.client import supabase
 
 _I = INTELLIGENCE_CONFIG
 _F = FORECAST_CONFIG
+
+
+def _safe_int(v):
+    if v is None:
+        return None
+    try:
+        return int(v)
+    except (ValueError, TypeError):
+        return None
 _D = DAILY_CONFIG
 _P = PARSER_CONFIG
 
@@ -260,14 +269,19 @@ def update_from_atlas(deal_uuid: str):
         return
     a = atlas.data
 
-    contacts_raw = a.get("contacts_map")
+    # Contacts: try JSON array first, fallback to contacts_breakdown text
     contacts = []
+    contacts_raw = a.get("contacts_map")
     if contacts_raw:
         if isinstance(contacts_raw, str):
             try:
-                contacts_raw = json.loads(contacts_raw)
+                parsed_contacts = json.loads(contacts_raw)
+                if isinstance(parsed_contacts, list):
+                    contacts_raw = parsed_contacts
+                else:
+                    contacts_raw = None
             except (json.JSONDecodeError, TypeError):
-                contacts_raw = []
+                contacts_raw = None
         if isinstance(contacts_raw, list):
             for c in contacts_raw[:20]:
                 name = c.get("name") or "—"
@@ -280,6 +294,27 @@ def update_from_atlas(deal_uuid: str):
                     "email": c.get("email") or "",
                 })
 
+    # Fallback: parse contacts_breakdown text (line-based)
+    if not contacts:
+        breakdown = a.get("contacts_breakdown") or ""
+        if breakdown:
+            import re
+            for block in re.split(r'\n\s*-\s+', breakdown):
+                if not block.strip():
+                    continue
+                lines = block.strip().split('\n')
+                name = lines[0].strip().rstrip(' -')
+                role = ""
+                email = ""
+                for line in lines[1:]:
+                    if 'cargo:' in line.lower() or 'role:' in line.lower():
+                        role = line.split(':', 1)[-1].strip()
+                    elif 'email:' in line.lower():
+                        email = line.split(':', 1)[-1].strip()
+                if name:
+                    initials = "".join(w[0] for w in name.split()[:2]).upper()
+                    contacts.append({"name": name, "role": role, "initials": initials, "email": email})
+
     row = {
         "atlas_company_name": a.get("company_name") or "",
         "atlas_industry": a.get("industry") or "",
@@ -289,11 +324,26 @@ def update_from_atlas(deal_uuid: str):
         "atlas_website": a.get("website") or "",
         "atlas_description": a.get("company_context") or "",
         "atlas_contacts": json.dumps(contacts, ensure_ascii=False),
-        "atlas_contacts_count": len(contacts),
+        "atlas_contacts_count": _safe_int(len(contacts)),
         "employees": str(a.get("company_size") or ""),
     }
 
-    # Atlas deal insights (if available as structured data)
+    # Atlas company_card (fit, history_summary, warnings)
+    company_card = a.get("company_card")
+    if company_card:
+        if isinstance(company_card, str):
+            try:
+                company_card = json.loads(company_card)
+            except (json.JSONDecodeError, TypeError):
+                company_card = {}
+        if isinstance(company_card, dict):
+            fit = company_card.get("fit") or {}
+            row["atlas_fit_level"] = fit.get("score") or "Fit por validar"
+            row["atlas_fit_text"] = fit.get("reason") or ""
+            row["atlas_history_summary"] = company_card.get("history_summary") or ""
+            row["atlas_warnings"] = json.dumps(company_card.get("warnings") or [], ensure_ascii=False)
+
+    # Atlas deal_insights (signals, blockers, patterns, loss_reasons)
     deal_insights = a.get("deal_insights")
     if deal_insights:
         if isinstance(deal_insights, str):
@@ -302,16 +352,17 @@ def update_from_atlas(deal_uuid: str):
             except (json.JSONDecodeError, TypeError):
                 deal_insights = {}
         if isinstance(deal_insights, dict):
-            row["atlas_fit_level"] = deal_insights.get("fit_level") or "Fit por validar"
-            row["atlas_fit_text"] = deal_insights.get("fit_text") or ""
-            row["atlas_history_summary"] = deal_insights.get("history_summary") or ""
-            row["atlas_warnings"] = json.dumps(deal_insights.get("warnings") or [], ensure_ascii=False)
             row["atlas_signals"] = json.dumps(deal_insights.get("buying_signals") or [], ensure_ascii=False)
             row["atlas_blockers"] = json.dumps(deal_insights.get("blockers") or [], ensure_ascii=False)
             row["atlas_patterns"] = json.dumps(deal_insights.get("patterns") or [], ensure_ascii=False)
-            row["atlas_deals"] = json.dumps(deal_insights.get("deals") or [], ensure_ascii=False)
-            row["atlas_deals_active"] = deal_insights.get("deals_active") or 0
-            row["atlas_deals_lost"] = deal_insights.get("deals_lost") or 0
+
+    # Atlas deal counts (from deals_breakdown text)
+    deals_text = a.get("deals_breakdown") or ""
+    if deals_text:
+        active = deals_text.lower().count("activo") + deals_text.lower().count("open")
+        lost = deals_text.lower().count("perdido") + deals_text.lower().count("closedlost") + deals_text.lower().count("closed lost")
+        row["atlas_deals_active"] = _safe_int(active)
+        row["atlas_deals_lost"] = _safe_int(lost)
 
     _upsert(deal_uuid, row)
 
@@ -423,17 +474,17 @@ def update_from_intelligence(deal_uuid: str):
         "snapshot_date": snap_date_str,
         "deal_summary": s.get("deal_summary") or "",
         "deal_assessment": s.get("deal_assessment") or "",
-        "meddic_total": meddic_total,
-        "m_score": scores["m"], "m_text": s.get("m_accumulate") or "",
-        "e_score": scores["e"], "e_text": s.get("e_accumulate") or "",
-        "dc_score": scores["dc"], "dc_text": s.get("dc_accumulate") or "",
-        "dp_score": scores["dp"], "dp_text": s.get("dp_accumulate") or "",
-        "i_score": scores["i"], "i_text": s.get("i_accumulate") or "",
-        "c_score": scores["c"], "c_text": s.get("c_accumulate") or "",
-        "comp_score": scores["comp"], "comp_text": s.get("comp_accumulate") or "",
+        "meddic_total": _safe_int(meddic_total),
+        "m_score": _safe_int(scores["m"]), "m_text": s.get("m_accumulate") or "",
+        "e_score": _safe_int(scores["e"]), "e_text": s.get("e_accumulate") or "",
+        "dc_score": _safe_int(scores["dc"]), "dc_text": s.get("dc_accumulate") or "",
+        "dp_score": _safe_int(scores["dp"]), "dp_text": s.get("dp_accumulate") or "",
+        "i_score": _safe_int(scores["i"]), "i_text": s.get("i_accumulate") or "",
+        "c_score": _safe_int(scores["c"]), "c_text": s.get("c_accumulate") or "",
+        "comp_score": _safe_int(scores["comp"]), "comp_text": s.get("comp_accumulate") or "",
         "blockers_count": len(blockers_list),
         "blockers": json.dumps([{"text": b} for b in blockers_list], ensure_ascii=False),
-        "signals_count": len(signals_list),
+        "signals_count": _safe_int(len(signals_list)),
         "signals": json.dumps([{"text": si, "strength": "Fuerte" if "fuerte" in si.lower() else "Moderada"} for si in signals_list], ensure_ascii=False),
         "objections": s.get("objections") or "",
         "howto_label": s.get("howto_label") or "",
@@ -446,10 +497,10 @@ def update_from_intelligence(deal_uuid: str):
         "action_due_date": due.isoformat(),
         "action_who": who,
         "next_steps": json.dumps(next_steps, ensure_ascii=False),
-        "next_steps_total": len(next_steps),
+        "next_steps_total": _safe_int(len(next_steps)),
         "next_steps_done": 0,
         "probability_timeline": json.dumps(timeline, ensure_ascii=False),
-        "trend": trend,
+        "trend": _safe_int(trend),
         "stage_roadmap": json.dumps(stage_roadmap, ensure_ascii=False),
         "score": score,
     }
@@ -480,6 +531,24 @@ def update_from_intelligence(deal_uuid: str):
         row["bant_n_text"] = b.get("bant_n_evidence") or ""
         row["bant_t_status"] = statuses["T"]
         row["bant_t_text"] = b.get("bant_t_evidence") or ""
+
+    # Product intel (from deal_product_signals)
+    pi = (
+        supabase.table(_I["product_signals_table"])
+        .select("product_assessment, product_actions, expansion_summary")
+        .eq(_I["product_col_deal_id"], deal_uuid)
+        .order(_I["product_col_snapshot_date"], desc=True)
+        .limit(1)
+        .execute()
+    )
+    if pi.data:
+        p = pi.data[0]
+        if p.get("product_assessment"):
+            row["product_assessment"] = p["product_assessment"]
+        if p.get("product_actions"):
+            row["product_actions"] = p["product_actions"] if isinstance(p["product_actions"], str) else json.dumps(p["product_actions"], ensure_ascii=False)
+        if p.get("expansion_summary"):
+            row["expansion_summary"] = p["expansion_summary"]
 
     _upsert(deal_uuid, row)
 
@@ -542,7 +611,7 @@ def update_from_forecast(deal_uuid: str):
         priority = 4
 
     row = {
-        "close_probability": prob,
+        "close_probability": _safe_int(prob),
         "close_date": s.get("claudio_close_date"),
         "forecast_amount": round((prob / 100) * mrr, 2) if mrr else None,
         "closes_this_month": closes_tm,
@@ -556,10 +625,10 @@ def update_from_forecast(deal_uuid: str):
         "push_action_reasoning": s.get("push_action_reasoning") or "",
         "forecast_accelerators": json.dumps([{"text": a} for a in accel_raw], ensure_ascii=False),
         "forecast_risks": json.dumps([{"text": r} for r in risks_raw], ensure_ascii=False),
-        "forecast_risks_count": len(risks_raw),
-        "forecast_accelerators_count": len(accel_raw),
+        "forecast_risks_count": _safe_int(len(risks_raw)),
+        "forecast_accelerators_count": _safe_int(len(accel_raw)),
         "bucket": bucket,
-        "action_priority": priority,
+        "action_priority": _safe_int(priority),
         "score": round((prob / _P["score_divisor"]) * 10) / 10 if prob else None,
     }
 

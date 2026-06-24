@@ -34,13 +34,13 @@ def analyze(
 
     for attempt in range(CLAUDE_MAX_RETRIES):
         try:
-            message = _client.messages.create(
+            with _client.messages.stream(
                 model=use_model,
                 max_tokens=use_tokens,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
-            )
-            return message.content[0].text.strip()
+            ) as stream:
+                return stream.get_final_text().strip()
         except Exception as e:
             last_err = e
             wait = CLAUDE_RETRY_BACKOFF_BASE * (2 ** attempt)

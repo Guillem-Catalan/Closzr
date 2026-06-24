@@ -1,0 +1,42 @@
+name: Backfill Team
+
+on:
+  workflow_dispatch:
+    inputs:
+      team:
+        description: 'Team name (e.g., XL, Santander Channel)'
+        required: true
+        type: string
+      limit:
+        description: 'Max deals to process (default: 500)'
+        required: false
+        default: '500'
+        type: string
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 720
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run backfill
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
+          AZURE_CLAUDE_ENDPOINT: ${{ secrets.AZURE_CLAUDE_ENDPOINT }}
+          AZURE_CLAUDE_API_KEY: ${{ secrets.AZURE_CLAUDE_API_KEY }}
+        run: |
+          python -c "
+          from src.pipelines.backfill.run import run
+          run('${{ inputs.team }}', limit=int('${{ inputs.limit }}'))
+          "

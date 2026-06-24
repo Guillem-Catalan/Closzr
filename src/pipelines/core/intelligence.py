@@ -524,8 +524,8 @@ def _read_prompt(relative_path: str) -> str:
 def _fetch_product_benchmark(atlas: dict | None, deal: dict) -> str | None:
     """Fetch product adoption stats for the deal's segment. Returns formatted text or None."""
     sector = atlas.get("industry") if atlas else None
-    country = (atlas.get("country") or deal.get(_C.get("deal_col_country", "")) or "").upper()
-    seats = int(atlas.get("company_size") or deal.get("num_employees") or 0)
+    country = ((atlas or {}).get("country") or deal.get("country") or "").upper()
+    seats = int((atlas or {}).get("company_size") or deal.get("num_employees") or 0)
 
     if seats <= 20: size = "1-20"
     elif seats <= 50: size = "21-50"

@@ -310,7 +310,7 @@ def _resolve_communications(
 
     # ── HubSpot Calls ───────────────────────────────────────────────────
     hs_call_ids = _fetch_associations(hs_deal_id, "calls")
-    new_hs_call_ids = [cid for cid in hs_call_ids if cid not in processed_hs_ids]
+    new_hs_call_ids = [cid for cid in hs_call_ids if cid not in processed_hs_ids and f"hs_{cid}" not in processed_call_ids]
     calls_auditable = 0
 
     if new_hs_call_ids:

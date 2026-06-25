@@ -229,42 +229,47 @@ def run(team: str, limit: int = 500):
     # ── 1. Sync team deals (independent of ACTIVE_TEAMS) ──
     print(f"\n▸ SYNC {team}")
     hubspot.reset_counter()
-    oids = get_owner_ids_for_team(team)
-    if not oids:
-        print(f"  No owner IDs for {team}")
-        return
-    print(f"  {len(oids)} owners")
 
-    # Search by owner, NOT closed
-    deal_ids: set[str] = set()
-    _SC = SYNC_CONFIG
-    for i in range(0, len(oids), 5):
-        batch = oids[i:i + 5]
-        filter_groups = [{"filters": [
-            {"propertyName": _SC["hs_owner_id_prop"], "operator": "EQ", "value": oid},
-            _NOT_CLOSED,
-        ]} for oid in batch]
-        deal_ids |= _search_all(filter_groups)
-    print(f"  {len(deal_ids)} deals found")
+    # Check if deals already exist in Supabase for this team
+    existing_count = supabase.table(_I["deals_table"]).select("id", count="exact").eq(_I["deal_col_team"], team).execute().count or 0
+    if existing_count > 0:
+        print(f"  {existing_count} deals already in Supabase — skipping sync")
+    else:
+        oids = get_owner_ids_for_team(team)
+        if not oids:
+            print(f"  No owner IDs for {team}")
+            return
+        print(f"  {len(oids)} owners")
 
-    if deal_ids:
-        deal_id_list = sorted(deal_ids)
-        owners = _fetch_owners()
-        hs_deals = _batch_read_deals(deal_id_list)
-        company_map = _fetch_company_associations(deal_id_list)
-        partner_map = _fetch_partner_associations(deal_id_list)
-        print(f"  {len(hs_deals)} read, {len(company_map)} companies, {len(partner_map)} partners")
+        _SC = SYNC_CONFIG
+        deal_ids: set[str] = set()
+        for i in range(0, len(oids), 5):
+            batch = oids[i:i + 5]
+            filter_groups = [{"filters": [
+                {"propertyName": _SC["hs_owner_id_prop"], "operator": "EQ", "value": oid},
+                _NOT_CLOSED,
+            ]} for oid in batch]
+            deal_ids |= _search_all(filter_groups)
+        print(f"  {len(deal_ids)} deals found")
 
-        rows = []
-        for hd in hs_deals:
-            row = _resolve_deal(hd, owners, company_map, partner_map)
-            if row:
-                row.pop("context_stale", None)
-                rows.append(row)
+        if deal_ids:
+            deal_id_list = sorted(deal_ids)
+            owners = _fetch_owners()
+            hs_deals = _batch_read_deals(deal_id_list)
+            company_map = _fetch_company_associations(deal_id_list)
+            partner_map = _fetch_partner_associations(deal_id_list)
+            print(f"  {len(hs_deals)} read, {len(company_map)} companies, {len(partner_map)} partners")
 
-        written = _upsert_deals(rows)
-        print(f"  {written} deals synced to Supabase")
-    print(f"  HubSpot API calls: {hubspot.total_requests()}")
+            rows = []
+            for hd in hs_deals:
+                row = _resolve_deal(hd, owners, company_map, partner_map)
+                if row:
+                    row.pop("context_stale", None)
+                    rows.append(row)
+
+            written = _upsert_deals(rows)
+            print(f"  {written} deals synced to Supabase")
+        print(f"  HubSpot API calls: {hubspot.total_requests()}")
 
     # ── 2. Fetch team deals ──
     all_deals = _fetch_team_deals(team)

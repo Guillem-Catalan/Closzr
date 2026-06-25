@@ -190,11 +190,18 @@ def detect_today() -> dict[str, dict]:
     try:
         from src.integrations import hubspot
         r2 = hubspot.post("/crm/v3/objects/meetings/search", {
-            "filterGroups": [{"filters": [
-                {"propertyName": "hs_meeting_start_time", "operator": "GTE", "value": earliest},
-                {"propertyName": "hs_meeting_start_time", "operator": "LT", "value": latest},
-                {"propertyName": "hs_meeting_outcome", "operator": "IN", "value": "SCHEDULED;COMPLETED"},
-            ]}],
+            "filterGroups": [
+                {"filters": [
+                    {"propertyName": "hs_meeting_start_time", "operator": "GTE", "value": earliest},
+                    {"propertyName": "hs_meeting_start_time", "operator": "LT", "value": latest},
+                    {"propertyName": "hs_meeting_outcome", "operator": "EQ", "value": "SCHEDULED"},
+                ]},
+                {"filters": [
+                    {"propertyName": "hs_meeting_start_time", "operator": "GTE", "value": earliest},
+                    {"propertyName": "hs_meeting_start_time", "operator": "LT", "value": latest},
+                    {"propertyName": "hs_meeting_outcome", "operator": "EQ", "value": "COMPLETED"},
+                ]},
+            ],
             "properties": ["hs_meeting_start_time"],
             "limit": 100,
         })

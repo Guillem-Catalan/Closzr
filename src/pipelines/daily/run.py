@@ -28,10 +28,9 @@ from src.db.client import supabase
 from src.integrations import hubspot
 from src.pipelines.core.sync import run as sync_run
 from src.pipelines.core.intelligence import run as intelligence_run
-from src.pipelines.core.forecast import run as forecast_run
 from src.pipelines.core import parser
-from src.pipelines.daily.trajectories import run as trajectories_run
-from src.pipelines.daily.deal_analysis import run as deal_analysis_run
+from src.pipelines.daily.trajectories import run as trajectories_run, compile_trajectory
+from src.pipelines.daily.deal_analysis import run as deal_analysis_run, analyze_deal
 
 _I = INTELLIGENCE_CONFIG
 _D = DAILY_CONFIG
@@ -94,7 +93,7 @@ def _detect_and_process_closed() -> int:
 
     print(f"    {len(transitions)} deals transitioned to closed")
 
-    # 4. Process each: update stage + intelligence + forecast + parser
+    # 4. Process each: update stage + snapshot + trajectory + analysis
     processed = 0
     for deal, new_stage in transitions:
         deal_uuid = deal[_I["deal_col_id"]]
@@ -107,17 +106,36 @@ def _detect_and_process_closed() -> int:
                 {_I["deal_col_stage"]: new_stage}
             ).eq(_I["deal_col_id"], deal_uuid).execute()
 
-            # Final snapshot
+            # Final snapshot (no forecast — deal is closed)
             result = intelligence_run(deal_uuid)
             if result:
-                forecast_run(deal_uuid)
                 parser.update_from_sync(deal_uuid)
                 parser.update_from_intelligence(deal_uuid)
-                parser.update_from_forecast(deal_uuid)
-                print(f"    ✓ Final snapshot done")
+                print(f"    ✓ Final snapshot")
             else:
                 parser.update_from_sync(deal_uuid)
-                print(f"    ✓ Stage updated (no new comms for snapshot)")
+
+            # Re-fetch deal with updated stage for trajectory + analysis
+            deal_fresh = supabase.table(_I["deals_table"]).select("*").eq(_I["deal_col_id"], deal_uuid).limit(1).execute()
+            if deal_fresh.data:
+                d = deal_fresh.data[0]
+
+                # Trajectory
+                try:
+                    traj = compile_trajectory(d)
+                    if traj:
+                        print(f"    ✓ Trajectory ({traj.get('outcome', '?')})")
+                except Exception as e:
+                    print(f"    ✗ Trajectory failed: {e}")
+
+                # Deal analysis
+                try:
+                    analysis = analyze_deal(d)
+                    if analysis:
+                        parser.update_from_daily(deal_uuid)
+                        print(f"    ✓ Analysis done")
+                except Exception as e:
+                    print(f"    ✗ Analysis failed: {e}")
 
             processed += 1
         except Exception as e:

@@ -21,15 +21,111 @@ from src.config import (
     INTELLIGENCE_CONFIG,
     DAILY_CONFIG,
     ACTIVE_STAGES,
+    STAGE_ID_TO_LABEL,
+    CLOSED_ALL,
 )
 from src.db.client import supabase
+from src.integrations import hubspot
 from src.pipelines.core.sync import run as sync_run
+from src.pipelines.core.intelligence import run as intelligence_run
+from src.pipelines.core.forecast import run as forecast_run
 from src.pipelines.core import parser
 from src.pipelines.daily.trajectories import run as trajectories_run
 from src.pipelines.daily.deal_analysis import run as deal_analysis_run
 
 _I = INTELLIGENCE_CONFIG
 _D = DAILY_CONFIG
+_CLOSED_LOWER = frozenset(s.lower() for s in CLOSED_ALL)
+
+
+def _detect_and_process_closed() -> int:
+    """Find deals that transitioned to closed in HubSpot but Supabase still shows active.
+    Process final snapshot + update stage. Returns count processed."""
+
+    # 1. Get deals with active stage + snapshot (deals we're tracking)
+    active_stages = list(ACTIVE_STAGES)
+    tracked = []
+    offset = 0
+    while True:
+        resp = (
+            supabase.table(_I["deals_table"])
+            .select(f"{_I['deal_col_id']}, {_I['deal_col_deal_id']}, {_I['deal_col_deal_name']}, {_I['deal_col_stage']}")
+            .in_(_I["deal_col_stage"], active_stages)
+            .not_.is_(_I["deal_context_col"], "null")
+            .range(offset, offset + 999)
+            .execute()
+        )
+        batch = resp.data or []
+        tracked.extend(batch)
+        if len(batch) < 1000:
+            break
+        offset += 1000
+
+    if not tracked:
+        return 0
+
+    # 2. Batch read dealstage from HubSpot
+    hs_ids = [d[_I["deal_col_deal_id"]] for d in tracked if d.get(_I["deal_col_deal_id"])]
+    hs_stages: dict[str, str] = {}
+    for i in range(0, len(hs_ids), 100):
+        batch = hs_ids[i:i + 100]
+        try:
+            data = hubspot.post(
+                "/crm/v3/objects/deals/batch/read",
+                {"inputs": [{"id": did} for did in batch], "properties": [_D["hs_dealstage_prop"]]},
+            )
+            for obj in data.get("results", []):
+                raw = obj.get("properties", {}).get(_D["hs_dealstage_prop"], "")
+                stage = STAGE_ID_TO_LABEL.get(raw, raw)
+                hs_stages[obj["id"]] = stage
+        except Exception as e:
+            print(f"    Batch read failed: {e}")
+
+    # 3. Find transitions: Supabase active → HubSpot closed
+    transitions = []
+    for d in tracked:
+        hs_id = d.get(_I["deal_col_deal_id"], "")
+        hs_stage = hs_stages.get(hs_id, "")
+        if hs_stage.lower() in _CLOSED_LOWER:
+            transitions.append((d, hs_stage))
+
+    if not transitions:
+        return 0
+
+    max_per_run = _D.get("closed_detection_max_per_run", 10)
+    transitions = transitions[:max_per_run]
+    print(f"    {len(transitions)} deals transitioned to closed")
+
+    # 4. Process each: update stage + intelligence + forecast + parser
+    processed = 0
+    for deal, new_stage in transitions:
+        deal_uuid = deal[_I["deal_col_id"]]
+        deal_name = deal.get(_I["deal_col_deal_name"]) or "?"
+        print(f"\n    [{deal_name[:40]}] {deal.get(_I['deal_col_stage'])} → {new_stage}")
+
+        try:
+            # Update stage
+            supabase.table(_I["deals_table"]).update(
+                {_I["deal_col_stage"]: new_stage}
+            ).eq(_I["deal_col_id"], deal_uuid).execute()
+
+            # Final snapshot
+            result = intelligence_run(deal_uuid)
+            if result:
+                forecast_run(deal_uuid)
+                parser.update_from_sync(deal_uuid)
+                parser.update_from_intelligence(deal_uuid)
+                parser.update_from_forecast(deal_uuid)
+                print(f"    ✓ Final snapshot done")
+            else:
+                parser.update_from_sync(deal_uuid)
+                print(f"    ✓ Stage updated (no new comms for snapshot)")
+
+            processed += 1
+        except Exception as e:
+            print(f"    ✗ Failed: {e}")
+
+    return processed
 
 
 def run():
@@ -51,7 +147,16 @@ def run():
         print(f"  ✗ Full sync failed: {e}")
         traceback.print_exc()
 
-    # ── 2. Trajectories ──
+    # ── 2. Detect closed deals ──
+    print("\n▸ CLOSED DEAL DETECTION")
+    try:
+        closed = _detect_and_process_closed()
+        print(f"  {closed} closed deals processed")
+    except Exception as e:
+        print(f"  ✗ Closed detection failed: {e}")
+        traceback.print_exc()
+
+    # ── 3. Trajectories ──
     print("\n▸ TRAJECTORIES")
     try:
         compiled = trajectories_run()

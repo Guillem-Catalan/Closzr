@@ -2328,7 +2328,7 @@ DAILY_CONFIG = {
     # Trajectories
     "trajectories_table": "deal_trajectories",
     "trajectories_prompt_path": "daily/trajectory.txt",
-    "trajectories_max_per_run": 20,
+    "trajectories_max_per_run": 500,
     "closed_stages": list(CLOSED_ALL),
     "on_hold_stages": ["On Hold"],
 
@@ -2338,7 +2338,7 @@ DAILY_CONFIG = {
     # Deal Analysis (post-mortem)
     "analysis_table": "deal_analysis",
     "analysis_prompt_path": "daily/deal_analysis.txt",
-    "analysis_max_per_run": 20,
+    "analysis_max_per_run": 500,
 
     # FK columns en trajectories y analysis tables
     "fk_deal_id": "deal_id",

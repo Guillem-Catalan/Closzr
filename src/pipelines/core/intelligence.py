@@ -671,7 +671,7 @@ def _get_partner_label_from_team(team: str) -> str | None:
     return None
 
 
-def _build_user_prompt(deal, deal_context, atlas, prev_snapshot, prev_pbd, items, is_pbd_stage):
+def _build_user_prompt(deal, deal_context, atlas, prev_snapshot, prev_pbd, items, is_pbd_stage, full_context: bool = False):
     cc = _C
     lines = []
 
@@ -705,12 +705,26 @@ def _build_user_prompt(deal, deal_context, atlas, prev_snapshot, prev_pbd, items
         lines.append("")
 
     lines.append("## DEAL CONTEXT — ALREADY PROCESSED HISTORY")
-    lines.append(deal_context.strip() if deal_context and deal_context.strip() else "No prior interactions. First analysis.")
+    if deal_context and deal_context.strip():
+        dc_lines = deal_context.strip().split("\n")
+        if not full_context and prev_snapshot and len(dc_lines) > _C.get("context_recent_lines", 30):
+            recent = dc_lines[-_C.get("context_recent_lines", 30):]
+            lines.append(f"(showing last {len(recent)} of {len(dc_lines)} entries — full history summarized in PREVIOUS SNAPSHOT)")
+            lines.append("\n".join(recent))
+        else:
+            lines.append(deal_context.strip())
+    else:
+        lines.append("No prior interactions. First analysis.")
     lines.append("")
 
     if prev_snapshot:
         lines.append(f"## PREVIOUS SNAPSHOT ({prev_snapshot.get(cc['fk_snapshot_date'], '?')})")
         for field in cc["snapshot_claude_cols"]:
+            val = prev_snapshot.get(field)
+            if val is not None and val != "":
+                lines.append(f"{field}: {val}")
+        # Include forecast fields from snapshot
+        for field in ["close_probability", "forecast_confidence", "forecast_reasoning", "push_action", "forecast_accelerators", "forecast_risks"]:
             val = prev_snapshot.get(field)
             if val is not None and val != "":
                 lines.append(f"{field}: {val}")
@@ -729,6 +743,23 @@ def _build_user_prompt(deal, deal_context, atlas, prev_snapshot, prev_pbd, items
         else:
             lines.append("## PREVIOUS PBD SNAPSHOT: No previous PBD snapshot.")
         lines.append("")
+
+    # Previous product intel
+    if prev_snapshot:
+        deal_uuid = deal.get(cc["deal_col_id"])
+        if deal_uuid:
+            try:
+                pi = supabase.table(cc["product_signals_table"]).select("product_assessment, product_actions, expansion_summary").eq(cc["product_col_deal_id"], deal_uuid).order(cc["product_col_snapshot_date"], desc=True).limit(1).execute()
+                if pi.data:
+                    p = pi.data[0]
+                    if p.get("product_assessment"):
+                        lines.append("## PREVIOUS PRODUCT INTEL")
+                        lines.append(f"Assessment: {p['product_assessment']}")
+                        if p.get("expansion_summary"):
+                            lines.append(f"Expansion: {p['expansion_summary']}")
+                        lines.append("")
+            except Exception:
+                pass
 
     call_ids_expected = []
     email_note_ids_expected = []
@@ -1123,7 +1154,7 @@ def _fetch_previous_pbd_snapshot(hs_deal_id: str) -> dict | None:
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════════
 
-def run(deal_uuid: str, max_comms: int | None = MAX_COMMS_PER_BATCH, max_tokens: int | None = None) -> dict | None:
+def run(deal_uuid: str, max_comms: int | None = MAX_COMMS_PER_BATCH, max_tokens: int | None = None, full_context: bool = False) -> dict | None:
     """Process a deal: fetch comms from HubSpot+Modjo, analyze with Claude, write everything."""
 
     print(f"\n  INTELLIGENCE: {deal_uuid}")
@@ -1176,7 +1207,7 @@ def run(deal_uuid: str, max_comms: int | None = MAX_COMMS_PER_BATCH, max_tokens:
     prev_pbd = _fetch_previous_pbd_snapshot(hs_deal_id) if is_pbd_stage and hs_deal_id else None
 
     system_prompt = _build_system_prompt(deal)
-    user_prompt = _build_user_prompt(deal, deal_context, atlas, prev_snapshot, prev_pbd, items, is_pbd_stage)
+    user_prompt = _build_user_prompt(deal, deal_context, atlas, prev_snapshot, prev_pbd, items, is_pbd_stage, full_context=full_context)
 
     print(f"    Claude ({len(user_prompt)} user, {len(system_prompt)} system)...")
     try:

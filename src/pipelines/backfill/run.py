@@ -327,7 +327,7 @@ def run(team: str, limit: int = 500):
             pass_num = 0
             while True:
                 pass_num += 1
-                result = intelligence_run(deal_uuid, max_comms=30, max_tokens=32000)
+                result = intelligence_run(deal_uuid, max_comms=30, max_tokens=32000, full_context=True)
                 if not result:
                     break
                 intel_result = result

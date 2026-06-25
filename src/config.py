@@ -2005,6 +2005,7 @@ INTELLIGENCE_CONFIG = {
 
     # ── Thresholds ──────────────────────────────────────────────────────────
     "max_comms_per_batch": 15,
+    "context_recent_lines": 30,
     "transcript_pending_hours": 24,
     "min_transcript_length": 200,
 

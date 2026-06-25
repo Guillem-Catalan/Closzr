@@ -33,14 +33,22 @@ TODAY = date.today().isoformat()
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _fetch_all_trajectories() -> list[dict]:
-    resp = (
-        supabase.table(_W["trajectories_table"])
-        .select("outcome, amount, deal_age_days, team, closed_lost_reason, close_date, trajectory, stage_dates, lessons")
-        .order("created_at", desc=True)
-        .limit(500)
-        .execute()
-    )
-    return resp.data or []
+    results = []
+    offset = 0
+    while True:
+        resp = (
+            supabase.table(_W["trajectories_table"])
+            .select("outcome, amount, deal_age_days, team, closed_lost_reason, close_date, trajectory, stage_dates, lessons")
+            .order("created_at", desc=True)
+            .range(offset, offset + 999)
+            .execute()
+        )
+        batch = resp.data or []
+        results.extend(batch)
+        if len(batch) < 1000:
+            break
+        offset += 1000
+    return results
 
 
 def _parse_json_field(val) -> any:

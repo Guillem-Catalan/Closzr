@@ -42,23 +42,41 @@ def _detect_and_process_closed() -> int:
     Process final snapshot + update stage. Returns count processed."""
 
     # 1. Get deals with active stage + snapshot (deals we're tracking)
+    # Get deals with active stage that have snapshots (truly tracked)
     active_stages = list(ACTIVE_STAGES)
-    tracked = []
+    active_deals = []
     offset = 0
     while True:
         resp = (
             supabase.table(_I["deals_table"])
             .select(f"{_I['deal_col_id']}, {_I['deal_col_deal_id']}, {_I['deal_col_deal_name']}, {_I['deal_col_stage']}")
             .in_(_I["deal_col_stage"], active_stages)
-            .not_.is_(_I["deal_context_col"], "null")
             .range(offset, offset + 999)
             .execute()
         )
         batch = resp.data or []
-        tracked.extend(batch)
+        active_deals.extend(batch)
         if len(batch) < 1000:
             break
         offset += 1000
+
+    if not active_deals:
+        return 0
+
+    # Filter to only deals with snapshots
+    active_ids = [d[_I["deal_col_id"]] for d in active_deals]
+    has_snapshot = set()
+    for i in range(0, len(active_ids), 200):
+        batch = active_ids[i:i + 200]
+        snap_resp = (
+            supabase.table(_I["snapshot_table"])
+            .select("deal_id")
+            .in_("deal_id", batch)
+            .execute()
+        )
+        has_snapshot |= {r["deal_id"] for r in (snap_resp.data or [])}
+
+    tracked = [d for d in active_deals if d[_I["deal_col_id"]] in has_snapshot]
 
     if not tracked:
         return 0

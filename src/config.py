@@ -189,7 +189,7 @@ PARTNERS_ORGCHART = {
     # ====================================================================
 
     "Santander Channel": {
-        "active": False,
+        "active": True,
         "leadership": {
             "director_1": {"email": "francesc.terns@factorial.co", "name": "Francesc Terns", "role": "Channel Manager Mexico"},
             "director_2": {"email": "ernesto.blanco@factorial.co", "name": "Ernesto Blanco Sierra", "role": "Director Mexico"},

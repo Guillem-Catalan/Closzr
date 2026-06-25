@@ -92,8 +92,6 @@ def _detect_and_process_closed() -> int:
     if not transitions:
         return 0
 
-    max_per_run = _D.get("closed_detection_max_per_run", 10)
-    transitions = transitions[:max_per_run]
     print(f"    {len(transitions)} deals transitioned to closed")
 
     # 4. Process each: update stage + intelligence + forecast + parser

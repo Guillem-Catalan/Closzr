@@ -2333,7 +2333,6 @@ DAILY_CONFIG = {
     "on_hold_stages": ["On Hold"],
 
     # Closed deal detection — daily checks Supabase (active stage) vs HubSpot (closed)
-    "closed_detection_max_per_run": 10,
     "hs_dealstage_prop": "dealstage",
 
     # Deal Analysis (post-mortem)

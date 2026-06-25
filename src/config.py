@@ -2053,7 +2053,7 @@ SYNC_CONFIG = {
 # 15. THRESHOLDS
 # ============================================================================
 
-MAX_DEALS_PER_CYCLE = 50
+MAX_DEALS_PER_CYCLE = 100
 CORE_TIMEOUT_MINUTES = 55
 UPSERT_BATCH_SIZE = 500
 MIN_TRANSCRIPT_LENGTH = 100

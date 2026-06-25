@@ -450,4 +450,4 @@ def run(full: bool = False) -> dict:
     print(f"\n   HubSpot API requests: {hubspot.total_requests()}")
     print("=" * 60)
 
-    return {"synced": written, "stale": stale, "meetings": meetings}
+    return {"synced": written, "stale": stale}

@@ -1,13 +1,11 @@
 name: Hourly — Meetings + Briefings + Email Drafts
 
 on:
-  schedule:
-    - cron: '30 * * * *'
   workflow_dispatch:
 
 concurrency:
   group: hourly
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   hourly:

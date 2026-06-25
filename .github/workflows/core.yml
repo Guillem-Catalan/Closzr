@@ -1,13 +1,11 @@
 name: CORE — Sync + Intelligence + Forecast
 
 on:
-  schedule:
-    - cron: '0 * * * *'
   workflow_dispatch:
 
 concurrency:
   group: core
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   core:

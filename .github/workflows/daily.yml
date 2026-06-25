@@ -1,13 +1,11 @@
 name: Daily — Sync + Closed Deals + Trajectories + Analysis
 
 on:
-  schedule:
-    - cron: '0 2 * * *'
   workflow_dispatch:
 
 concurrency:
   group: daily
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   daily:

@@ -1,13 +1,11 @@
 name: Weekly — Patterns
 
 on:
-  schedule:
-    - cron: '0 22 * * 0'
   workflow_dispatch:
 
 concurrency:
   group: weekly
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   weekly:

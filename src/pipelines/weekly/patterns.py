@@ -333,17 +333,18 @@ def _upsert_pattern(pattern: dict):
         .maybe_single()
         .execute()
     )
+    existing = existing_resp.data if existing_resp else None
 
     history = []
-    if existing_resp.data:
-        old_history = _parse_json_field(existing_resp.data.get("history") or [])
+    if existing:
+        old_history = _parse_json_field(existing.get("history") or [])
         if isinstance(old_history, list):
             history = old_history
         history.append({
             "date": TODAY,
-            "confidence": existing_resp.data.get("confidence"),
-            "sample_size": existing_resp.data.get("sample_size"),
-            "value": existing_resp.data.get("value"),
+            "confidence": existing.get("confidence"),
+            "sample_size": existing.get("sample_size"),
+            "value": existing.get("value"),
         })
 
     row = {
@@ -354,13 +355,13 @@ def _upsert_pattern(pattern: dict):
         "confidence": pattern.get("confidence"),
         "sample_size": pattern.get("sample_size"),
         "value": pattern.get("value"),
-        "history": json.dumps(history[-52:], ensure_ascii=False),  # keep last 52 weeks
+        "history": json.dumps(history[-52:], ensure_ascii=False),
         "updated_at": "now()",
     }
     row = {k: v for k, v in row.items() if v is not None}
 
-    if existing_resp.data:
-        supabase.table(_W["patterns_table"]).update(row).eq("id", existing_resp.data["id"]).execute()
+    if existing:
+        supabase.table(_W["patterns_table"]).update(row).eq("id", existing["id"]).execute()
     else:
         row["generated_at"] = "now()"
         supabase.table(_W["patterns_table"]).insert(row).execute()

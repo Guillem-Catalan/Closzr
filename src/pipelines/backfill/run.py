@@ -274,10 +274,13 @@ def run(team: str, limit: int = 500):
 
     # Only process demo+ stages (Demo, Evaluation, Closing)
     # Prospecting + Nurturing are synced but wait for CORE on new activity
+    # Skip deals that already have deal_context (already processed)
     skip_stages = STAGE_PROSPECTING | STAGE_NURTURING
-    deals = [d for d in all_deals if d.get(_I["deal_col_stage"]) not in skip_stages][:limit]
-    skipped_pbd = len(all_deals) - len([d for d in all_deals if d.get(_I["deal_col_stage"]) not in skip_stages])
-    print(f"\n▸ {len(deals)} deals to process (demo+) | {skipped_pbd} prospecting/nurturing synced, waiting for CORE")
+    demo_plus = [d for d in all_deals if d.get(_I["deal_col_stage"]) not in skip_stages]
+    already_done = [d for d in demo_plus if d.get(_I["deal_context_col"]) and d[_I["deal_context_col"]].strip()]
+    deals = [d for d in demo_plus if not d.get(_I["deal_context_col"]) or not d[_I["deal_context_col"]].strip()][:limit]
+    skipped_pbd = len(all_deals) - len(demo_plus)
+    print(f"\n▸ {len(deals)} deals to process | {len(already_done)} already done | {skipped_pbd} prospecting/nurturing waiting for CORE")
 
     ok = 0
     failed = 0

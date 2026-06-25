@@ -287,6 +287,13 @@ def _resolve_deal(hs_deal: dict, owners: dict, company_map: dict, partner_map: d
 
 # ── Step 5: Detect if CORE should activate ──────────────────────────────────
 
+def _normalize_ts(val: str) -> str:
+    """Normalize timestamp for comparison: '2025-09-25T14:00:00Z' == '2025-09-25T14:00:00+00:00'."""
+    if not val:
+        return ""
+    return val.replace("+00:00", "Z").rstrip("Z").split(".")[0]
+
+
 def _detect_stale(rows: list[dict]) -> list[dict]:
     if not rows:
         return rows
@@ -311,8 +318,8 @@ def _detect_stale(rows: list[dict]) -> list[dict]:
 
     for row in rows:
         did = row.get(col_deal_id, "")
-        new_activity = row.get(col_activity) or ""
-        old_activity = current_activity.get(did, "")
+        new_activity = _normalize_ts(row.get(col_activity) or "")
+        old_activity = _normalize_ts(current_activity.get(did, ""))
         if new_activity and new_activity != old_activity:
             row[col_stale] = True
 

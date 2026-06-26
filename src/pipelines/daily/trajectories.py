@@ -36,28 +36,45 @@ def _fetch_deals_to_compile() -> list[dict]:
     - On Hold: if no trajectory OR if previously compiled as on_hold but now closed (redo)
     """
     all_stages = _D["closed_stages"] + _D["on_hold_stages"]
-    deals_resp = (
-        supabase.table(_I["deals_table"])
-        .select("*")
-        .in_(_I["deal_col_stage"], all_stages)
-        .limit(_D["trajectories_max_per_run"] * 3)
-        .execute()
-    )
-    if not deals_resp.data:
+
+    # Paginate to avoid payload too large
+    all_deals = []
+    offset = 0
+    while True:
+        deals_resp = (
+            supabase.table(_I["deals_table"])
+            .select("*")
+            .in_(_I["deal_col_stage"], all_stages)
+            .not_.is_("deal_context", "null")
+            .range(offset, offset + 499)
+            .execute()
+        )
+        batch = deals_resp.data or []
+        all_deals.extend(batch)
+        if len(batch) < 500 or len(all_deals) >= _D["trajectories_max_per_run"] * 3:
+            break
+        offset += 500
+
+    if not all_deals:
         return []
 
-    deal_ids = [d[_I["deal_col_id"]] for d in deals_resp.data]
+    deal_ids = [d[_I["deal_col_id"]] for d in all_deals]
 
-    existing_resp = (
-        supabase.table(_D["trajectories_table"])
-        .select("deal_id, outcome")
-        .in_(_D["fk_deal_id"], deal_ids)
-        .execute()
-    )
-    existing = {r["deal_id"]: r.get("outcome") for r in (existing_resp.data or [])}
+    # Check existing trajectories in batches
+    existing = {}
+    for i in range(0, len(deal_ids), 200):
+        batch = deal_ids[i:i + 200]
+        existing_resp = (
+            supabase.table(_D["trajectories_table"])
+            .select("deal_id, outcome")
+            .in_(_D["fk_deal_id"], batch)
+            .execute()
+        )
+        for r in (existing_resp.data or []):
+            existing[r["deal_id"]] = r.get("outcome")
 
     result = []
-    for d in deals_resp.data:
+    for d in all_deals:
         did = d[_I["deal_col_id"]]
         stage = d.get(_I["deal_col_stage"]) or ""
 

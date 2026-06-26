@@ -81,6 +81,16 @@ def _detect_and_process_closed() -> int:
     if not tracked:
         return 0
 
+    # Deduplicate by deal UUID
+    seen = set()
+    unique_tracked = []
+    for d in tracked:
+        did = d[_I["deal_col_id"]]
+        if did not in seen:
+            seen.add(did)
+            unique_tracked.append(d)
+    tracked = unique_tracked
+
     # 2. Batch read dealstage from HubSpot
     hs_ids = [d[_I["deal_col_deal_id"]] for d in tracked if d.get(_I["deal_col_deal_id"])]
     hs_stages: dict[str, str] = {}

@@ -227,34 +227,86 @@ confidence: low si hay una señal real pero débil. El TL ve ambos datos y decid
 
 ### forecast_pushable (boolean)
 
-¿Se puede influir en este deal con una acción concreta para acelerar o asegurar el cierre?
+¿Existe UNA acción concreta que, si se ejecuta en los próximos 7 días,
+cambiaría materialmente el rumbo o timing de este deal?
 
-TRUE si:
-- Hay UNA acción específica que si se hace AHORA podría acortar el ciclo o asegurar el cierre
-- El deal tiene interlocutores activos (no ghosting total)
-- Deals de next month que con push podrían adelantarse a este mes
-- Deals de this month que necesitan push para ASEGURAR que no se retrasan
+"Materialmente" significa: acortaría el cierre en ≥2 semanas, desbloquearía
+un blocker activo, o convertiría un deal estancado en un deal con momentum.
 
-FALSE solo si:
-- El deal está muy lejos sin ninguna palanca (>60 días sin actividad, sin contacto)
-- El deal está muerto o sin respuesta hace semanas sin alternativa
+TRUE cuando detectes AL MENOS UNO de estos patrones:
 
-REGLA: si closes_this_month o closes_next_month es true, forecast_pushable DEBE ser true.
-Un deal forecasteado siempre tiene una acción para asegurar o acelerar su cierre.
+1. VENTANA QUE SE CIERRA
+   El prospect dio una señal positiva reciente (<14 días) que requiere acción
+   inmediata o se pierde. Ejemplos:
+   - Prospect pidió propuesta/contrato y no se ha enviado o no se ha seguido
+   - Prospect dijo "si me lo mandáis esta semana, lo puedo aprobar antes de X"
+   - Descuento/promoción que expira y el prospect no lo sabe
+   - Presupuesto del prospect cierra en una fecha cercana
+
+2. BLOCKER DESBLOQUEABLE
+   Hay un blocker identificado que tiene una solución concreta que el rep
+   no ha ejecutado. Ejemplos:
+   - Economic Buyer no contactado pero el champion puede organizar la reunión
+   - Objeción técnica que se puede resolver con una demo específica
+   - Competidor en evaluación pero el rep no ha preguntado criterios ni timeline
+   - Prospect pidió referencia/caso de éxito y no se ha enviado
+
+3. DEAL ESTANCADO CON PALANCA
+   El deal lleva >14 días sin avance pero hay una palanca concreta no utilizada.
+   Ejemplos:
+   - Partner que puede hacer una intro al EB y no se ha activado
+   - Nuevo stakeholder identificado en LinkedIn/notas que no se ha contactado
+   - El prospect cambió de puesto/empresa y el deal no se ha ajustado
+   - Hay un evento del sector próximo donde se puede reactivar
+
+4. FORECASTED M0/M1
+   Si closes_this_month o closes_next_month es true → SIEMPRE pushable.
+   Un deal forecasteado siempre tiene una acción para asegurar su cierre.
+
+FALSE cuando:
+- El deal avanza normalmente por su cuenta (tiene meeting programado,
+  propuesta enviada esperando respuesta dentro del plazo normal)
+- No hay ninguna palanca adicional más allá de "esperar"
+- El deal está muerto (>30 días sin contacto, sin respuesta, sin alternativa)
+- El deal está en stage muy temprano sin señales (solo prospecting outbound
+  sin engagement)
+- La única acción posible es un follow-up genérico ("llamar para ver qué tal")
+
+IMPORTANTE: Un follow-up genérico NO es una push action. "Llamar a Juan para
+hacer seguimiento" no es pushable. "Llamar a Juan para preguntarle si el CFO
+ya revisó la propuesta que pidió el martes, porque si no la tiene el viernes
+pierde el presupuesto de Q3" SÍ es pushable.
 
 ### push_action (string)
 
-Si pushable es true, la acción concreta. UNA frase.
-Formato: "[Quién] → [qué hacer] → [resultado esperado]"
-IMPORTANTE: Usa SIEMPRE fechas absolutas (DD/MM). NUNCA "hoy", "mañana", "esta semana".
-Ejemplo: "Pol → pedir call con DG antes del viernes 20/06 → si confirma, contrato puede firmarse antes del 30/06"
+Si pushable es true: la acción concreta que el rep debe hacer.
+Formato: "[Quién] → [qué hacer exactamente] → [qué cambia si lo hace]"
+
+Requisitos:
+- Debe ser UNA acción ejecutable en <48h
+- Debe citar evidencia concreta del deal (fecha, nombre, dato)
+- Debe explicar qué resultado se espera y POR QUÉ
+- Usa SIEMPRE fechas absolutas (DD/MM). NUNCA "hoy", "mañana", "esta semana"
+- Si hay benchmark data, cítalo: "en deals similares, esta acción aceleró el cierre en X días"
+
+Ejemplo BUENO:
+"Gloria → llamar a Eduardo antes del 27/06 para confirmar si Ana se reincorporó
+→ si hay interlocutor válido, enviar propuesta actualizada. En deals estancados
+>180 días, un nuevo detonante (propuesta fresca + cambio de interlocutor) tiene
+3x más probabilidad de reactivación que follow-up al mismo contacto."
+
+Ejemplo MALO:
+"Pol → hacer follow up con el cliente para ver cómo van"
+
 Si pushable es false: ""
 
 ### push_action_reasoning (string)
 
-Por qué esa push_action funcionaría. Cita evidencia concreta del deal y del benchmark.
-Ejemplo: "Marta pidió el contrato hace 3 días. En 3 deals similares con OK verbal + contrato
-reenviado, la firma llegó en 2-5 días. Si Pol llama antes del viernes, puede cerrar la semana que viene."
+Por qué esta acción específica es la correcta AHORA. Debe responder:
+1. ¿Qué evidencia del deal sustenta esta recomendación? (citar fecha, persona, dato)
+2. ¿Por qué AHORA y no la semana que viene? (urgencia concreta)
+3. ¿Qué pasa si NO se hace? (coste de inacción)
+
 Si pushable es false: ""
 
 ### deal_momentum ("accelerating" | "stable" | "decelerating" | "stalled")

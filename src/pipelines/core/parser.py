@@ -23,6 +23,8 @@ from src.config import (
     DAILY_CONFIG,
     PARSER_CONFIG,
     HUBSPOT_APP_URL,
+    STAGE_WON,
+    STAGE_LOST,
 )
 from src.db.client import supabase
 
@@ -238,10 +240,17 @@ def update_from_sync(deal_uuid: str):
         "hs_link": f"{HUBSPOT_APP_URL}/contacts/{hs_deal_id}" if hs_deal_id else None,
         "mrr": deal.get(_I["deal_col_amount"]),
         "close_date_hs": deal.get(_I["deal_col_close_date"]),
+        "forecast_category": deal.get(_I["deal_col_forecast_cat"]) or "",
         "macro_stage": macro,
         "is_stale": days > threshold,
         "stale_days": days if days < 999 else None,
+        "employees": deal.get("num_employees") or deal.get("num_employees_custom") or "",
     }
+
+    if stage in STAGE_WON:
+        row["outcome"] = "won"
+    elif stage in STAGE_LOST:
+        row["outcome"] = "lost"
 
     _upsert(deal_uuid, row)
 
@@ -784,31 +793,54 @@ def _build_stage_roadmap(deal: dict) -> list[dict]:
 # ═══════════════════════════════════════════════════════════════════════════
 
 def update_from_daily(deal_uuid: str):
-    """Copy deal_analysis fields to deal_ui. Only for closed deals with analysis."""
-    resp = (
+    """Copy deal_analysis + trajectory fields to deal_ui. For closed deals."""
+    row = {}
+
+    # Deal analysis
+    analysis_resp = (
         supabase.table(_D["analysis_table"])
         .select("*")
         .eq("deal_id", deal_uuid)
         .maybe_single()
         .execute()
     )
-    if not resp.data:
-        return
-    a = resp.data
+    if analysis_resp and analysis_resp.data:
+        a = analysis_resp.data
+        row.update({
+            "outcome": a.get("outcome") or "",
+            "full_narrative": a.get("full_narrative") or "",
+            "outcome_summary": a.get("outcome_summary") or "",
+            "analysis_timeline": a.get("deal_timeline") if isinstance(a.get("deal_timeline"), str) else json.dumps(a.get("deal_timeline") or [], ensure_ascii=False),
+            "analysis_what_worked": a.get("what_worked") if isinstance(a.get("what_worked"), str) else json.dumps(a.get("what_worked") or [], ensure_ascii=False),
+            "analysis_what_failed": a.get("what_failed") if isinstance(a.get("what_failed"), str) else json.dumps(a.get("what_failed") or [], ensure_ascii=False),
+            "analysis_could_have_changed": a.get("what_could_have_changed") or "",
+            "analysis_rep_assessment": a.get("rep_assessment") or "",
+            "analysis_key_people": a.get("key_people") if isinstance(a.get("key_people"), str) else json.dumps(a.get("key_people") or [], ensure_ascii=False),
+            "analysis_products_pitched": a.get("products_pitched") if isinstance(a.get("products_pitched"), str) else json.dumps(a.get("products_pitched") or [], ensure_ascii=False),
+            "analysis_products_missed": a.get("products_missed") if isinstance(a.get("products_missed"), str) else json.dumps(a.get("products_missed") or [], ensure_ascii=False),
+            "analysis_product_assessment": a.get("product_assessment") or "",
+        })
 
-    row = {
-        "outcome": a.get("outcome") or "",
-        "full_narrative": a.get("full_narrative") or "",
-        "outcome_summary": a.get("outcome_summary") or "",
-        "analysis_timeline": a.get("deal_timeline") if isinstance(a.get("deal_timeline"), str) else json.dumps(a.get("deal_timeline") or [], ensure_ascii=False),
-        "analysis_what_worked": a.get("what_worked") if isinstance(a.get("what_worked"), str) else json.dumps(a.get("what_worked") or [], ensure_ascii=False),
-        "analysis_what_failed": a.get("what_failed") if isinstance(a.get("what_failed"), str) else json.dumps(a.get("what_failed") or [], ensure_ascii=False),
-        "analysis_could_have_changed": a.get("what_could_have_changed") or "",
-        "analysis_rep_assessment": a.get("rep_assessment") or "",
-        "analysis_key_people": a.get("key_people") if isinstance(a.get("key_people"), str) else json.dumps(a.get("key_people") or [], ensure_ascii=False),
-        "analysis_products_pitched": a.get("products_pitched") if isinstance(a.get("products_pitched"), str) else json.dumps(a.get("products_pitched") or [], ensure_ascii=False),
-        "analysis_products_missed": a.get("products_missed") if isinstance(a.get("products_missed"), str) else json.dumps(a.get("products_missed") or [], ensure_ascii=False),
-        "analysis_product_assessment": a.get("product_assessment") or "",
-    }
+    # Trajectory
+    traj_resp = (
+        supabase.table(_D["trajectories_table"])
+        .select("*")
+        .eq(_D["fk_deal_id"], deal_uuid)
+        .maybe_single()
+        .execute()
+    )
+    if traj_resp and traj_resp.data:
+        t = traj_resp.data
+        row.update({
+            "trajectory": t.get("trajectory") if isinstance(t.get("trajectory"), str) else json.dumps(t.get("trajectory") or [], ensure_ascii=False),
+            "interactions": t.get("interactions") if isinstance(t.get("interactions"), str) else json.dumps(t.get("interactions") or {}, ensure_ascii=False),
+            "lessons": t.get("lessons") if isinstance(t.get("lessons"), str) else json.dumps(t.get("lessons") or [], ensure_ascii=False),
+            "closed_lost_reason": t.get("closed_lost_reason") or "",
+            "key_turning_point": t.get("key_turning_point") or "",
+            "deal_age_days": _safe_int(t.get("deal_age_days")),
+        })
+        if not row.get("outcome"):
+            row["outcome"] = t.get("outcome") or ""
 
-    _upsert(deal_uuid, row)
+    if row:
+        _upsert(deal_uuid, row)

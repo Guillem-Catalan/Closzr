@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       team:
-        description: 'Team name (e.g., XL, Santander Channel)'
+        description: 'Team name (e.g., XL, Mexico, Santander)'
         required: true
         type: string
       limit:

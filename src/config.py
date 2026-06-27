@@ -183,12 +183,12 @@ PARTNERS_ORGCHART = {
     },
 
     # ====================================================================
-    # SANTANDER CHANNEL — equipo México (antes "Mexico")
-    # Deals con partner association → team del partner (ej: "Santander Mexico")
-    # Deals sin partner → team = "Santander Channel"
+    # MEXICO — equipo México
+    # Deals con partner association "Santander México" → team = "Santander Mexico"
+    # Deals sin partner → team = "Mexico"
     # ====================================================================
 
-    "Santander Channel": {
+    "Mexico": {
         "active": True,
         "leadership": {
             "director_1": {"email": "francesc.terns@factorial.co", "name": "Francesc Terns", "role": "Channel Manager Mexico"},
@@ -396,10 +396,10 @@ PARTNER_IDENTITY = {
         "lang_file": "lang_es_startup.txt",
         "tz": "America/Mexico_City",
     },
-    "Santander Channel": {
+    "Mexico": {
         "partner_names": set(),
         "partner_domains": set(),
-        "prompt_partner_label": "Santander Channel",
+        "prompt_partner_label": "Mexico",
         "lang": "es",
         "lang_file": "lang_es_startup.txt",
         "tz": "America/Mexico_City",

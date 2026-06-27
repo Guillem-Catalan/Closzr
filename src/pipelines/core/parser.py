@@ -408,7 +408,7 @@ def update_from_intelligence(deal_uuid: str):
 
     # Action unification: push_action > action_signal > first next_step
     push_action_raw = (s.get("push_action") or "").strip()
-    action_signal_raw = (s.get("action_signal") or "").strip()
+    action_signal_raw = _absolutize_text((s.get("action_signal") or "").strip(), snap_dt)
 
     if push_action_raw:
         action_source = "forecast"
@@ -493,6 +493,7 @@ def update_from_intelligence(deal_uuid: str):
         "action_type": action_type,
         "action_headline": headline,
         "action_headline_short": headline[:_P["signal_max_chars"]] + ("…" if len(headline) > _P["signal_max_chars"] else ""),
+        "action_signal": action_signal_raw,
         "action_due_label": _due_label(due),
         "action_due_date": due.isoformat(),
         "action_who": who,
@@ -674,14 +675,62 @@ def _build_stage_roadmap(deal: dict) -> list[dict]:
     roadmap = []
 
     stage_date_pairs = [
+        # SDR Partner Opportunities Pipeline
         ("Pre-qualified", "sdr_prequalified_entered", "sdr_prequalified_exited"),
         ("Attempting to contact", "sdr_attempting_to_contact_entered", "sdr_attempting_to_contact_exited"),
+        ("Engaged", "sdr_engaged_entered", "sdr_engaged_exited"),
         ("Demo Booked", "sdr_demo_booked_entered", "sdr_demo_booked_exited"),
+        # Partners Distribution Pipeline
+        ("New Deals", "dist_new_deals_entered", "dist_new_deals_exited"),
         ("Demo Booked", "dist_demo_booked_entered", "dist_demo_booked_exited"),
         ("Product Alignment", "dist_product_alignment_entered", "dist_product_alignment_exited"),
-        ("Pricing and Packaging", "dist_pricing_and_packaging_entered", "dist_pricing_and_packaging_exited"),
+        ("MEDDPICC", "dist_meddpicc_validation_entered", "dist_meddpicc_validation_exited"),
+        ("Pricing & Packaging", "dist_pricing_and_packaging_entered", "dist_pricing_and_packaging_exited"),
+        ("Contracting", "dist_contracting_entered", "dist_contracting_exited"),
+        # Sales Pipeline
         ("Meeting Booked", "sales_meeting_booked_entered", "sales_meeting_booked_exited"),
         ("Discovery", "sales_discovery_entered", "sales_discovery_exited"),
+        ("Product Alignment", "sales_product_alignment_entered", "sales_product_alignment_exited"),
+        ("Pricing & Packaging", "sales_pricing_and_packaging_entered", "sales_pricing_and_packaging_exited"),
+        ("Contracting", "sales_contracting_entered", "sales_contracting_exited"),
+        # OB SDR Pipeline
+        ("New", "ob_new_entered", "ob_new_exited"),
+        ("Research & Outreach", "ob_research_outreach_entered", "ob_research_outreach_exited"),
+        ("Engaged", "ob_engaged_entered", "ob_engaged_exited"),
+        ("Meeting Booked", "ob_meeting_booked_entered", "ob_meeting_booked_exited"),
+        # IB SDR Pipeline
+        ("New Qualified", "ib_new_qualified_entered", "ib_new_qualified_exited"),
+        ("Attempted to contact", "ib_attempted_contact_entered", "ib_attempted_contact_exited"),
+        ("Engaged", "ib_engaged_entered", "ib_engaged_exited"),
+        ("Meeting Booked", "ib_meeting_booked_entered", "ib_meeting_booked_exited"),
+        # XL Account Pipeline
+        ("New", "xl_new_entered", "xl_new_exited"),
+        ("Outreach", "xl_outreach_entered", "xl_outreach_exited"),
+        ("Engaged", "xl_engaged_entered", "xl_engaged_exited"),
+        ("Meeting Booked", "xl_meeting_booked_entered", "xl_meeting_booked_exited"),
+        ("Discovery", "xl_discovery_entered", "xl_discovery_exited"),
+        ("Product Alignment", "xl_product_alignment_entered", "xl_product_alignment_exited"),
+        ("Pricing & Packaging", "xl_pricing_packaging_entered", "xl_pricing_packaging_exited"),
+        ("Contracting", "xl_contracting_entered", "xl_contracting_exited"),
+        # XL SDR Pipeline
+        ("New", "xlsdr_new_entered", "xlsdr_new_exited"),
+        ("Research & Outreach", "xlsdr_research_outreach_entered", "xlsdr_research_outreach_exited"),
+        ("Engaged", "xlsdr_engaged_entered", "xlsdr_engaged_exited"),
+        ("Meeting Booked", "xlsdr_meeting_booked_entered", "xlsdr_meeting_booked_exited"),
+        # IT AE Pipeline
+        ("New", "itae_new_entered", "itae_new_exited"),
+        ("Outreach", "itae_outreach_entered", "itae_outreach_exited"),
+        ("Engaged", "itae_engaged_entered", "itae_engaged_exited"),
+        ("Meeting Booked", "itae_meeting_booked_entered", "itae_meeting_booked_exited"),
+        ("Discovery", "itae_discovery_entered", "itae_discovery_exited"),
+        ("Product Alignment", "itae_product_alignment_entered", "itae_product_alignment_exited"),
+        ("Pricing & Packaging", "itae_pricing_packaging_entered", "itae_pricing_packaging_exited"),
+        ("Contracting", "itae_contracting_entered", "itae_contracting_exited"),
+        # IT SDR Pipeline
+        ("New", "itsdr_new_entered", "itsdr_new_exited"),
+        ("Research & Outreach", "itsdr_research_outreach_entered", "itsdr_research_outreach_exited"),
+        ("Engaged", "itsdr_engaged_entered", "itsdr_engaged_exited"),
+        ("Meeting Booked", "itsdr_meeting_booked_entered", "itsdr_meeting_booked_exited"),
     ]
 
     seen_stages = set()

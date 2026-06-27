@@ -1,0 +1,116 @@
+/* ============================================================
+   CLOSZR — Sales Intelligence
+   Visual system: warm paper + electric indigo. Confident & human.
+   Fonts: Bricolage Grotesque (display + figures) · Hanken Grotesque (UI)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesque:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+
+:root {
+  /* --- Brand --- */
+  --indigo:        #3B4BD8;
+  --indigo-700:    #2D3AAE;
+  --indigo-300:    #9AA3EE;
+  --indigo-tint:   #ECEDFB;
+  --indigo-tint-2: #F4F5FD;
+
+  /* --- Warm paper neutrals --- */
+  --paper:    #F4F1EA;   /* app background */
+  --paper-2:  #EFEBE2;   /* deeper warm panel */
+  --card:     #FFFFFF;   /* surfaces */
+  --card-2:   #FBFAF7;   /* soft inset surface */
+
+  --ink:      #1C1B22;   /* primary text, warm near-black */
+  --ink-2:    #56535F;   /* secondary */
+  --ink-3:    #8A8692;   /* muted */
+  --ink-4:    #B6B2BC;   /* faint / placeholder */
+
+  --line:     #E7E2D8;   /* warm hairline */
+  --line-2:   #EFEBE2;   /* fainter hairline */
+  --line-ink: #DAD5CA;   /* stronger divider */
+
+  /* --- Semantic --- */
+  --green:     #1F8A5B;  --green-tint:  #E4F4EC;  --green-ink: #14633F;
+  --red:       #D8442F;  --red-tint:    #FBE9E5;  --red-ink:   #9E2A1A;
+  --amber:     #D8892A;  --amber-tint:  #FBF0DF;  --amber-ink: #8A560F;
+  --violet:    #7C5BD8;  --violet-tint: #F0EBFB;
+  --blue:      #2E78D8;  --blue-tint:   #E6F0FB;
+  --teal:      #1F8E91;  --teal-tint:   #E2F2F2;
+
+  /* --- Type --- */
+  --font-display: 'Bricolage Grotesque', 'Hanken Grotesque', system-ui, sans-serif;
+  --font-sans:    'Hanken Grotesque', system-ui, -apple-system, sans-serif;
+
+  /* --- Radius --- */
+  --r-xs: 7px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  /* --- Shadow (warm-tinted) --- */
+  --sh-xs: 0 1px 2px rgba(40,34,24,.05);
+  --sh-sm: 0 1px 3px rgba(40,34,24,.06), 0 1px 1px rgba(40,34,24,.04);
+  --sh-md: 0 6px 20px -6px rgba(40,34,24,.14), 0 2px 6px rgba(40,34,24,.05);
+  --sh-lg: 0 24px 60px -16px rgba(28,24,16,.30), 0 8px 24px -8px rgba(28,24,16,.16);
+  --sh-pop: 0 12px 36px -8px rgba(28,24,16,.22), 0 2px 8px rgba(28,24,16,.08);
+
+  /* --- Density (driven by Tweaks) --- */
+  --row-h: 52px;
+  --gap: 20px;
+  --pad: 22px;
+
+  --ease: cubic-bezier(.2,.8,.2,1);
+}
+
+/* density: compact */
+[data-density="compact"] {
+  --row-h: 42px;
+  --gap: 14px;
+  --pad: 16px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: var(--indigo-tint); color: var(--indigo-700); }
+
+h1,h2,h3,h4 { font-family: var(--font-display); font-weight: 600; margin: 0; letter-spacing: -.02em; }
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, select, textarea { font-family: inherit; }
+
+.num { font-variant-numeric: tabular-nums; }
+.display { font-family: var(--font-display); letter-spacing: -.02em; }
+
+/* scrollbars */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: #d8d2c6; border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: #c5bfb1; background-clip: content-box; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* eyebrow / section labels */
+.eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+
+/* generic fade-up used on overlay open */
+@keyframes cz-fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes cz-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cz-scale-in { from { opacity: 0; transform: scale(.985) translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* tweak-driven */
+body.cz-hide-reco .cz-reco { display: none; }
+[data-paper="neutro"] { --paper: #F2F2F0; --paper-2: #EAEAE7; --line: #E4E4E0; --line-2: #ECECE9; --line-ink: #D8D8D3; }

@@ -340,6 +340,13 @@ Factores a considerar (en orden de importancia):
 Si deal_killer: true → estimated_close_date: null
 Nunca poner una fecha pasada.
 
+IMPORTANTE: estimated_close_date, closes_this_month y closes_next_month son la MISMA
+decisión expresada de diferentes formas. No los evalúes por separado.
+Primero decide CUÁNDO crees que cierra (fecha). De esa fecha se desprende naturalmente
+si cierra este mes o el siguiente. Si tu fecha es 15 de julio, closes_this_month es
+false y closes_next_month es true. Si no eres capaz de estimar una fecha (deal demasiado
+temprano o sin señales), entonces la fecha es null y ambos booleanos son false.
+
 ### close_date_reasoning (string)
 
 1-2 frases explicando por qué esa fecha. Menciona el factor principal.

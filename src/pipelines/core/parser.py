@@ -152,9 +152,19 @@ def _absolutize_text(text: str, ref: date) -> str:
     return result
 
 
-def _parse_bullets(text: str | None) -> list[str]:
+def _parse_bullets(text) -> list[str]:
     if not text:
         return []
+    if isinstance(text, list):
+        return [re.sub(r"^[•\-\d.]\s*", "", str(s)).strip() for s in text if str(s).strip() and len(str(s).strip()) > 3]
+    text = str(text)
+    if text.strip().startswith("["):
+        try:
+            items = json.loads(text)
+            if isinstance(items, list):
+                return [re.sub(r"^[•\-\d.]\s*", "", str(s)).strip() for s in items if str(s).strip() and len(str(s).strip()) > 3]
+        except (json.JSONDecodeError, TypeError):
+            pass
     return [s.strip() for s in re.split(r"[\n•\-*]", text) if s.strip() and len(s.strip()) > 3]
 
 

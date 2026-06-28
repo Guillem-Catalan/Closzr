@@ -2334,6 +2334,9 @@ DAILY_CONFIG = {
     # Closed deal detection — daily checks Supabase (active stage) vs HubSpot (closed)
     "hs_dealstage_prop": "dealstage",
 
+    # Forecast refresh — re-forecast deals with imminent close date
+    "forecast_refresh_days": 5,
+
     # Deal Analysis (post-mortem)
     "analysis_table": "deal_analysis",
     "analysis_prompt_path": "daily/deal_analysis.txt",

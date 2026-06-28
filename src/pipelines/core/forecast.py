@@ -56,6 +56,18 @@ def _fetch_snapshot_today(hs_deal_id: str) -> dict | None:
     return resp.data[0] if resp.data else None
 
 
+def _fetch_latest_snapshot(hs_deal_id: str) -> dict | None:
+    resp = (
+        supabase.table(_I["snapshot_table"])
+        .select("*")
+        .eq(_I["fk_hs_deal_id"], hs_deal_id)
+        .order(_I["fk_snapshot_date"], desc=True)
+        .limit(1)
+        .execute()
+    )
+    return resp.data[0] if resp.data else None
+
+
 def _fetch_trajectory(deal_uuid: str) -> list[dict]:
     resp = (
         supabase.table(_I["snapshot_table"])
@@ -384,6 +396,97 @@ def run(deal_uuid: str) -> dict | None:
 
     snapshot_id = snapshot.get("id")
     print(f"    FORECAST: {deal_name}")
+
+    trajectory = _fetch_trajectory(deal_uuid)
+    similar_won, similar_lost = _fetch_similar_deals(stage, amount, age, team)
+    patterns = _fetch_patterns()
+    calibration = _fetch_calibration()
+
+    prev_forecast = None
+    for s in reversed(trajectory):
+        if s.get("closes_this_month") is not None:
+            prev_forecast = s
+            break
+
+    system_prompt = _read_prompt(_F["system_prompt_path"])
+    user_prompt = _build_user_prompt(
+        deal, snapshot, trajectory,
+        similar_won, similar_lost,
+        patterns, calibration,
+        prev_forecast,
+    )
+
+    print(f"    Claude Opus ({len(user_prompt)} chars)...")
+    try:
+        raw = claude.analyze(system_prompt, user_prompt, model=MODEL_OPUS, max_tokens=MAX_TOKENS_FORECAST_V2)
+    except Exception as e:
+        print(f"    ✗ Claude failed: {e}")
+        return None
+
+    text = re.sub(r"^```(?:json)?\s*", "", raw.strip())
+    text = re.sub(r"\s*```$", "", text).strip()
+
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        matches = re.findall(r"\{[^{}]+\}", text)
+        if not matches:
+            print(f"    ✗ No JSON found in forecast response")
+            return None
+        parsed = json.loads(matches[-1])
+
+    close_probability = _compute_probability(snapshot, parsed)
+    mrr = float(snapshot.get("mrr") or 0)
+    claudio_forecast = round((close_probability / 100) * mrr, 2)
+
+    forecast_data = {}
+    for col in _F["claude_cols"]:
+        if col in parsed:
+            forecast_data[col] = parsed[col]
+    forecast_data["close_probability"] = close_probability
+    forecast_data["claudio_forecast"] = claudio_forecast
+
+    ok = _update_snapshot(snapshot_id, forecast_data)
+
+    ctm = "YES" if parsed.get("closes_this_month") else "NO"
+    conf = parsed.get("forecast_confidence", "?")
+    mom = parsed.get("deal_momentum", "?")
+    push = " | PUSHABLE" if parsed.get("forecast_pushable") else ""
+    print(f"    → {ctm} ({conf}) | prob={close_probability}% | momentum={mom}{push} | close: {parsed.get('estimated_close_date', '?')}")
+
+    return {
+        "close_probability": close_probability,
+        "claudio_forecast": claudio_forecast,
+        "closes_this_month": parsed.get("closes_this_month"),
+        "forecast_confidence": conf,
+        "deal_momentum": mom,
+        "estimated_close_date": parsed.get("estimated_close_date"),
+        "ok": ok,
+    }
+
+
+def run_refresh(deal_uuid: str) -> dict | None:
+    """Re-run forecast using the latest existing snapshot (no intelligence needed)."""
+
+    deal = _fetch_deal(deal_uuid)
+    if not deal:
+        print(f"    FORECAST REFRESH: deal not found")
+        return None
+
+    deal_name = deal.get(_I["deal_col_deal_name"]) or "?"
+    hs_deal_id = deal.get(_I["deal_col_deal_id"]) or ""
+    amount = float(deal.get(_I["deal_col_amount"]) or 0)
+    stage = deal.get(_I["deal_col_stage"]) or ""
+    age = deal.get(_I["deal_col_age"]) or 0
+    team = deal.get(_I["deal_col_team"]) or ""
+
+    snapshot = _fetch_latest_snapshot(hs_deal_id)
+    if not snapshot:
+        print(f"    FORECAST REFRESH: no snapshot for {deal_name} — skipping")
+        return None
+
+    snapshot_id = snapshot.get("id")
+    print(f"    FORECAST REFRESH: {deal_name}")
 
     trajectory = _fetch_trajectory(deal_uuid)
     similar_won, similar_lost = _fetch_similar_deals(stage, amount, age, team)

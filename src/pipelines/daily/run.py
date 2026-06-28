@@ -5,9 +5,11 @@ Runs once per day at 03:00. Dispatched by pg_cron via GitHub Actions.
 
 Steps:
   1. Full sync — all active deals from HubSpot (catches metadata changes CORE missed)
-  2. Trajectories — compile newly closed deals for forecast benchmark
-  3. Deal analysis — post-mortem for TLs/UI
-  4. Parser — update deal_ui metadata for all active deals + analysis for closed ones
+  2. Forecast refresh — re-forecast deals with imminent Claudio close date
+  3. Closed deal detection — detect HubSpot stage transitions to closed
+  4. Trajectories — compile newly closed deals for forecast benchmark
+  5. Deal analysis — post-mortem for TLs/UI
+  6. Parser — update deal_ui metadata for all active deals + analysis for closed ones
 
 No CORE activation — if sync detects new activity, it marks context_stale=True
 and the next CORE run picks it up.
@@ -16,6 +18,7 @@ Everything from config.
 """
 
 import traceback
+from datetime import date, timedelta
 
 from src.config import (
     INTELLIGENCE_CONFIG,
@@ -28,6 +31,7 @@ from src.db.client import supabase
 from src.integrations import hubspot
 from src.pipelines.core.sync import run as sync_run
 from src.pipelines.core.intelligence import run as intelligence_run
+from src.pipelines.core.forecast import run_refresh as forecast_refresh
 from src.pipelines.core import parser
 from src.pipelines.daily.trajectories import run as trajectories_run, compile_trajectory
 from src.pipelines.daily.deal_analysis import run as deal_analysis_run, analyze_deal
@@ -35,6 +39,43 @@ from src.pipelines.daily.deal_analysis import run as deal_analysis_run, analyze_
 _I = INTELLIGENCE_CONFIG
 _D = DAILY_CONFIG
 _CLOSED_LOWER = frozenset(s.lower() for s in CLOSED_ALL)
+
+
+def _refresh_imminent_forecasts() -> int:
+    """Re-forecast deals whose Claudio close date is within N days."""
+    threshold_days = _D.get("forecast_refresh_days", 5)
+    threshold = (date.today() + timedelta(days=threshold_days)).isoformat()
+
+    resp = (
+        supabase.table("deal_ui")
+        .select("deal_id, deal_name_full, estimated_close_date")
+        .is_("outcome", "null")
+        .not_.is_("estimated_close_date", "null")
+        .lte("estimated_close_date", threshold)
+        .execute()
+    )
+    deals = resp.data or []
+    if not deals:
+        return 0
+
+    print(f"    {len(deals)} deals with close date <= {threshold}")
+
+    refreshed = 0
+    for d in deals:
+        deal_uuid = d["deal_id"]
+        deal_name = (d.get("deal_name_full") or "?")[:50]
+        close_dt = d.get("estimated_close_date") or "?"
+
+        try:
+            result = forecast_refresh(deal_uuid)
+            if result:
+                parser.update_from_forecast(deal_uuid)
+                refreshed += 1
+                print(f"    ✓ {deal_name} ({close_dt} → {result.get('estimated_close_date', '?')})")
+        except Exception as e:
+            print(f"    ✗ {deal_name}: {e}")
+
+    return refreshed
 
 
 def _detect_and_process_closed() -> int:
@@ -191,7 +232,16 @@ def run():
         print(f"  ✗ Full sync failed: {e}")
         traceback.print_exc()
 
-    # ── 2. Detect closed deals ──
+    # ── 2. Forecast refresh — deals with imminent close date ──
+    print("\n▸ FORECAST REFRESH")
+    try:
+        refreshed = _refresh_imminent_forecasts()
+        print(f"  {refreshed} forecasts refreshed")
+    except Exception as e:
+        print(f"  ✗ Forecast refresh failed: {e}")
+        traceback.print_exc()
+
+    # ── 3. Detect closed deals ──
     print("\n▸ CLOSED DEAL DETECTION")
     try:
         closed = _detect_and_process_closed()
@@ -200,7 +250,7 @@ def run():
         print(f"  ✗ Closed detection failed: {e}")
         traceback.print_exc()
 
-    # ── 3. Trajectories ──
+    # ── 4. Trajectories ──
     print("\n▸ TRAJECTORIES")
     try:
         compiled = trajectories_run()
@@ -209,7 +259,7 @@ def run():
         print(f"  ✗ Trajectories failed: {e}")
         traceback.print_exc()
 
-    # ── 3. Deal analysis ──
+    # ── 5. Deal analysis ──
     print("\n▸ DEAL ANALYSIS")
     try:
         analyzed = deal_analysis_run()
@@ -218,7 +268,7 @@ def run():
         print(f"  ✗ Deal analysis failed: {e}")
         traceback.print_exc()
 
-    # ── 4. Parser — metadata for all active deals ──
+    # ── 6. Parser — metadata for all active deals ──
     print("\n▸ PARSER — metadata update")
     stages = list(ACTIVE_STAGES) + _D["closed_stages"] + _D["on_hold_stages"]
     updated = 0
@@ -254,7 +304,7 @@ def run():
 
     print(f"  {updated} deals metadata updated, {errors} errors")
 
-    # ── 4b. Parser — analysis for closed deals ──
+    # ── 6b. Parser — analysis for closed deals ──
     print("\n▸ PARSER — deal analysis update")
     closed_stages = _D["closed_stages"] + _D["on_hold_stages"]
     analysis_updated = 0

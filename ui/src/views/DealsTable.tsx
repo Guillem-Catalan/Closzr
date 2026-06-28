@@ -4,7 +4,7 @@
 import { useState, useMemo } from "react";
 import { Icon, StageChip, ProbBadge, Trend, Chip, fmtMRR } from "./components";
 import { useData } from "../data/store";
-import { distinctTeams, distinctOwners, matchesTeam, matchesRep, matchesSearch, repNameToEmail } from "../data/filters";
+import { distinctTeams, distinctOwners, matchesTeam, matchesRep, matchesSearch } from "../data/filters";
 
 function RowJump({ onOpen }: { onOpen: (tab: string) => void }) {
   return (

@@ -5,7 +5,7 @@ import { useState, useMemo } from "react";
 import { Icon, StageChip, ProbBadge, Trend, TONE } from "./components";
 import { useData } from "../data/store";
 import { hubspotDealUrl, STAGE_DISPLAY } from "../display";
-import { distinctTeams, distinctOwners, matchesTeam, matchesRep, repNameToEmail } from "../data/filters";
+import { normalize, distinctTeams, distinctOwners, repNameToEmail } from "../data/filters";
 
 function fmtK(v: number | null | undefined){
   if (v==null) return "—";
@@ -147,11 +147,11 @@ function PipelineView({ onOpen }: PipelineViewProps) {
 
   // Filter stages by team/rep
   const repEmail = repFilter ? repNameToEmail(repFilter) : "";
-  const repNorm = repFilter ? repFilter.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "") : "";
+  const repNorm = repFilter ? normalize(repFilter) : "";
   const filterRow = (r: any) => {
     if (teamFilter && r.team !== teamFilter) return false;
     if (repFilter) {
-      const ownerNorm = (r.owner || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+      const ownerNorm = normalize(r.owner || "");
       const isOwner = ownerNorm === repNorm || ownerNorm.startsWith(repNorm + " ");
       const isAttendee = r.meetingPaes?.includes(repEmail);
       if (!isOwner && !isAttendee) return false;

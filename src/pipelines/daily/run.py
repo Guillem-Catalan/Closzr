@@ -26,10 +26,19 @@ from src.config import (
     ACTIVE_STAGES,
     STAGE_ID_TO_LABEL,
     CLOSED_ALL,
+    HS_ALL_DEAL_PROPS,
+    SYNC_CONFIG,
+    UPSERT_BATCH_SIZE,
 )
 from src.db.client import supabase
 from src.integrations import hubspot
-from src.pipelines.core.sync import run as sync_run
+from src.pipelines.core.sync import (
+    run as sync_run,
+    _resolve_deal,
+    _fetch_owners,
+    _fetch_company_associations,
+    _fetch_partner_associations,
+)
 from src.pipelines.core.intelligence import run as intelligence_run
 from src.pipelines.core.forecast import run_refresh as forecast_refresh
 from src.pipelines.core import parser
@@ -38,6 +47,7 @@ from src.pipelines.daily.deal_analysis import run as deal_analysis_run, analyze_
 
 _I = INTELLIGENCE_CONFIG
 _D = DAILY_CONFIG
+_SC = SYNC_CONFIG
 _CLOSED_LOWER = frozenset(s.lower() for s in CLOSED_ALL)
 
 
@@ -80,10 +90,9 @@ def _refresh_imminent_forecasts() -> int:
 
 def _detect_and_process_closed() -> int:
     """Find deals that transitioned to closed in HubSpot but Supabase still shows active.
-    Process final snapshot + update stage. Returns count processed."""
+    Re-syncs ALL properties from HubSpot, then processes final snapshot + trajectory + analysis."""
 
-    # 1. Get deals with active stage + snapshot (deals we're tracking)
-    # Get deals with active stage that have snapshots (truly tracked)
+    # 1. Get ALL deals with active stage in Supabase (no snapshot filter)
     active_stages = list(ACTIVE_STAGES)
     active_deals = []
     offset = 0
@@ -104,36 +113,19 @@ def _detect_and_process_closed() -> int:
     if not active_deals:
         return 0
 
-    # Filter to only deals with snapshots
-    active_ids = [d[_I["deal_col_id"]] for d in active_deals]
-    has_snapshot = set()
-    for i in range(0, len(active_ids), 200):
-        batch = active_ids[i:i + 200]
-        snap_resp = (
-            supabase.table(_I["snapshot_table"])
-            .select("deal_id")
-            .in_("deal_id", batch)
-            .execute()
-        )
-        has_snapshot |= {r["deal_id"] for r in (snap_resp.data or [])}
-
-    tracked = [d for d in active_deals if d[_I["deal_col_id"]] in has_snapshot]
-
-    if not tracked:
-        return 0
-
     # Deduplicate by deal UUID
     seen = set()
-    unique_tracked = []
-    for d in tracked:
+    unique = []
+    for d in active_deals:
         did = d[_I["deal_col_id"]]
         if did not in seen:
             seen.add(did)
-            unique_tracked.append(d)
-    tracked = unique_tracked
+            unique.append(d)
+    active_deals = unique
+    print(f"    {len(active_deals)} active deals in Supabase")
 
     # 2. Batch read dealstage from HubSpot
-    hs_ids = [d[_I["deal_col_deal_id"]] for d in tracked if d.get(_I["deal_col_deal_id"])]
+    hs_ids = [d[_I["deal_col_deal_id"]] for d in active_deals if d.get(_I["deal_col_deal_id"])]
     hs_stages: dict[str, str] = {}
     for i in range(0, len(hs_ids), 100):
         batch = hs_ids[i:i + 100]
@@ -151,30 +143,61 @@ def _detect_and_process_closed() -> int:
 
     # 3. Find transitions: Supabase active → HubSpot closed
     transitions = []
-    for d in tracked:
+    for d in active_deals:
         hs_id = d.get(_I["deal_col_deal_id"], "")
         hs_stage = hs_stages.get(hs_id, "")
         if hs_stage.lower() in _CLOSED_LOWER:
-            transitions.append((d, hs_stage))
+            transitions.append(d)
 
     if not transitions:
         return 0
 
     print(f"    {len(transitions)} deals transitioned to closed")
 
-    # 4. Process each: update stage + snapshot + trajectory + analysis
+    # 4. Re-sync full properties from HubSpot for transitioned deals
+    transition_hs_ids = [d[_I["deal_col_deal_id"]] for d in transitions if d.get(_I["deal_col_deal_id"])]
+    owners = _fetch_owners()
+    company_map = _fetch_company_associations(transition_hs_ids)
+    partner_map = _fetch_partner_associations(transition_hs_ids)
+
+    hs_full: list[dict] = []
+    for i in range(0, len(transition_hs_ids), 100):
+        batch = transition_hs_ids[i:i + 100]
+        try:
+            data = hubspot.post(
+                "/crm/v3/objects/deals/batch/read",
+                {"inputs": [{"id": did} for did in batch], "properties": HS_ALL_DEAL_PROPS},
+            )
+            hs_full.extend(data.get("results", []))
+        except Exception as e:
+            print(f"    Full property batch read failed: {e}")
+
+    # Resolve and upsert full deal data (allow_closed=True to not skip closed stages)
+    resolved_by_uuid: dict[str, dict] = {}
+    for hd in hs_full:
+        row = _resolve_deal(hd, owners, company_map, partner_map, allow_closed=True)
+        if row:
+            deal_uuid = row.get(_SC["col_deal_id"])
+            if deal_uuid:
+                resolved_by_uuid[deal_uuid] = row
+
+    if resolved_by_uuid:
+        rows_to_upsert = list(resolved_by_uuid.values())
+        for i in range(0, len(rows_to_upsert), UPSERT_BATCH_SIZE):
+            batch = rows_to_upsert[i:i + UPSERT_BATCH_SIZE]
+            supabase.table(_SC["deals_table"]).upsert(batch, on_conflict=_SC["deals_upsert_key"]).execute()
+        print(f"    ✓ {len(resolved_by_uuid)} deals fully re-synced from HubSpot")
+
+    # 5. Process each: snapshot + trajectory + analysis
     processed = 0
-    for deal, new_stage in transitions:
+    for deal in transitions:
         deal_uuid = deal[_I["deal_col_id"]]
         deal_name = deal.get(_I["deal_col_deal_name"]) or "?"
+        hs_id = deal.get(_I["deal_col_deal_id"], "")
+        new_stage = hs_stages.get(hs_id, "?")
         print(f"\n    [{deal_name[:40]}] {deal.get(_I['deal_col_stage'])} → {new_stage}")
 
         try:
-            # Update stage
-            supabase.table(_I["deals_table"]).update(
-                {_I["deal_col_stage"]: new_stage}
-            ).eq(_I["deal_col_id"], deal_uuid).execute()
-
             # Final snapshot (no forecast — deal is closed)
             result = intelligence_run(deal_uuid)
             if result:
@@ -184,7 +207,7 @@ def _detect_and_process_closed() -> int:
             else:
                 parser.update_from_sync(deal_uuid)
 
-            # Re-fetch deal with updated stage for trajectory + analysis
+            # Re-fetch deal with updated data for trajectory + analysis
             deal_fresh = supabase.table(_I["deals_table"]).select("*").eq(_I["deal_col_id"], deal_uuid).limit(1).execute()
             if deal_fresh.data:
                 d = deal_fresh.data[0]

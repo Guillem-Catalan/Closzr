@@ -20,6 +20,7 @@ export type DealRow = {
   atlas?: string;
   stale?: boolean;
   signal?: string;
+  score?: number;
 };
 
 export type Group = {

@@ -10,7 +10,8 @@ import { useState, useEffect, type ReactNode } from "react";
 import { DataContext, type CZData, type DealRow, type FunnelStage, type ForecastDeal, type ForecastData, type ClosedDeal, type ActionItem } from "./store";
 import { supabase } from "./supabase";
 import { usePermissions, type UserProfile } from "../permissions";
-import { PIPELINE_FUNNEL, PIPELINE_ASIDE, stageAbbr, shortStage, CLOSED_LOST_STAGES, STAGE_TONES } from "../display";
+import { PIPELINE_FUNNEL, PIPELINE_ASIDE, stageAbbr, shortStage, CLOSED_WON_STAGES, CLOSED_LOST_STAGES, STAGE_TONES } from "../display";
+import { repNameToEmail } from "./filters";
 
 // ---- Paginated fetch ----
 async function fetchPaged<T>(table: string, cols: string, filter?: (q: any) => any): Promise<T[]> {
@@ -175,65 +176,78 @@ async function loadData(): Promise<CZData> {
 
   // ---- Forecast ----
   const cm = new Date().toISOString().slice(0, 7);
-  const nmKey = cm.slice(0, 5) + String(Number(cm.slice(5)) + 1).padStart(2, "0");
+  const nmDate = new Date();
+  nmDate.setMonth(nmDate.getMonth() + 1);
+  const nmKey = nmDate.toISOString().slice(0, 7);
   const targetTotal = targets.filter(t => t.month === cm).reduce((s, t) => s + (t.monthly_target || 0), 0);
+
+  const wonSet = new Set(CLOSED_WON_STAGES.map(s => s.toLowerCase()));
   const lostSet = new Set(CLOSED_LOST_STAGES.map(s => s.toLowerCase()));
-  const allFcDeals: ForecastDeal[] = allRows
-    .filter(r => !lostSet.has((r._raw.stage || "").toLowerCase()))
-    .map(r => toForecastDeal(r._raw, r));
-
-  // HS Forecast = deals with HS forecast category (Commit/Upside/Pipeline_new) OR close_date_hs this month
-  const hsDeals = allFcDeals.filter(d =>
-    d.hsCategory === "Commit" || d.hsCategory === "Upside" || d.hsCategory === "Pipeline_new"
-    || (d.closeDate && d.closeDate.startsWith(cm))
-  );
-
-  // Closed Won this month (from deal_ui)
-  const closedDeals: ClosedDeal[] = allDeals
-    .filter(d => d.outcome === "won" && (d.close_date_hs || "").startsWith(cm))
-    .map(d => ({ id: d.deal_id, deal: d.company_name || d.deal_name_full || "—", stage: "Won", mrr: d.mrr, prob: 100, last: d.close_date_hs || "—", trend: null, owner: d.pae || d.pbd || "—", team: d.team || "", dealAge: d.deal_age_days || null, strengths: d.outcome_summary || null, lessons: [], interactions: null }));
-
-  // Closed Lost this month (from deal_ui)
-  const lostDeals: import("./store").LostDeal[] = allDeals
-    .filter(d => d.outcome === "lost" && (d.close_date_hs || "").startsWith(cm))
-    .map(d => ({ id: d.deal_id, hsId: d.hs_deal_id || undefined, deal: d.company_name || d.deal_name_full || "—", stage: "Lost", mrr: d.mrr, prob: 0, last: d.close_date_hs || "—", trend: null, owner: d.pae || d.pbd || "—", team: d.team || "", closeDate: d.close_date_hs || null, lostReason: d.closed_lost_reason || null, dealAge: d.deal_age_days || null }));
-
-  // Closzr Forecast = closes_this_month true OR Closzr close_date this month + closed won this month (deduped)
-  const wonIds = new Set(allDeals.filter(d => d.outcome === "won" && (d.close_date_hs || "").startsWith(cm)).map(d => d.deal_id));
+  const stageLower = (d: RawDealUI) => (d.stage || "").toLowerCase();
   const rawById = new Map(allDeals.map(d => [d.deal_id, d]));
 
-  const closzrActive = allFcDeals
-    .filter(d => d.closesThisMonth || (d.claudioCloseDate && d.claudioCloseDate.startsWith(cm)))
-    .map(d => {
-      if (wonIds.has(d.id!)) {
-        const raw = rawById.get(d.id!);
-        return { ...d, prob: 100, hsCategory: "Won", forecastReasoning: raw?.deal_assessment || d.forecastReasoning };
-      }
-      return d;
-    });
+  // Active deals = not won, not lost
+  const activeFcDeals: ForecastDeal[] = allRows
+    .filter(r => !wonSet.has(stageLower(r._raw)) && !lostSet.has(stageLower(r._raw)))
+    .map(r => toForecastDeal(r._raw, r));
+
+  // All forecast deals (for filters/teams — active + won, no lost)
+  const allFcDeals: ForecastDeal[] = allRows
+    .filter(r => !lostSet.has(stageLower(r._raw)))
+    .map(r => toForecastDeal(r._raw, r));
+
+  // Caja 6 — Cerrado: stage in CLOSED_WON_STAGES AND close_date_hs this month
+  const closedDeals: ClosedDeal[] = allDeals
+    .filter(d => wonSet.has(stageLower(d)) && (d.close_date_hs || "").startsWith(cm))
+    .map(d => ({ id: d.deal_id, deal: d.company_name || d.deal_name_full || "—", stage: "Won", mrr: d.mrr, prob: 100, last: d.close_date_hs || "—", trend: null, owner: d.pae || d.pbd || "—", team: d.team || "", dealAge: d.deal_age_days || null, strengths: d.outcome_summary || null, lessons: [], interactions: null }));
+  const closedIds = new Set(closedDeals.map(d => d.id));
+
+  // Caja 7 — Perdidos: stage in CLOSED_LOST_STAGES AND close_date_hs this month
+  const lostDeals: import("./store").LostDeal[] = allDeals
+    .filter(d => lostSet.has(stageLower(d)) && (d.close_date_hs || "").startsWith(cm))
+    .map(d => ({ id: d.deal_id, hsId: d.hs_deal_id || undefined, deal: d.company_name || d.deal_name_full || "—", stage: "Lost", mrr: d.mrr, prob: 0, last: d.close_date_hs || "—", trend: null, owner: d.pae || d.pbd || "—", team: d.team || "", closeDate: d.close_date_hs || null, lostReason: d.closed_lost_reason || null, dealAge: d.deal_age_days || null }));
+
+  // Caja 2 — HS Forecast: close_date_hs this month, exclude won/lost
+  const hsDeals = activeFcDeals.filter(d =>
+    (d.closeDate && d.closeDate.startsWith(cm))
+  );
+
+  // Caja 3 — Closzr Forecast: closes_this_month OR estimated_close_date this month + won deals
+  const closzrActive = activeFcDeals
+    .filter(d => d.closesThisMonth || (d.claudioCloseDate && d.claudioCloseDate.startsWith(cm)));
 
   const closzrActiveIds = new Set(closzrActive.map(d => d.id));
-  const closzrFromWon = closedDeals
+  const closzrFromWon: ForecastDeal[] = closedDeals
     .filter(d => !closzrActiveIds.has(d.id))
     .map(d => {
       const raw = rawById.get(d.id!);
       return { ...d, closesThisMonth: true, closesNextMonth: false, pushable: false, pushAction: null, momentum: null, confidence: null, claudioCloseDate: null, forecastReasoning: raw?.deal_assessment || null, forecastRisks: null, forecastAccelerators: null, hsCategory: "Won", closeDate: d.last } as ForecastDeal;
     });
+  const closzrWonActive = closzrActive.map(d => {
+    if (closedIds.has(d.id!)) {
+      const raw = rawById.get(d.id!);
+      return { ...d, prob: 100, hsCategory: "Won", forecastReasoning: raw?.deal_assessment || d.forecastReasoning };
+    }
+    return d;
+  });
+  const closzrDeals = [...closzrWonActive, ...closzrFromWon];
 
-  const closzrDeals = [...closzrActive, ...closzrFromWon];
-
-  // Next month = closes_next_month true OR close_date_hs next month
+  // Caja 4 — Next month: closes_next_month OR estimated_close_date next month, exclude closzr this month
   const closzrThisIds = new Set(closzrDeals.map(d => d.id));
-  const nextMonthDeals = allFcDeals.filter(d => {
+  const nextMonthDeals = activeFcDeals.filter(d => {
     if (closzrThisIds.has(d.id)) return false;
-    return d.closesNextMonth || (d.closeDate && d.closeDate.startsWith(nmKey));
+    return d.closesNextMonth || (d.claudioCloseDate && d.claudioCloseDate.startsWith(nmKey));
   });
 
-  const pushableDeals = allFcDeals.filter(d => d.pushable && !closzrThisIds.has(d.id) && !nextMonthDeals.some(n => n.id === d.id));
+  // Caja 5 — Pushable: bucket=pushable, exclude closzr + nextMonth
+  const nextMonthIds = new Set(nextMonthDeals.map(d => d.id));
+  const pushableDeals = activeFcDeals.filter(d =>
+    d.pushable && !closzrThisIds.has(d.id) && !nextMonthIds.has(d.id)
+  );
 
   const forecast: ForecastData = {
     target: targetTotal,
-    hsTotal: Math.round(hsDeals.filter(d => d.hsCategory === "Commit" || d.hsCategory === "Upside").reduce((s, d) => s + (d.mrr || 0), 0)),
+    hsTotal: Math.round(hsDeals.reduce((s, d) => s + (d.mrr || 0), 0)),
     closzrTotal: Math.round(closzrDeals.reduce((s, d) => s + (d.mrr || 0), 0)),
     nextMonthTotal: Math.round(nextMonthDeals.reduce((s, d) => s + (d.mrr || 0), 0)),
     pushableCount: pushableDeals.length,
@@ -291,51 +305,54 @@ function applyPermissions(data: CZData, profile: UserProfile | null): CZData {
 
   const teamSet = new Set(teams);
   const ownerEmail = profile.email.toLowerCase();
+  const matchesSelf = (name: string) => repNameToEmail(name) === ownerEmail;
   const filterRow = (r: DealRow): boolean => {
-    if (scope === "self") return (r.owner || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ /g, ".") + "@factorial.co" === ownerEmail;
+    if (scope === "self") return matchesSelf(r.owner || "");
     if (teamSet.size === 0) return true;
     return teamSet.has(r.team || "");
   };
   const filterFc = (d: ForecastDeal): boolean => filterRow(d as any);
+  const filterByTeam = (d: { team?: string }) => teamSet.size === 0 || teamSet.has(d.team || "");
 
   return {
     ...data,
     groups: data.groups.map(g => ({ ...g, rows: g.rows.filter(filterRow) })).filter(g => g.rows.length > 0),
     pipeline: data.pipeline.map(s => { const rows = s.rows.filter(filterRow); return { ...s, rows, count: rows.length, value: rows.reduce((a, r) => a + (r.mrr || 0), 0), stale: rows.filter(r => r.stale).length }; }),
     pipelineAside: data.pipelineAside.map(s => { const rows = s.rows.filter(filterRow); return { ...s, rows, count: rows.length, value: rows.reduce((a, r) => a + (r.mrr || 0), 0), stale: rows.filter(r => r.stale).length }; }),
-    todos: data.todos.filter(a => { if (scope === "self") return (a.dealOwner || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ /g, ".") + "@factorial.co" === ownerEmail; return teamSet.size === 0 || teamSet.has(a.team); }),
+    todos: data.todos.filter(a => { if (scope === "self") return matchesSelf(a.dealOwner || ""); return filterByTeam(a); }),
     forecast: {
       ...data.forecast,
-      hsTotal: data.forecast.hsDeals.filter(filterFc).reduce((s, d) => s + (d.mrr || 0), 0),
-      closzrTotal: data.forecast.closzrDeals.filter(filterFc).reduce((s, d) => s + (d.mrr || 0), 0),
-      nextMonthTotal: data.forecast.nextMonthDeals.filter(filterFc).reduce((s, d) => s + (d.mrr || 0), 0),
+      hsTotal: Math.round(data.forecast.hsDeals.filter(filterFc).reduce((s, d) => s + (d.mrr || 0), 0)),
+      closzrTotal: Math.round(data.forecast.closzrDeals.filter(filterFc).reduce((s, d) => s + (d.mrr || 0), 0)),
+      nextMonthTotal: Math.round(data.forecast.nextMonthDeals.filter(filterFc).reduce((s, d) => s + (d.mrr || 0), 0)),
       pushableCount: data.forecast.pushableDeals.filter(filterFc).length,
-      closedTotal: data.forecast.closedDeals.filter(d => teamSet.size === 0 || teamSet.has(d.team || "")).reduce((s, d) => s + (d.mrr || 0), 0),
-      lostTotal: data.forecast.lostDeals.filter(d => teamSet.size === 0 || teamSet.has(d.team || "")).reduce((s, d) => s + (d.mrr || 0), 0),
+      closedTotal: Math.round(data.forecast.closedDeals.filter(filterByTeam).reduce((s, d) => s + (d.mrr || 0), 0)),
+      lostTotal: Math.round(data.forecast.lostDeals.filter(filterByTeam).reduce((s, d) => s + (d.mrr || 0), 0)),
       hsDeals: data.forecast.hsDeals.filter(filterFc),
       closzrDeals: data.forecast.closzrDeals.filter(filterFc),
       nextMonthDeals: data.forecast.nextMonthDeals.filter(filterFc),
       pushableDeals: data.forecast.pushableDeals.filter(filterFc),
-      closedDeals: data.forecast.closedDeals.filter(d => teamSet.size === 0 || teamSet.has(d.team || "")),
-      lostDeals: data.forecast.lostDeals.filter(d => teamSet.size === 0 || teamSet.has(d.team || "")),
+      closedDeals: data.forecast.closedDeals.filter(filterByTeam),
+      lostDeals: data.forecast.lostDeals.filter(filterByTeam),
       allDeals: data.forecast.allDeals.filter(filterFc),
     },
   };
 }
 
+const EMPTY_DATA: CZData = { STAGE, groups: [], nakiva: null, yukAtlas: null, pipeline: [], pipelineAside: [], forecast: { target: 0, hsTotal: 0, closzrTotal: 0, nextMonthTotal: 0, pushableCount: 0, closedTotal: 0, lostTotal: 0, hsDeals: [], closzrDeals: [], nextMonthDeals: [], pushableDeals: [], closedDeals: [], lostDeals: [], allDeals: [], targets: [] }, oneOnOne: { reps: [], rep: "", activeDeals: 0, pipeline: 0, top10: [], meddicBase: 0, meddic: [], meddicNote: "", weakness: [], tlActions: [], methodologyOpen: 0, methodology: [] }, todos: [], loading: true };
+
 // ---- Provider ----
 export function DataProvider({ children }: { children: ReactNode }) {
   const { profile } = usePermissions();
   const [raw, setRaw] = useState<CZData | null>(null);
-  const emptyData: CZData = { STAGE, groups: [], nakiva: null, yukAtlas: null, pipeline: [], pipelineAside: [], forecast: { target: 0, hsTotal: 0, closzrTotal: 0, nextMonthTotal: 0, pushableCount: 0, closedTotal: 0, lostTotal: 0, hsDeals: [], closzrDeals: [], nextMonthDeals: [], pushableDeals: [], closedDeals: [], lostDeals: [], allDeals: [], targets: [] }, oneOnOne: { reps: [], rep: "", activeDeals: 0, pipeline: 0, top10: [], meddicBase: 0, meddic: [], meddicNote: "", weakness: [], tlActions: [], methodologyOpen: 0, methodology: [] }, todos: [], loading: true };
 
   useEffect(() => {
-    loadData().then(setRaw).catch(err => { console.error("Failed to load:", err); setRaw(prev => prev ? { ...prev, loading: false } : { ...emptyData, loading: false }); });
+    loadData().then(setRaw).catch(err => { console.error("Failed to load:", err); setRaw(prev => prev ? { ...prev, loading: false } : { ...EMPTY_DATA, loading: false }); });
     let t: ReturnType<typeof setTimeout>;
     const reload = () => { clearTimeout(t); t = setTimeout(() => { loadData().then(setRaw); }, 5000); };
     const ch = supabase.channel("rt-deal-ui").on("postgres_changes", { event: "*", schema: "public", table: "deal_ui" }, reload).subscribe();
     return () => { clearTimeout(t); supabase.removeChannel(ch); };
   }, []);
 
-  return <DataContext.Provider value={raw ? applyPermissions(raw, profile) : emptyData}>{children}</DataContext.Provider>;
+  return <DataContext.Provider value={raw ? applyPermissions(raw, profile) : EMPTY_DATA}>{children}</DataContext.Provider>;
 }

@@ -435,6 +435,9 @@ def run(deal_uuid: str) -> dict | None:
             return None
         parsed = json.loads(matches[-1])
 
+    if "estimated_close_date" in parsed and "claudio_close_date" not in parsed:
+        parsed["claudio_close_date"] = parsed["estimated_close_date"]
+
     close_probability = _compute_probability(snapshot, parsed)
     mrr = float(snapshot.get("mrr") or 0)
     claudio_forecast = round((close_probability / 100) * mrr, 2)
@@ -525,6 +528,9 @@ def run_refresh(deal_uuid: str) -> dict | None:
             print(f"    ✗ No JSON found in forecast response")
             return None
         parsed = json.loads(matches[-1])
+
+    if "estimated_close_date" in parsed and "claudio_close_date" not in parsed:
+        parsed["claudio_close_date"] = parsed["estimated_close_date"]
 
     close_probability = _compute_probability(snapshot, parsed)
     mrr = float(snapshot.get("mrr") or 0)

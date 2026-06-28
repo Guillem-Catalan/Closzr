@@ -44,7 +44,7 @@ export function ownerDisplayName(email: string): string {
 export const KNOWN_USERS: Record<string, { role: string; team: string }> = CFG.known_users;
 
 // ---- Stages (from config.py STAGE_DISPLAY + PARSER_CONFIG) ----
-export const STAGE_DISPLAY = CFG.stages.display;
+export const STAGE_DISPLAY: Record<string, { short: string; abbr: string }> = CFG.stages.display;
 export const STAGE_TONES: Record<string, string> = CFG.stages.tones;
 export const MACRO_STAGE_MAP: Record<string, string> = CFG.stages.macro_stage_map;
 export const STAGE_CATEGORIES = CFG.stages.categories;
@@ -121,7 +121,7 @@ export function bantLabel(status: string | null): string {
 }
 
 // ---- Admin: roles + scopes + tabs (pure UI) ----
-export const ADMIN_ROLES = ["Admin", "Manager", "TL", "PAE", "PBD", "AE", "SDR"];
+export const ADMIN_ROLES = ["Admin", "Manager", "Director", "TL", "PAE", "PBD", "AE", "SDR"];
 export const ADMIN_SCOPES = [
   { value: "all", label: "Todo" },
   { value: "team", label: "Su equipo" },

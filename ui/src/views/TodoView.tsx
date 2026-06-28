@@ -8,7 +8,7 @@ import { useData } from "../data/store";
 import type { ActionItem, DealRow } from "../data/store";
 import { supabase } from "../data/supabase";
 import { hubspotDealUrl, BUCKET_STYLE, ACTION_TYPE_ICON } from "../display";
-import { distinctTeams, distinctOwners, distinctOwnersFromActions, normalize, repNameToEmail, filterAction } from "../data/filters";
+import { distinctTeams, distinctOwnersFromActions, normalize, repNameToEmail } from "../data/filters";
 
 type TimeFilter = "hoy" | "semana" | "next_week" | "mes";
 
@@ -219,9 +219,9 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
   // Filter helper for rep matching
   const matchesRep = (owner: string, who?: string) => {
     if (!repFilter) return true;
-    const on = norm(owner || "");
+    const on = normalize(owner || "");
     if (on === repNorm || on.startsWith(repNorm + " ")) return true;
-    if (who) { const wn = norm(who); if (wn === repNorm || wn.startsWith(repNorm + " ")) return true; }
+    if (who) { const wn = normalize(who); if (wn === repNorm || wn.startsWith(repNorm + " ")) return true; }
     return false;
   };
 
@@ -245,7 +245,7 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
     return allMeetingRows.filter(r => {
       if (!matchesFilters({ deal: r.deal, owner: r.owner, team: r.team })) return false;
       if (repFilter && r.meetingPaes && !r.meetingPaes.includes(repEmail)) {
-        const on = norm(r.owner || "");
+        const on = normalize(r.owner || "");
         if (on !== repNorm && !on.startsWith(repNorm + " ")) return false;
       }
       return true;

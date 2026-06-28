@@ -2,15 +2,13 @@ import { useState, useEffect } from "react";
 import { Icon, Chip, Avatar, getInitials } from "./components";
 import { supabase } from "../data/supabase";
 import type { TabScope } from "../permissions";
-import { ALL_TABS, ADMIN_ROLES, ADMIN_SCOPES } from "../display";
-import { distinctTeams } from "../data/filters";
+import { ALL_TABS, ADMIN_ROLES, ADMIN_SCOPES, getAllTeamNames } from "../display";
 
 type UserRow = {
   id: string;
   email: string;
   name: string;
   team: string;
-  subteam: string;
   role: string;
   visible_teams: string[];
   visible_reps: string[];
@@ -20,13 +18,10 @@ type UserRow = {
 
 const ROLES = ADMIN_ROLES;
 const SCOPES = ADMIN_SCOPES;
+const CONFIG_TEAMS = getAllTeamNames();
 
-function normalizeTeams(teams: string[]): string[] {
-  return [...new Set(teams)];
-}
-
-function UserEditor({ user, allTeams, onSave, onCancel }: { user: UserRow; allTeams: string[]; onSave: (u: UserRow) => void; onCancel: () => void }) {
-  const [u, setU] = useState<UserRow>({ ...user, visible_teams: normalizeTeams(user.visible_teams || []) });
+function UserEditor({ user, onSave, onCancel }: { user: UserRow; onSave: (u: UserRow) => void; onCancel: () => void }) {
+  const [u, setU] = useState<UserRow>({ ...user, visible_teams: [...new Set(user.visible_teams || [])] });
 
   const setField = (k: keyof UserRow, v: any) => setU(prev => ({ ...prev, [k]: v }));
   const setTabPerm = (tab: string, field: string, value: any) => {
@@ -46,7 +41,7 @@ function UserEditor({ user, allTeams, onSave, onCancel }: { user: UserRow; allTe
 
   return (
     <div style={{ padding: "20px 22px", background: "var(--card-2)", borderBottom: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <div>
           <span className="eyebrow" style={{ display: "block", marginBottom: 4 }}>Nombre</span>
           <input value={u.name} onChange={e => setField("name", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--line-ink)", borderRadius: "var(--r-sm)", fontSize: 14 }} />
@@ -57,19 +52,12 @@ function UserEditor({ user, allTeams, onSave, onCancel }: { user: UserRow; allTe
             {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         </div>
-        <div>
-          <span className="eyebrow" style={{ display: "block", marginBottom: 4 }}>Subteam</span>
-          <select value={u.subteam || "Unassigned"} onChange={e => setField("subteam", e.target.value)} className="cz-native-select" style={{ width: "100%" }}>
-            <option value="Unassigned">Sin asignar</option>
-            {allTeams.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
       </div>
 
       <div>
         <span className="eyebrow" style={{ display: "block", marginBottom: 6 }}>Equipos visibles</span>
-        <div style={{ display: "flex", gap: 8 }}>
-          {allTeams.map(t => (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {CONFIG_TEAMS.map(t => (
             <button key={t} onClick={() => toggleTeam(t)} style={{
               padding: "5px 12px", borderRadius: "var(--r-pill)", fontSize: 13, fontWeight: 600,
               border: "1px solid " + ((u.visible_teams || []).includes(t) ? "var(--indigo)" : "var(--line-ink)"),
@@ -115,7 +103,7 @@ function UserEditor({ user, allTeams, onSave, onCancel }: { user: UserRow; allTe
 
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
         <button className="cz-btn-soft" onClick={onCancel}>Cancelar</button>
-        <button className="cz-btn-primary" onClick={() => onSave({ ...u, visible_teams: normalizeTeams(u.visible_teams || []) })}>Guardar</button>
+        <button className="cz-btn-primary" onClick={() => onSave({ ...u, visible_teams: [...new Set(u.visible_teams || [])] })}>Guardar</button>
       </div>
     </div>
   );
@@ -130,7 +118,7 @@ export default function AdminView() {
 
   useEffect(() => {
     supabase.from("users").select("*").order("created_at").then(({ data }) => {
-      setUsers((data || []).map((u: any) => ({ ...u, visible_teams: normalizeTeams(u.visible_teams || []) })));
+      setUsers((data || []).map((u: any) => ({ ...u, visible_teams: [...new Set(u.visible_teams || [])] })));
       setLoading(false);
     });
   }, []);
@@ -139,8 +127,7 @@ export default function AdminView() {
     const { error } = await supabase.from("users").update({
       name: u.name,
       role: u.role,
-      subteam: u.subteam,
-      visible_teams: normalizeTeams(u.visible_teams || []),
+      visible_teams: [...new Set(u.visible_teams || [])],
       visible_reps: u.visible_reps,
       tab_permissions: u.tab_permissions,
     }).eq("id", u.id);
@@ -156,8 +143,6 @@ export default function AdminView() {
     if (filterTeam && !(u.visible_teams || []).includes(filterTeam)) return false;
     return true;
   });
-
-  const allTeams = [...new Set(users.flatMap(u => u.visible_teams || []))].sort();
 
   if (loading) return <p style={{ color: "var(--ink-3)", padding: 40 }}>Cargando usuarios...</p>;
 
@@ -175,7 +160,7 @@ export default function AdminView() {
           </select>
           <select value={filterTeam} onChange={e => setFilterTeam(e.target.value)} className="cz-native-select" style={{ fontSize: 13 }}>
             <option value="">Todos los equipos</option>
-            {allTeams.map(t => <option key={t} value={t}>{t}</option>)}
+            {CONFIG_TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
       </div>
@@ -184,7 +169,7 @@ export default function AdminView() {
         {filtered.map(u => (
           <div key={u.id}>
             <div style={{
-              display: "grid", gridTemplateColumns: "40px 1fr 100px 100px 1fr 90px 40px",
+              display: "grid", gridTemplateColumns: "40px 1fr 100px 1fr 90px 40px",
               gap: 12, padding: "12px 18px", alignItems: "center",
               borderBottom: "1px solid var(--line-2)", cursor: "pointer",
               background: editingId === u.id ? "var(--indigo-tint-2)" : "transparent",
@@ -194,8 +179,7 @@ export default function AdminView() {
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{u.name || u.email}</div>
                 <div style={{ fontSize: 12, color: "var(--ink-3)" }}>{u.email}</div>
               </div>
-              <div><Chip tone={u.role === "Admin" ? "indigo" : u.role === "Manager" ? "violet" : u.role === "TL" ? "blue" : "ink"}>{u.role}</Chip></div>
-              <div style={{ fontSize: 12, color: "var(--ink-2)" }}>{u.subteam === "Unassigned" ? "—" : u.subteam || "—"}</div>
+              <div><Chip tone={u.role === "Admin" ? "indigo" : u.role === "Manager" ? "violet" : u.role === "Director" ? "violet" : u.role === "TL" ? "blue" : "ink"}>{u.role}</Chip></div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {(u.visible_teams || []).map(t => <Chip key={t} tone="ink" style={{ fontSize: 10, padding: "1px 6px" }}>{t}</Chip>)}
               </div>
@@ -203,7 +187,7 @@ export default function AdminView() {
               <div><Icon name="chevDown" size={14} style={{ color: "var(--ink-3)", transform: editingId === u.id ? "none" : "rotate(-90deg)", transition: "transform .18s" }} /></div>
             </div>
             {editingId === u.id && (
-              <UserEditor user={u} allTeams={allTeams} onSave={handleSave} onCancel={() => setEditingId(null)} />
+              <UserEditor user={u} onSave={handleSave} onCancel={() => setEditingId(null)} />
             )}
           </div>
         ))}

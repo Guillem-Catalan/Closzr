@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { repNameToEmail } from "./filters";
 
 export type DealDetail = {
   id: string;
@@ -584,7 +585,7 @@ export async function fetchDealDetail(dealId: string): Promise<DealDetail | null
     tools,
     email: emailDraft ? {
       from: deal.pae || "Factorial",
-      fromAddr: (deal.pae || "ventas").toLowerCase().replace(/ /g, ".") + "@factorial.co",
+      fromAddr: repNameToEmail(deal.pae || "ventas"),
       fromInit: initials(deal.pae || "FA"),
       to: emailDraft.recipient || company,
       toAddr: emailDraft.recipient || "",

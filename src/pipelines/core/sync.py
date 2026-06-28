@@ -205,7 +205,7 @@ def _to_iso(val: str) -> str | None:
 
 # ── Step 4: Resolve each deal ────────────────────────────────────────────────
 
-def _resolve_deal(hs_deal: dict, owners: dict, company_map: dict, partner_map: dict) -> dict | None:
+def _resolve_deal(hs_deal: dict, owners: dict, company_map: dict, partner_map: dict, allow_closed: bool = False) -> dict | None:
     props = hs_deal.get("properties", {})
 
     # Pipeline filter
@@ -217,7 +217,7 @@ def _resolve_deal(hs_deal: dict, owners: dict, company_map: dict, partner_map: d
     # Stage: convert ID to label
     stage_raw = props.get(_SC["hs_dealstage_prop"]) or ""
     stage = STAGE_ID_TO_LABEL.get(stage_raw, stage_raw)
-    if stage.lower() in STAGES_EXCLUDE_FROM_SYNC_LOWER:
+    if not allow_closed and stage.lower() in STAGES_EXCLUDE_FROM_SYNC_LOWER:
         return None
 
     # Map HS properties → Supabase columns (convert timestamps to ISO)

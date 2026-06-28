@@ -1,13 +1,17 @@
 /* ============================================================
-   CLOSZR — FORECAST v2
-   5 KPI cards → clickable → deal list with forecast intelligence
+   CLOSZR — FORECAST v3
+   7 KPI cards → clickable → deal list with forecast intelligence
+   - Editable target for management roles
+   - 3-section deal list (this month / next month / pushable)
    ============================================================ */
 import { useState, useMemo } from "react";
 import { Icon, Chip, fmtMRR } from "./components";
 import { useData } from "../data/store";
 import type { ForecastDeal, ClosedDeal, LostDeal } from "../data/store";
-import { hubspotDealUrl, MOMENTUM_DISPLAY, CONFIDENCE_TONE } from "../display";
-import { distinctTeams, distinctOwners } from "../data/filters";
+import { hubspotDealUrl, MOMENTUM_DISPLAY, CONFIDENCE_TONE, ADMIN_ROLES } from "../display";
+import { normalize, distinctTeams, distinctOwners } from "../data/filters";
+import { usePermissions } from "../permissions";
+import { supabase } from "../data/supabase";
 
 function fmtEur(v: number | null | undefined): string {
   if (v == null || v === 0) return "—";
@@ -16,9 +20,23 @@ function fmtEur(v: number | null | undefined): string {
 
 const MOM = MOMENTUM_DISPLAY;
 const CONF_TONE = CONFIDENCE_TONE;
+const MANAGEMENT_ROLES = new Set(ADMIN_ROLES.filter(r => ["Admin", "Manager", "Director", "TL"].includes(r)));
+const CAT_ORDER: Record<string, number> = { "Commit": 0, "Upside": 1, "Pipeline_new": 2, "": 3 };
+const CONF_ORDER: Record<string, number> = { "high": 0, "medium": 1, "low": 2 };
 
-type Panel = "hs" | "closzr" | "nextmonth" | "pushable" | "closed" | "lost";
+type Panel = "hs" | "forecast" | "closed" | "lost";
 type SortKey = "category" | "close_date_hs" | "close_date_closzr" | "owner" | "mrr" | "momentum";
+type Section = "thisMonth" | "nextMonth" | "pushable";
+
+/* ---- HubSpot icon link ---- */
+function HubSpotLink({ hsId, onClick }: { hsId: string; onClick?: (e: React.MouseEvent) => void }) {
+  return (
+    <a href={hubspotDealUrl(hsId)} target="_blank" rel="noopener noreferrer" title="Abrir en HubSpot"
+      onClick={onClick} style={{ display: "inline-flex", color: "var(--ink-4)", flex: "none" }}>
+      <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor"><path d="M17.63 13.31a3.3 3.3 0 01-1.63.43 3.37 3.37 0 01-3.37-3.37c0-.6.16-1.17.44-1.66l-2.3-2.3a.99.99 0 01-.15-.17 2.48 2.48 0 01-1.52.53V9.3a1.35 1.35 0 110-2.7V4.06A2.06 2.06 0 007.04 2a2.06 2.06 0 00-2.06 2.06v2.53a2.73 2.73 0 00.88 5.31h.05a2.7 2.7 0 001.79-.68l2.38 2.38a3.34 3.34 0 00-.46 1.69A3.37 3.37 0 0013 18.66a3.3 3.3 0 001.86-.57l2.74 2.74a1.1 1.1 0 001.56-1.56zM13 16.92a1.63 1.63 0 110-3.25 1.63 1.63 0 010 3.25z"/></svg>
+    </a>
+  );
+}
 
 /* ---- Expandable deal row ---- */
 function FcRow({ d, open, onToggle }: { d: ForecastDeal; open: boolean; onToggle: () => void }) {
@@ -33,14 +51,7 @@ function FcRow({ d, open, onToggle }: { d: ForecastDeal; open: boolean; onToggle
         <div className="cz-fct-deal">
           <span className="cz-fct-name" style={{ display: "flex", alignItems: "center", gap: 5, ...(isWon ? { color: "var(--green-ink)" } : {}) }}>
             {d.deal}
-            {d.hsId && (
-              <a href={hubspotDealUrl(d.hsId!)}
-                target="_blank" rel="noopener noreferrer" title="Abrir en HubSpot"
-                onClick={e => e.stopPropagation()}
-                style={{ display: "inline-flex", color: "var(--ink-4)", flex: "none" }}>
-                <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor"><path d="M17.63 13.31a3.3 3.3 0 01-1.63.43 3.37 3.37 0 01-3.37-3.37c0-.6.16-1.17.44-1.66l-2.3-2.3a.99.99 0 01-.15-.17 2.48 2.48 0 01-1.52.53V9.3a1.35 1.35 0 110-2.7V4.06A2.06 2.06 0 007.04 2a2.06 2.06 0 00-2.06 2.06v2.53a2.73 2.73 0 00.88 5.31h.05a2.7 2.7 0 001.79-.68l2.38 2.38a3.34 3.34 0 00-.46 1.69A3.37 3.37 0 0013 18.66a3.3 3.3 0 001.86-.57l2.74 2.74a1.1 1.1 0 001.56-1.56zM13 16.92a1.63 1.63 0 110-3.25 1.63 1.63 0 010 3.25z"/></svg>
-              </a>
-            )}
+            {d.hsId && <HubSpotLink hsId={d.hsId} onClick={e => e.stopPropagation()} />}
           </span>
           <span className="cz-fct-owner">{d.owner}</span>
         </div>
@@ -143,7 +154,6 @@ function ClosedRow({ d, open, onToggle }: { d: ClosedDeal; open: boolean; onTogg
       </div>
       {open && (
         <div style={{ padding: "16px 22px 20px", background: "var(--card-2)", borderBottom: "1px solid var(--line-2)", display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Cómo se ganó */}
           {strengthBullets.length > 0 && (
             <div style={{ padding: "12px 16px", background: "var(--green-tint)", borderRadius: "var(--r-sm)" }}>
               <span className="eyebrow" style={{ display: "block", marginBottom: 8, color: "var(--green-ink)" }}>Cómo se ganó</span>
@@ -157,8 +167,6 @@ function ClosedRow({ d, open, onToggle }: { d: ClosedDeal; open: boolean; onTogg
               </ul>
             </div>
           )}
-
-          {/* Lecciones del deal */}
           {d.lessons.length > 0 && (
             <div style={{ padding: "12px 16px", background: "var(--indigo-tint)", borderRadius: "var(--r-sm)" }}>
               <span className="eyebrow" style={{ display: "block", marginBottom: 8, color: "var(--indigo-700)" }}>Lecciones del deal</span>
@@ -172,8 +180,6 @@ function ClosedRow({ d, open, onToggle }: { d: ClosedDeal; open: boolean; onTogg
               </ul>
             </div>
           )}
-
-          {/* Contexto */}
           <div style={{ fontSize: 12.5, color: "var(--ink-3)", display: "flex", gap: 12 }}>
             {d.dealAge && <span>{d.dealAge} días</span>}
             {d.interactions?.total_calls && <span>{d.interactions.total_calls} calls</span>}
@@ -193,14 +199,7 @@ function LostRow({ d }: { d: LostDeal }) {
       <div className="cz-fct-deal">
         <span className="cz-fct-name" style={{ display: "flex", alignItems: "center", gap: 5 }}>
           {d.deal}
-          {d.hsId && (
-            <a href={hubspotDealUrl(d.hsId!)}
-              target="_blank" rel="noopener noreferrer" title="Abrir en HubSpot"
-              onClick={e => e.stopPropagation()}
-              style={{ display: "inline-flex", color: "var(--ink-4)", flex: "none" }}>
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor"><path d="M17.63 13.31a3.3 3.3 0 01-1.63.43 3.37 3.37 0 01-3.37-3.37c0-.6.16-1.17.44-1.66l-2.3-2.3a.99.99 0 01-.15-.17 2.48 2.48 0 01-1.52.53V9.3a1.35 1.35 0 110-2.7V4.06A2.06 2.06 0 007.04 2a2.06 2.06 0 00-2.06 2.06v2.53a2.73 2.73 0 00.88 5.31h.05a2.7 2.7 0 001.79-.68l2.38 2.38a3.34 3.34 0 00-.46 1.69A3.37 3.37 0 0013 18.66a3.3 3.3 0 001.86-.57l2.74 2.74a1.1 1.1 0 001.56-1.56zM13 16.92a1.63 1.63 0 110-3.25 1.63 1.63 0 010 3.25z"/></svg>
-            </a>
-          )}
+          {d.hsId && <HubSpotLink hsId={d.hsId} onClick={e => e.stopPropagation()} />}
         </span>
         <span className="cz-fct-owner">{d.owner}</span>
       </div>
@@ -214,29 +213,96 @@ function LostRow({ d }: { d: LostDeal }) {
   );
 }
 
+/* ---- Section header for grouped deal list ---- */
+function SectionHeader({ label, count, mrr, tone, active, onClick }: { label: string; count: number; mrr: number; tone: string; active: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{
+      display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 18px",
+      background: active ? `var(--${tone}-tint)` : "var(--card-3)",
+      border: "none", borderBottom: "1px solid var(--line-2)", cursor: "pointer", textAlign: "left",
+    }}>
+      <span style={{ fontWeight: 700, fontSize: 13, color: active ? `var(--${tone})` : "var(--ink-2)" }}>{label}</span>
+      <Chip tone={tone as any} style={{ fontSize: 10 }}>{count} deals</Chip>
+      <span className="num" style={{ fontSize: 12.5, fontWeight: 600, color: `var(--${tone})`, marginLeft: "auto" }}>{fmtEur(mrr)}</span>
+      <Icon name="chevDown" size={12} style={{ color: "var(--ink-3)", transform: active ? "none" : "rotate(-90deg)", transition: "transform .18s" }} />
+    </button>
+  );
+}
+
+/* ---- Inline editable target ---- */
+function EditableTarget({ value, teamFilter, targets, canEdit }: { value: number; teamFilter: string; targets: { team: string; month: string; monthly_target: number }[]; canEdit: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const cm = new Date().toISOString().slice(0, 7);
+
+  const handleSave = async () => {
+    const num = parseInt(draft.replace(/[^\d]/g, ""), 10);
+    if (isNaN(num) || num <= 0) { setEditing(false); return; }
+
+    if (teamFilter) {
+      await supabase.from("forecast_targets").upsert({ team: teamFilter, month: cm, monthly_target: num }, { onConflict: "team,month" });
+    } else {
+      const teamTargets = targets.filter(t => t.month === cm);
+      if (teamTargets.length === 0) return;
+      const ratio = num / (value || 1);
+      for (const t of teamTargets) {
+        await supabase.from("forecast_targets").upsert({ team: t.team, month: cm, monthly_target: Math.round(t.monthly_target * ratio) }, { onConflict: "team,month" });
+      }
+    }
+    setEditing(false);
+    window.location.reload();
+  };
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={e => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
+        className="display"
+        style={{ width: 140, border: "none", borderBottom: "2px solid var(--indigo)", background: "transparent", fontSize: "inherit", fontWeight: "inherit", padding: 0, outline: "none", textAlign: "center" }}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="cz-fc-kpi-v display"
+      onClick={() => { if (canEdit) { setDraft(String(value)); setEditing(true); } }}
+      style={{ cursor: canEdit ? "pointer" : "default" }}
+      title={canEdit ? "Click para editar" : undefined}
+    >
+      {fmtEur(value)}
+    </div>
+  );
+}
+
 /* ============================================================ */
 export default function ForecastView() {
   const D = useData();
   const F = D.forecast;
-  const [panel, setPanel] = useState<Panel>("pushable");
+  const { profile } = usePermissions();
+  const [panel, setPanel] = useState<Panel>("forecast");
   const [teamFilter, setTeamFilter] = useState("");
   const [repFilter, setRepFilter] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("mrr");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<Section | null>(null);
 
+  const canEditTarget = profile ? MANAGEMENT_ROLES.has(profile.role) : false;
   const teams = useMemo(() => distinctTeams(F.allDeals), [F.allDeals]);
   const reps = useMemo(() => distinctOwners(F.allDeals, teamFilter || undefined), [F.allDeals, teamFilter]);
 
-  const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-  const repNorm = repFilter ? norm(repFilter) : "";
+  const repNorm = repFilter ? normalize(repFilter) : "";
 
-  // Apply filters to a deal list
-  const applyFilters = (deals: (ForecastDeal | ClosedDeal)[]) => {
+  const applyFilters = <T extends { team?: string; owner: string; deal: string }>(deals: T[]): T[] => {
     let out = deals;
     if (teamFilter) out = out.filter(d => d.team === teamFilter);
     if (repFilter) out = out.filter(d => {
-      const on = norm(d.owner || "");
+      const on = normalize(d.owner || "");
       return on === repNorm || on.startsWith(repNorm + " ");
     });
     if (search.trim()) {
@@ -246,57 +312,61 @@ export default function ForecastView() {
     return out;
   };
 
-  // Filtered lists for each panel
-  const filteredHs = useMemo(() => applyFilters(F.hsDeals) as ForecastDeal[], [F.hsDeals, teamFilter, repFilter, search]);
-  const filteredCloszr = useMemo(() => applyFilters(F.closzrDeals) as ForecastDeal[], [F.closzrDeals, teamFilter, repFilter, search]);
-  const filteredNextMonth = useMemo(() => applyFilters(F.nextMonthDeals) as ForecastDeal[], [F.nextMonthDeals, teamFilter, repFilter, search]);
-  const filteredPushable = useMemo(() => applyFilters(F.pushableDeals) as ForecastDeal[], [F.pushableDeals, teamFilter, repFilter, search]);
+  const filteredHs = useMemo(() => applyFilters(F.hsDeals), [F.hsDeals, teamFilter, repFilter, search]);
+  const filteredCloszr = useMemo(() => applyFilters(F.closzrDeals), [F.closzrDeals, teamFilter, repFilter, search]);
+  const filteredNextMonth = useMemo(() => applyFilters(F.nextMonthDeals), [F.nextMonthDeals, teamFilter, repFilter, search]);
+  const filteredPushable = useMemo(() => applyFilters(F.pushableDeals), [F.pushableDeals, teamFilter, repFilter, search]);
   const filteredClosed = useMemo(() => applyFilters(F.closedDeals), [F.closedDeals, teamFilter, repFilter, search]);
   const filteredLost = useMemo(() => applyFilters(F.lostDeals), [F.lostDeals, teamFilter, repFilter, search]);
 
   // KPIs (filtered)
+  const cm = new Date().toISOString().slice(0, 7);
   const target = useMemo(() => {
     if (!teamFilter) return F.target;
-    return F.targets.filter(t => t.team === teamFilter && t.month === new Date().toISOString().slice(0, 7)).reduce((s, t) => s + (t.monthly_target || 0), 0);
-  }, [F.target, F.targets, teamFilter]);
-  const hsTotal = filteredHs.filter(d => d.hsCategory === "Commit" || d.hsCategory === "Upside").reduce((s, d) => s + (d.mrr || 0), 0);
-  const closzrTotal = filteredCloszr.reduce((s, d) => s + (d.mrr || 0), 0);
-  const nextMonthTotal = filteredNextMonth.reduce((s, d) => s + (d.mrr || 0), 0);
-  const closedTotal = filteredClosed.reduce((s, d) => s + (d.mrr || 0), 0);
+    return F.targets.filter(t => t.team === teamFilter && t.month === cm).reduce((s, t) => s + (t.monthly_target || 0), 0);
+  }, [F.target, F.targets, teamFilter, cm]);
+  const hsTotal = Math.round(filteredHs.reduce((s, d) => s + (d.mrr || 0), 0));
+  const closzrTotal = Math.round(filteredCloszr.reduce((s, d) => s + (d.mrr || 0), 0));
+  const nextMonthTotal = Math.round(filteredNextMonth.reduce((s, d) => s + (d.mrr || 0), 0));
+  const pushableTotal = Math.round(filteredPushable.reduce((s, d) => s + (d.mrr || 0), 0));
+  const closedTotal = Math.round(filteredClosed.reduce((s, d) => s + (d.mrr || 0), 0));
 
   const pct = (v: number) => target > 0 ? Math.round(v / target * 100) : 0;
-  const toggle = (p: Panel) => { setPanel(p); setExpandedId(null); };
+  const toggle = (p: Panel) => { setPanel(p); setExpandedId(null); if (p === "forecast") setActiveSection(null); };
+  const toggleSection = (s: Section) => setActiveSection(activeSection === s ? null : s);
 
-  // Sort the active deal list
-  const CAT_ORDER: Record<string, number> = { "Commit": 0, "Upside": 1, "Pipeline_new": 2, "": 3 };
-  void 0; // momentum order unused — confidence sort below
+  // Sort deals
   const sortDeals = (deals: ForecastDeal[]) => {
     return [...deals].sort((a, b) => {
       if (sort === "category") return (CAT_ORDER[a.hsCategory] ?? 3) - (CAT_ORDER[b.hsCategory] ?? 3) || (b.mrr || 0) - (a.mrr || 0);
       if (sort === "close_date_hs") return (a.closeDate || "z").localeCompare(b.closeDate || "z") || (b.mrr || 0) - (a.mrr || 0);
       if (sort === "close_date_closzr") return (a.claudioCloseDate || "z").localeCompare(b.claudioCloseDate || "z") || (b.mrr || 0) - (a.mrr || 0);
       if (sort === "owner") return (a.owner || "").localeCompare(b.owner || "") || (b.mrr || 0) - (a.mrr || 0);
-      if (sort === "momentum") {
-        const CONF_ORDER: Record<string, number> = { "high": 0, "medium": 1, "low": 2 };
-        return (CONF_ORDER[a.confidence || ""] ?? 3) - (CONF_ORDER[b.confidence || ""] ?? 3) || (b.mrr || 0) - (a.mrr || 0);
-      }
+      if (sort === "momentum") return (CONF_ORDER[a.confidence || ""] ?? 3) - (CONF_ORDER[b.confidence || ""] ?? 3) || (b.mrr || 0) - (a.mrr || 0);
       return (b.mrr || 0) - (a.mrr || 0);
     });
   };
 
-  const activeDeals = panel === "hs" ? sortDeals(filteredHs)
-    : panel === "closzr" ? sortDeals(filteredCloszr)
-    : panel === "nextmonth" ? sortDeals(filteredNextMonth)
-    : panel === "pushable" ? sortDeals(filteredPushable)
-    : [];
+  const sortedHs = useMemo(() => sortDeals(filteredHs), [filteredHs, sort]);
+  const sortedCloszr = useMemo(() => sortDeals(filteredCloszr), [filteredCloszr, sort]);
+  const sortedNextMonth = useMemo(() => sortDeals(filteredNextMonth), [filteredNextMonth, sort]);
+  const sortedPushable = useMemo(() => sortDeals(filteredPushable), [filteredPushable, sort]);
+
+  const fcTableHeader = (
+    <div className="cz-fctable-h" style={{ gridTemplateColumns: "minmax(200px,1.2fr) 80px 90px 90px 90px 90px 50px 50px 24px" }}>
+      <div>Deal</div><div>MRR</div><div>HS</div><div>Estado</div><div>Cierre HS</div><div>Cierre Closzr</div>
+      <div style={{ textAlign: "center" }}>Acc.</div><div style={{ textAlign: "center" }}>Risk</div><div />
+    </div>
+  );
+
+  const renderDealRows = (deals: ForecastDeal[]) =>
+    deals.map(d => <FcRow key={d.id} d={d} open={expandedId === d.id} onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)} />);
 
   return (
     <div className="cz-fc">
       {/* Toolbar */}
       <div className="cz-toolbar" style={{ marginBottom: 4 }}>
-        <div className="cz-tb-title">
-          <h2 className="display">Forecast</h2>
-        </div>
+        <div className="cz-tb-title"><h2 className="display">Forecast</h2></div>
         <div style={{ flex: 1 }} />
         <select className="cz-native-select" value={teamFilter} onChange={e => { setTeamFilter(e.target.value); setRepFilter(""); }}>
           <option value="">All Teams</option>
@@ -312,12 +382,12 @@ export default function ForecastView() {
         </label>
       </div>
 
-      {/* 5 KPI Cards */}
+      {/* 7 KPI Cards */}
       <div className="cz-fc-kpis" style={{ gridTemplateColumns: "repeat(7, 1fr)" }}>
         {/* 1. Objetivo */}
         <div className="cz-fc-kpi">
           <span className="eyebrow">Objetivo</span>
-          <div className="cz-fc-kpi-v display">{fmtEur(target)}</div>
+          <EditableTarget value={target} teamFilter={teamFilter} targets={F.targets} canEdit={canEditTarget} />
         </div>
 
         {/* 2. Forecast HubSpot */}
@@ -328,24 +398,24 @@ export default function ForecastView() {
         </button>
 
         {/* 3. Forecast Closzr */}
-        <button className={"cz-fc-kpi clickable accent" + (panel === "closzr" ? " sel" : "")} onClick={() => toggle("closzr")}>
+        <button className={"cz-fc-kpi clickable accent" + (panel === "forecast" ? " sel" : "")} onClick={() => toggle("forecast")}>
           <div className="cz-fc-kpi-head"><span className="eyebrow" style={{ color: "var(--indigo)" }}>Forecast Closzr</span><Chip tone={pct(closzrTotal) >= 50 ? "green" : "amber"}>{pct(closzrTotal)}%</Chip></div>
           <div className="cz-fc-kpi-v display" style={{ color: "var(--indigo)" }}>{fmtEur(closzrTotal)}</div>
-          <div className="cz-fc-kpi-foot">{filteredCloszr.length} deals · <span className="cz-fc-see">{panel === "closzr" ? "mostrando ▲" : "ver deals ▼"}</span></div>
+          <div className="cz-fc-kpi-foot">{filteredCloszr.length} deals · <span className="cz-fc-see">{panel === "forecast" ? "mostrando ▲" : "ver deals ▼"}</span></div>
         </button>
 
         {/* 4. Próximo mes */}
-        <button className={"cz-fc-kpi clickable" + (panel === "nextmonth" ? " sel" : "")} onClick={() => toggle("nextmonth")}>
+        <button className={"cz-fc-kpi clickable" + (panel === "forecast" ? " sel" : "")} onClick={() => { toggle("forecast"); setActiveSection("nextMonth"); }}>
           <div className="cz-fc-kpi-head"><span className="eyebrow">Próximo mes</span></div>
           <div className="cz-fc-kpi-v display">{fmtEur(nextMonthTotal)}</div>
-          <div className="cz-fc-kpi-foot">{filteredNextMonth.length} deals · <span className="cz-fc-see">{panel === "nextmonth" ? "mostrando ▲" : "ver deals ▼"}</span></div>
+          <div className="cz-fc-kpi-foot">{filteredNextMonth.length} deals · <span className="cz-fc-see">{panel === "forecast" ? "mostrando ▲" : "ver deals ▼"}</span></div>
         </button>
 
         {/* 5. Pushable */}
-        <button className={"cz-fc-kpi clickable" + (panel === "pushable" ? " sel amber" : "")} onClick={() => toggle("pushable")}>
+        <button className={"cz-fc-kpi clickable" + (panel === "forecast" ? " sel amber" : "")} onClick={() => { toggle("forecast"); setActiveSection("pushable"); }}>
           <div className="cz-fc-kpi-head"><span className="eyebrow">Pushable</span></div>
-          <div className="cz-fc-kpi-v display">{fmtEur(filteredPushable.reduce((s, d) => s + (d.mrr || 0), 0))}</div>
-          <div className="cz-fc-kpi-foot">{filteredPushable.length} deals · <span className="cz-fc-see">{panel === "pushable" ? "mostrando ▲" : "ver deals ▼"}</span></div>
+          <div className="cz-fc-kpi-v display">{fmtEur(pushableTotal)}</div>
+          <div className="cz-fc-kpi-foot">{filteredPushable.length} deals · <span className="cz-fc-see">{panel === "forecast" ? "mostrando ▲" : "ver deals ▼"}</span></div>
         </button>
 
         {/* 6. Closed Won */}
@@ -358,7 +428,7 @@ export default function ForecastView() {
         {/* 7. Perdidos */}
         <button className={"cz-fc-kpi clickable" + (panel === "lost" ? " sel red" : "")} onClick={() => toggle("lost")}>
           <div className="cz-fc-kpi-head"><span className="eyebrow">Perdidos</span></div>
-          <div className="cz-fc-kpi-v display" style={{ color: "var(--red)" }}>{fmtEur(filteredLost.reduce((s, d) => s + (d.mrr || 0), 0))}</div>
+          <div className="cz-fc-kpi-v display" style={{ color: "var(--red)" }}>{fmtEur(Math.round(filteredLost.reduce((s, d) => s + (d.mrr || 0), 0)))}</div>
           <div className="cz-fc-kpi-foot">{filteredLost.length} deals · <span className="cz-fc-see">{panel === "lost" ? "mostrando ▲" : "ver deals ▼"}</span></div>
         </button>
       </div>
@@ -369,14 +439,9 @@ export default function ForecastView() {
           <div>
             <span className="eyebrow">
               {panel === "hs" && "Forecast HubSpot"}
-              {panel === "closzr" && "Forecast Closzr"}
-              {panel === "nextmonth" && "Forecast próximo mes"}
-              {panel === "pushable" && "Deals pushable"}
+              {panel === "forecast" && "Forecast Closzr"}
               {panel === "closed" && "Cerrados este mes"}
               {panel === "lost" && "Perdidos este mes"}
-            </span>
-            <span className="cz-fctable-sub num">
-              {panel === "closed" ? filteredClosed.length : panel === "lost" ? filteredLost.length : activeDeals.length} deals
             </span>
           </div>
           <label className="cz-search" style={{ minWidth: 180 }}>
@@ -396,54 +461,59 @@ export default function ForecastView() {
         {panel === "lost" ? (
           <div className="cz-fctable">
             <div className="cz-fctable-h" style={{ gridTemplateColumns: "minmax(200px,1.2fr) 80px 90px 70px 1fr" }}>
-              <div>Deal</div>
-              <div>MRR</div>
-              <div>Fecha</div>
-              <div>Ciclo</div>
-              <div>Motivo</div>
+              <div>Deal</div><div>MRR</div><div>Fecha</div><div>Ciclo</div><div>Motivo</div>
             </div>
-            {(filteredLost as LostDeal[]).map((d, i) => (
-              <LostRow key={d.id || i} d={d} />
-            ))}
+            {filteredLost.map((d, i) => <LostRow key={d.id || i} d={d} />)}
             {!filteredLost.length && <div className="cz-empty">Sin deals perdidos este mes.</div>}
           </div>
         ) : panel === "closed" ? (
           <div className="cz-fctable">
             <div className="cz-fctable-h" style={{ gridTemplateColumns: "minmax(200px,1.2fr) 80px 90px 70px minmax(250px,1.5fr) 24px" }}>
-              <div>Deal</div>
-              <div>MRR</div>
-              <div>Cierre</div>
-              <div>Ciclo</div>
-              <div>Por qué se ganó</div>
-              <div />
+              <div>Deal</div><div>MRR</div><div>Cierre</div><div>Ciclo</div><div>Por qué se ganó</div><div />
             </div>
-            {(filteredClosed as ClosedDeal[]).map((d, i) => (
+            {filteredClosed.map((d, i) => (
               <ClosedRow key={d.id || i} d={d} open={expandedId === d.id} onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)} />
             ))}
             {!filteredClosed.length && <div className="cz-empty">Sin deals cerrados este mes.</div>}
           </div>
-        ) : (
+        ) : panel === "hs" ? (
           <div className="cz-fctable">
-            <div className="cz-fctable-h" style={{ gridTemplateColumns: "minmax(200px,1.2fr) 80px 90px 90px 90px 90px 50px 50px 24px" }}>
-              <div>Deal</div>
-              <div>MRR</div>
-              <div>HS</div>
-              <div>Estado</div>
-              <div>Cierre HS</div>
-              <div>Cierre Closzr</div>
-              <div style={{ textAlign: "center" }}>Acc.</div>
-              <div style={{ textAlign: "center" }}>Risk</div>
-              <div />
-            </div>
-            {activeDeals.map(d => (
-              <FcRow
-                key={d.id}
-                d={d}
-                open={expandedId === d.id}
-                onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)}
-              />
-            ))}
-            {!activeDeals.length && <div className="cz-empty">Sin deals para estos filtros.</div>}
+            {fcTableHeader}
+            {renderDealRows(sortedHs)}
+            {!sortedHs.length && <div className="cz-empty">Sin deals para estos filtros.</div>}
+          </div>
+        ) : (
+          /* panel === "forecast" — 3 sections: this month / next month / pushable */
+          <div className="cz-fctable">
+            {fcTableHeader}
+
+            {/* Section: Este mes */}
+            <SectionHeader
+              label="Este mes" count={filteredCloszr.length} mrr={closzrTotal}
+              tone="indigo" active={activeSection !== "nextMonth" && activeSection !== "pushable"}
+              onClick={() => toggleSection("thisMonth")}
+            />
+            {(activeSection === null || activeSection === "thisMonth") && renderDealRows(sortedCloszr)}
+
+            {/* Section: Próximo mes */}
+            <SectionHeader
+              label="Próximo mes" count={filteredNextMonth.length} mrr={nextMonthTotal}
+              tone="blue" active={activeSection !== "thisMonth" && activeSection !== "pushable"}
+              onClick={() => toggleSection("nextMonth")}
+            />
+            {(activeSection === null || activeSection === "nextMonth") && renderDealRows(sortedNextMonth)}
+
+            {/* Section: Pushable */}
+            <SectionHeader
+              label="Pushable" count={filteredPushable.length} mrr={pushableTotal}
+              tone="amber" active={activeSection !== "thisMonth" && activeSection !== "nextMonth"}
+              onClick={() => toggleSection("pushable")}
+            />
+            {(activeSection === null || activeSection === "pushable") && renderDealRows(sortedPushable)}
+
+            {!filteredCloszr.length && !filteredNextMonth.length && !filteredPushable.length && (
+              <div className="cz-empty">Sin deals para estos filtros.</div>
+            )}
           </div>
         )}
       </div>

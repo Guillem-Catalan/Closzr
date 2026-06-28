@@ -315,7 +315,7 @@ DIRECT_SALES_ES = {
 # --- 2c. XL Sales (Iberia) ---
 
 XL_SALES = {
-    "active": False,
+    "active": True,
     "country_manager": {
         "email": "ariadna.isla@factorial.co",
         "name": "Ariadna Isla Dominguez",

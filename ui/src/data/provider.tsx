@@ -177,7 +177,10 @@ async function loadData(): Promise<CZData> {
   const cm = new Date().toISOString().slice(0, 7);
   const nmKey = cm.slice(0, 5) + String(Number(cm.slice(5)) + 1).padStart(2, "0");
   const targetTotal = targets.filter(t => t.month === cm).reduce((s, t) => s + (t.monthly_target || 0), 0);
-  const allFcDeals: ForecastDeal[] = allRows.map(r => toForecastDeal(r._raw, r));
+  const lostSet = new Set(CLOSED_LOST_STAGES.map(s => s.toLowerCase()));
+  const allFcDeals: ForecastDeal[] = allRows
+    .filter(r => !lostSet.has((r._raw.stage || "").toLowerCase()))
+    .map(r => toForecastDeal(r._raw, r));
 
   // HS Forecast = deals with HS forecast category (Commit/Upside/Pipeline_new) OR close_date_hs this month
   const hsDeals = allFcDeals.filter(d =>

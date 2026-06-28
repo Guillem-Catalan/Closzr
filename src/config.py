@@ -875,9 +875,6 @@ STAGES_EXCLUDE_FROM_SYNC_LOWER = (
     CLOSED_ALL_LOWER | ONBOARDING_STAGES_LOWER | CHURN_STAGES_LOWER | MISC_EXCLUDE_STAGES_LOWER
 )
 
-# Equipos con demo evaluation activa (audit de calidad de la primera demo)
-DEMO_EVAL_ACTIVE_TEAMS = {"Santander", "Telefonica", "TIM", "TELEKOM"}
-
 # No-show (deal sale de Demo Booked a estos)
 NO_SHOW_STAGES = frozenset({"To reschedule", "To Reschedule", "On Hold", "Nurturing"})
 
@@ -2091,7 +2088,6 @@ MAX_TOKENS_FOLLOWUP = 12000
 MAX_TOKENS_FOLLOWUP_CLASSIFY = 500
 MAX_TOKENS_TRAJECTORY_LESSONS = 1000
 MAX_TOKENS_PATTERNS = 16000
-MAX_TOKENS_DEMO_EVAL = 16000
 
 
 # ============================================================================
@@ -2589,9 +2585,7 @@ def get_slack_channel_by_name(name: str) -> str | None:
 
 
 def get_deal_team(partner_id: str | None, owner_email: str | None) -> str | None:
-    """Assign team via partner association ID or owner email."""
-    if partner_id and partner_id in PARTNER_OBJECT_MAP:
-        return PARTNER_OBJECT_MAP[partner_id]
+    """Assign team from owner email via orgchart. Partner is a separate column."""
     if owner_email:
         teams = _EMAIL_TO_TEAMS.get(owner_email, [])
         if teams:

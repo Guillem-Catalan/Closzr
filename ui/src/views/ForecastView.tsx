@@ -22,15 +22,16 @@ type SortKey = "category" | "close_date_hs" | "close_date_closzr" | "owner" | "m
 
 /* ---- Expandable deal row ---- */
 function FcRow({ d, open, onToggle }: { d: ForecastDeal; open: boolean; onToggle: () => void }) {
+  const isWon = d.hsCategory === "Won";
   const mom = d.momentum ? MOM[d.momentum] : null;
   const accelCount = d.forecastAccelerators ? d.forecastAccelerators.split(/\n|\d+\.\s+/).filter(Boolean).length : 0;
   const riskCount = d.forecastRisks ? d.forecastRisks.split(/\n|\d+\.\s+/).filter(Boolean).length : 0;
 
   return (
     <>
-      <div className="cz-fctable-r" style={{ cursor: "pointer", gridTemplateColumns: "minmax(200px,1.2fr) 80px 90px 90px 90px 90px 50px 50px 24px" }} onClick={onToggle}>
+      <div className="cz-fctable-r" style={{ cursor: "pointer", gridTemplateColumns: "minmax(200px,1.2fr) 80px 90px 90px 90px 90px 50px 50px 24px", ...(isWon ? { background: "var(--green-tint)" } : {}) }} onClick={onToggle}>
         <div className="cz-fct-deal">
-          <span className="cz-fct-name" style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span className="cz-fct-name" style={{ display: "flex", alignItems: "center", gap: 5, ...(isWon ? { color: "var(--green-ink)" } : {}) }}>
             {d.deal}
             {d.hsId && (
               <a href={hubspotDealUrl(d.hsId!)}
@@ -43,37 +44,45 @@ function FcRow({ d, open, onToggle }: { d: ForecastDeal; open: boolean; onToggle
           </span>
           <span className="cz-fct-owner">{d.owner}</span>
         </div>
-        <div className="num" style={{ fontWeight: 700 }}>{fmtMRR(d.mrr)}</div>
-        <div><Chip tone={d.hsCategory === "Commit" ? "green" : d.hsCategory === "Upside" ? "amber" : "ink"} style={{ fontSize: 10.5 }}>{d.hsCategory || "—"}</Chip></div>
+        <div className="num" style={{ fontWeight: 700, ...(isWon ? { color: "var(--green)" } : {}) }}>{fmtMRR(d.mrr)}</div>
+        <div><Chip tone={isWon ? "green" : d.hsCategory === "Commit" ? "green" : d.hsCategory === "Upside" ? "amber" : "ink"} style={{ fontSize: 10.5 }}>{d.hsCategory || "—"}</Chip></div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ width: 16, textAlign: "center", color: mom ? mom.color : "transparent", fontWeight: 700, fontSize: 13, flex: "none" }}>{mom ? mom.icon : "—"}</span>
-          {d.confidence && <Chip tone={CONF_TONE[d.confidence] || "ink"} style={{ fontSize: 10 }}>{d.confidence}</Chip>}
+          {isWon ? <span style={{ fontSize: 12, color: "var(--green-ink)" }}>Cerrado</span> : <>
+            <span style={{ width: 16, textAlign: "center", color: mom ? mom.color : "transparent", fontWeight: 700, fontSize: 13, flex: "none" }}>{mom ? mom.icon : "—"}</span>
+            {d.confidence && <Chip tone={CONF_TONE[d.confidence] || "ink"} style={{ fontSize: 10 }}>{d.confidence}</Chip>}
+          </>}
         </div>
         <div className="num" style={{ fontSize: 12, color: "var(--ink-2)" }}>{d.closeDate?.slice(0, 10) || "—"}</div>
-        <div className="num" style={{ fontSize: 12, color: "var(--indigo)" }}>{d.claudioCloseDate || "—"}</div>
+        <div className="num" style={{ fontSize: 12, color: "var(--indigo)" }}>{isWon ? "—" : d.claudioCloseDate || "—"}</div>
         <div style={{ textAlign: "center" }}>
-          {accelCount > 0 && <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 700, color: "var(--green-ink)", background: "var(--green-tint)", padding: "2px 7px", borderRadius: "var(--r-pill)" }}>{accelCount}</span>}
+          {!isWon && accelCount > 0 && <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 700, color: "var(--green-ink)", background: "var(--green-tint)", padding: "2px 7px", borderRadius: "var(--r-pill)" }}>{accelCount}</span>}
         </div>
         <div style={{ textAlign: "center" }}>
-          {riskCount > 0 && <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 700, color: "var(--red-ink)", background: "var(--red-tint)", padding: "2px 7px", borderRadius: "var(--r-pill)" }}>{riskCount}</span>}
+          {!isWon && riskCount > 0 && <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 700, color: "var(--red-ink)", background: "var(--red-tint)", padding: "2px 7px", borderRadius: "var(--r-pill)" }}>{riskCount}</span>}
         </div>
         <div><Icon name="chevDown" size={14} style={{ color: "var(--ink-3)", transform: open ? "none" : "rotate(-90deg)", transition: "transform .18s" }} /></div>
       </div>
       {open && (
-        <div style={{ padding: "16px 22px 20px", background: "var(--card-2)", borderBottom: "1px solid var(--line-2)", display: "flex", flexDirection: "column", gap: 12 }}>
-          {d.pushable && d.pushAction && (
+        <div style={{ padding: "16px 22px 20px", background: isWon ? "var(--green-tint)" : "var(--card-2)", borderBottom: "1px solid var(--line-2)", display: "flex", flexDirection: "column", gap: 12 }}>
+          {isWon && d.forecastReasoning && (
+            <div style={{ padding: "12px 16px", background: "var(--green-tint)", borderRadius: "var(--r-sm)" }}>
+              <span className="eyebrow" style={{ display: "block", marginBottom: 6, color: "var(--green-ink)" }}>Análisis del deal</span>
+              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: "var(--green-ink)" }}>{d.forecastReasoning}</p>
+            </div>
+          )}
+          {!isWon && d.pushable && d.pushAction && (
             <div style={{ padding: "12px 16px", background: "var(--amber-tint)", borderRadius: "var(--r-sm)", fontSize: 13.5, lineHeight: 1.55, color: "var(--amber-ink)" }}>
               <span className="eyebrow" style={{ display: "block", marginBottom: 6, color: "var(--amber-ink)" }}>Push action</span>
               {d.pushAction}
             </div>
           )}
-          {d.forecastReasoning && (
+          {!isWon && d.forecastReasoning && (
             <div>
               <span className="eyebrow" style={{ display: "block", marginBottom: 4 }}>Por qué</span>
               <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: "var(--ink-2)" }}>{d.forecastReasoning}</p>
             </div>
           )}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {!isWon && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {d.forecastAccelerators && (
               <div style={{ padding: "10px 14px", background: "var(--green-tint)", borderRadius: "var(--r-sm)" }}>
                 <span className="eyebrow" style={{ display: "block", marginBottom: 6, color: "var(--green-ink)" }}>Aceleradores</span>
@@ -100,11 +109,14 @@ function FcRow({ d, open, onToggle }: { d: ForecastDeal; open: boolean; onToggle
                 </ul>
               </div>
             )}
-          </div>
-          <div style={{ display: "flex", gap: 12, fontSize: 12.5, color: "var(--ink-3)" }}>
+          </div>}
+          {!isWon && <div style={{ display: "flex", gap: 12, fontSize: 12.5, color: "var(--ink-3)" }}>
             {d.claudioCloseDate && <span>Cierre Closzr: <b className="num">{d.claudioCloseDate}</b></span>}
             {d.closeDate && <span>Cierre HS: <b className="num">{d.closeDate}</b></span>}
-          </div>
+          </div>}
+          {isWon && <div style={{ fontSize: 12.5, color: "var(--green-ink)" }}>
+            {d.closeDate && <span>Cerrado: <b className="num">{d.closeDate}</b></span>}
+          </div>}
         </div>
       )}
     </>

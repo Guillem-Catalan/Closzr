@@ -92,7 +92,11 @@ type RawDealUI = {
   forecast_risks: any[] | null;
   forecast_accelerators: any[] | null;
   outcome: string | null;
+  outcome_summary: string | null;
   employees: string | null;
+  forecast_category: string | null;
+  deal_age_days: number | null;
+  closed_lost_reason: string | null;
 };
 
 type RawTarget = { team: string; month: string; monthly_target: number };
@@ -139,7 +143,7 @@ function toForecastDeal(d: RawDealUI, row: DealRow): ForecastDeal {
     forecastReasoning: d.forecast_reasoning || null,
     forecastRisks: joinTexts(d.forecast_risks),
     forecastAccelerators: joinTexts(d.forecast_accelerators),
-    hsCategory: "",
+    hsCategory: d.forecast_category || "",
     closeDate: d.close_date || d.close_date_hs || null,
   };
 }
@@ -169,38 +173,68 @@ async function loadData(): Promise<CZData> {
 
   // ---- Forecast ----
   const cm = new Date().toISOString().slice(0, 7);
+  const nmKey = cm.slice(0, 5) + String(Number(cm.slice(5)) + 1).padStart(2, "0");
   const targetTotal = targets.filter(t => t.month === cm).reduce((s, t) => s + (t.monthly_target || 0), 0);
   const allFcDeals: ForecastDeal[] = allRows.map(r => toForecastDeal(r._raw, r));
 
-  const closzrDeals = allFcDeals.filter(d => d.closesThisMonth);
-  const nextMonthDeals = allFcDeals.filter(d => d.closesNextMonth && !d.closesThisMonth);
-  const pushableDeals = allFcDeals.filter(d => d.pushable && !d.closesThisMonth && !d.closesNextMonth);
+  // HS Forecast = deals with HS forecast category (Commit/Upside/Pipeline_new) OR close_date_hs this month
+  const hsDeals = allFcDeals.filter(d =>
+    d.hsCategory === "Commit" || d.hsCategory === "Upside" || d.hsCategory === "Pipeline_new"
+    || (d.closeDate && d.closeDate.startsWith(cm))
+  );
 
+  // Closed Won this month (from deal_ui)
   const closedDeals: ClosedDeal[] = allDeals
-    .filter(d => d.outcome === "won" && d.close_date && d.close_date.startsWith(cm))
-    .map(d => ({ id: d.deal_id, deal: d.company_name || "—", stage: "Won", mrr: d.mrr, prob: 100, last: d.close_date || "—", trend: null, owner: d.pae || d.pbd || "—", team: d.team || "", dealAge: null, strengths: null, lessons: [], interactions: null }));
+    .filter(d => d.outcome === "won" && (d.close_date_hs || "").startsWith(cm))
+    .map(d => ({ id: d.deal_id, deal: d.company_name || d.deal_name_full || "—", stage: "Won", mrr: d.mrr, prob: 100, last: d.close_date_hs || "—", trend: null, owner: d.pae || d.pbd || "—", team: d.team || "", dealAge: d.deal_age_days || null, strengths: d.outcome_summary || null, lessons: [], interactions: null }));
 
-  const nextMonthStr = cm.slice(0, 5) + String(Number(cm.slice(5)) + 1).padStart(2, "0");
-  const { data: lostRaw } = await supabase.from("deals")
-    .select("id,deal_id,deal_name,deal_stage,amount,pae,pbd,close_date,closed_lost_reason,deal_age_days")
-    .in("deal_stage", CLOSED_LOST_STAGES).gte("close_date", cm + "-01").lt("close_date", nextMonthStr + "-01");
+  // Closed Lost this month (from deal_ui)
+  const lostDeals: import("./store").LostDeal[] = allDeals
+    .filter(d => d.outcome === "lost" && (d.close_date_hs || "").startsWith(cm))
+    .map(d => ({ id: d.deal_id, hsId: d.hs_deal_id || undefined, deal: d.company_name || d.deal_name_full || "—", stage: "Lost", mrr: d.mrr, prob: 0, last: d.close_date_hs || "—", trend: null, owner: d.pae || d.pbd || "—", team: d.team || "", closeDate: d.close_date_hs || null, lostReason: d.closed_lost_reason || null, dealAge: d.deal_age_days || null }));
 
-  const lostDeals: import("./store").LostDeal[] = (lostRaw || []).map((d: any) => ({
-    id: d.id, hsId: d.deal_id || undefined, deal: d.deal_name || "—", stage: "Lost", mrr: d.amount, prob: 0,
-    last: d.close_date || "—", trend: null, owner: d.pae || d.pbd || "—", team: "",
-    closeDate: d.close_date || null, lostReason: d.closed_lost_reason || null, dealAge: d.deal_age_days || null,
-  }));
+  // Closzr Forecast = closes_this_month true OR Closzr close_date this month + closed won this month (deduped)
+  const wonIds = new Set(allDeals.filter(d => d.outcome === "won" && (d.close_date_hs || "").startsWith(cm)).map(d => d.deal_id));
+  const rawById = new Map(allDeals.map(d => [d.deal_id, d]));
+
+  const closzrActive = allFcDeals
+    .filter(d => d.closesThisMonth || (d.claudioCloseDate && d.claudioCloseDate.startsWith(cm)))
+    .map(d => {
+      if (wonIds.has(d.id!)) {
+        const raw = rawById.get(d.id!);
+        return { ...d, prob: 100, hsCategory: "Won", forecastReasoning: raw?.deal_assessment || d.forecastReasoning };
+      }
+      return d;
+    });
+
+  const closzrActiveIds = new Set(closzrActive.map(d => d.id));
+  const closzrFromWon = closedDeals
+    .filter(d => !closzrActiveIds.has(d.id))
+    .map(d => {
+      const raw = rawById.get(d.id!);
+      return { ...d, closesThisMonth: true, closesNextMonth: false, pushable: false, pushAction: null, momentum: null, confidence: null, claudioCloseDate: null, forecastReasoning: raw?.deal_assessment || null, forecastRisks: null, forecastAccelerators: null, hsCategory: "Won", closeDate: d.last } as ForecastDeal;
+    });
+
+  const closzrDeals = [...closzrActive, ...closzrFromWon];
+
+  // Next month = closes_next_month true OR close_date_hs next month
+  const closzrThisIds = new Set(closzrDeals.map(d => d.id));
+  const nextMonthDeals = allFcDeals.filter(d => {
+    if (closzrThisIds.has(d.id)) return false;
+    return d.closesNextMonth || (d.closeDate && d.closeDate.startsWith(nmKey));
+  });
+
+  const pushableDeals = allFcDeals.filter(d => d.pushable && !closzrThisIds.has(d.id) && !nextMonthDeals.some(n => n.id === d.id));
 
   const forecast: ForecastData = {
     target: targetTotal,
-    hsTotal: Math.round(closzrDeals.reduce((s, d) => s + (d.mrr || 0), 0)),
+    hsTotal: Math.round(hsDeals.filter(d => d.hsCategory === "Commit" || d.hsCategory === "Upside").reduce((s, d) => s + (d.mrr || 0), 0)),
     closzrTotal: Math.round(closzrDeals.reduce((s, d) => s + (d.mrr || 0), 0)),
     nextMonthTotal: Math.round(nextMonthDeals.reduce((s, d) => s + (d.mrr || 0), 0)),
     pushableCount: pushableDeals.length,
     closedTotal: Math.round(closedDeals.reduce((s, d) => s + (d.mrr || 0), 0)),
     lostTotal: Math.round(lostDeals.reduce((s, d) => s + (d.mrr || 0), 0)),
-    hsDeals: allFcDeals.filter(d => d.closesThisMonth || d.pushable),
-    closzrDeals, nextMonthDeals, pushableDeals, closedDeals, lostDeals,
+    hsDeals, closzrDeals, nextMonthDeals, pushableDeals, closedDeals, lostDeals,
     allDeals: allFcDeals, targets,
   };
 

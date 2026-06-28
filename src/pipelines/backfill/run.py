@@ -219,6 +219,8 @@ def run(team: str, limit: int = 500):
     valid_teams = set(PARTNERS_ORGCHART.keys())
     if DIRECT_SALES_ES:
         valid_teams |= set(DIRECT_SALES_ES.get("teams", {}).keys())
+        for _t in DIRECT_SALES_ES.get("teams", {}).values():
+            valid_teams |= set(_t.get("subteams", {}).keys())
     valid_teams.add("XL")
 
     if team not in valid_teams:

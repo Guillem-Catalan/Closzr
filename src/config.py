@@ -227,6 +227,7 @@ DIRECT_SALES_ES = {
             "role": "AE OB Senior Manager Spain",
             "subteams": {
                 "DS Rubén": {
+                    "active": False,
                     "tl": "ruben.mariscal@factorial.co",
                     "tl_name": "Rubén Mariscal",
                     "ae": {
@@ -240,6 +241,7 @@ DIRECT_SALES_ES = {
                     },
                 },
                 "DS Andrea C": {
+                    "active": False,
                     "tl": "andrea.castanar@factorial.co",
                     "tl_name": "Andrea Castañar Esteban",
                     "ae": {
@@ -2427,12 +2429,21 @@ if _ds_director_email:
     ALL_REP_EMAILS.add(_ds_director_email)
 
 for _name, _ds_team in DIRECT_SALES_ES.get("teams", {}).items():
-    ds_emails = _collect_ae_emails(_ds_team)
-    ALL_DS_EMAILS |= ds_emails
-    ALL_REP_EMAILS |= ds_emails
-    for email in ds_emails:
+    direct_emails = set(_ds_team.get("ae", set()))
+    if "tl" in _ds_team:
+        direct_emails.add(_ds_team["tl"])
+    ALL_DS_EMAILS |= direct_emails
+    ALL_REP_EMAILS |= direct_emails
+    for email in direct_emails:
         _EMAIL_TO_TEAM[email] = _name
         _EMAIL_TO_TEAMS.setdefault(email, []).append(_name)
+    for _sub_name, _sub_team in _ds_team.get("subteams", {}).items():
+        sub_emails = _collect_ae_emails(_sub_team)
+        ALL_DS_EMAILS |= sub_emails
+        ALL_REP_EMAILS |= sub_emails
+        for email in sub_emails:
+            _EMAIL_TO_TEAM[email] = _sub_name
+            _EMAIL_TO_TEAMS.setdefault(email, []).append(_sub_name)
 
 ALL_XL_EMAILS = XL_SALES.get("ae", set()) | XL_SALES.get("sdr", set())
 ALL_REP_EMAILS |= ALL_XL_EMAILS
@@ -2452,6 +2463,9 @@ for _name, _team in PARTNERS_ORGCHART.items():
 for _name, _ds_team in DIRECT_SALES_ES.get("teams", {}).items():
     if _ds_team.get("active", False):
         ACTIVE_TEAMS.add(_name)
+    for _sub_name, _sub_team in _ds_team.get("subteams", {}).items():
+        if _sub_team.get("active", False):
+            ACTIVE_TEAMS.add(_sub_name)
 if XL_SALES.get("active", False):
     ACTIVE_TEAMS.add("XL")
 
@@ -2539,7 +2553,7 @@ def get_org(email: str) -> str | None:
     if team_name:
         if team_name in PARTNERS_ORGCHART:
             return "partners"
-        if team_name in DIRECT_SALES_ES.get("teams", {}):
+        if _find_ds_team(team_name):
             return "direct_sales_es"
         if team_name == "XL":
             return "xl_sales"
@@ -2593,12 +2607,21 @@ def get_deal_team(partner_id: str | None, owner_email: str | None) -> str | None
     return None
 
 
+def _find_ds_team(team_name: str) -> dict | None:
+    if team_name in DIRECT_SALES_ES.get("teams", {}):
+        return DIRECT_SALES_ES["teams"][team_name]
+    for _t in DIRECT_SALES_ES.get("teams", {}).values():
+        if team_name in _t.get("subteams", {}):
+            return _t["subteams"][team_name]
+    return None
+
+
 def get_owner_ids_for_team(team_name: str) -> list[str]:
     """Devuelve los HubSpot owner_ids de todos los miembros de un equipo."""
     if team_name in PARTNERS_ORGCHART:
         emails = PARTNERS_ORGCHART[team_name].get("pbd", set()) | PARTNERS_ORGCHART[team_name].get("pae", set())
-    elif team_name in DIRECT_SALES_ES.get("teams", {}):
-        emails = _collect_ae_emails(DIRECT_SALES_ES["teams"][team_name])
+    elif _find_ds_team(team_name):
+        emails = _collect_ae_emails(_find_ds_team(team_name))
     elif team_name == "XL":
         emails = XL_SALES.get("ae", set()) | XL_SALES.get("sdr", set())
     else:

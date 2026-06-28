@@ -644,10 +644,10 @@ def _stage_to_role_prompt(stage: str, org: str | None) -> str | None:
 def get_org_from_team(team: str) -> str | None:
     """Team name → org type for channel prompt selection.
     Uses existing orgchart structures — adding a team to config automatically works here."""
-    from src.config import PARTNERS_ORGCHART, DIRECT_SALES_ES
+    from src.config import PARTNERS_ORGCHART, _find_ds_team
     if team in PARTNERS_ORGCHART:
         return "partners"
-    if team in DIRECT_SALES_ES.get("teams", {}):
+    if _find_ds_team(team):
         return "direct_sales_es"
     if team == "XL":
         return "xl_sales"

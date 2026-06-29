@@ -617,10 +617,10 @@ def _build_system_prompt(deal: dict) -> str:
     parts.append(_read_prompt(_C["system_prompt_path"]))
     parts.append(_read_prompt(_C["product_catalog_path"]))
 
-    lang_file = _get_lang_from_team(team)
-    lang_path = PROMPTS_DIR / lang_file
-    if lang_path.exists():
-        parts.append(lang_path.read_text(encoding="utf-8").strip())
+    from src.lang import get_lang_prompt
+    lang_text = get_lang_prompt(team)
+    if lang_text:
+        parts.append(lang_text)
 
     system_prompt = "\n\n".join(parts)
 
@@ -1323,4 +1323,7 @@ def run(deal_uuid: str, max_comms: int | None = MAX_COMMS_PER_BATCH, max_tokens:
 
 
 def _mark_done(deal_uuid: str):
-    supabase.table(_C["deals_table"]).update({_C["context_stale_col"]: False}).eq(_C["deal_col_id"], deal_uuid).execute()
+    supabase.table(_C["deals_table"]).update({
+        _C["context_stale_col"]: False,
+        _C["stale_checked_at_col"]: datetime.now(timezone.utc).isoformat(),
+    }).eq(_C["deal_col_id"], deal_uuid).execute()

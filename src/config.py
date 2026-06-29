@@ -363,7 +363,7 @@ PARTNER_IDENTITY = {
         "partner_domains": {"gruposantander.es", "gruposantander.com", "santander.com", "bancosantander.es", "santander.es"},
         "prompt_partner_label": "Banco Santander / Telefonica",
         "lang": "es",
-        "lang_file": "lang_es_startup.txt",
+        "lang_file": "lang/es.txt",
         "tz": "Europe/Madrid",
     },
     "Telefonica": {
@@ -371,7 +371,7 @@ PARTNER_IDENTITY = {
         "partner_domains": {"telefonica.com", "telefonica.es", "movistar.es"},
         "prompt_partner_label": "Banco Santander / Telefonica",
         "lang": "es",
-        "lang_file": "lang_es_startup.txt",
+        "lang_file": "lang/es.txt",
         "tz": "Europe/Madrid",
     },
     "TIM": {
@@ -379,15 +379,15 @@ PARTNER_IDENTITY = {
         "partner_domains": {"sa.telecomitalia.it", "telecomitalia.it", "tim.com"},
         "prompt_partner_label": "TIM",
         "lang": "it",
-        "lang_file": "lang_it.txt",
+        "lang_file": "lang/it.txt",
         "tz": "Europe/Rome",
     },
     "TELEKOM": {
         "partner_names": {"telekom", "deutsche telekom", "t-mobile"},
         "partner_domains": {"telekom.de"},
         "prompt_partner_label": "TELEKOM",
-        "lang": "en",
-        "lang_file": "lang_en.txt",
+        "lang": "de",
+        "lang_file": "lang/de.txt",
         "tz": "Europe/Berlin",
     },
     "Santander Mexico": {
@@ -395,7 +395,7 @@ PARTNER_IDENTITY = {
         "partner_domains": {"gruposantander.es", "gruposantander.com", "santander.com"},
         "prompt_partner_label": "Santander Mexico",
         "lang": "es",
-        "lang_file": "lang_es_startup.txt",
+        "lang_file": "lang/es.txt",
         "tz": "America/Mexico_City",
     },
     "Mexico": {
@@ -403,7 +403,7 @@ PARTNER_IDENTITY = {
         "partner_domains": set(),
         "prompt_partner_label": "Mexico",
         "lang": "es",
-        "lang_file": "lang_es_startup.txt",
+        "lang_file": "lang/es.txt",
         "tz": "America/Mexico_City",
     },
 }
@@ -412,7 +412,7 @@ PARTNER_IDENTITY = {
 DS_IDENTITY = {
     "direct_sales_es": {
         "lang": "es",
-        "lang_file": "lang_es_startup.txt",
+        "lang_file": "lang/es.txt",
         "tz": "Europe/Madrid",
     },
 }
@@ -420,7 +420,7 @@ DS_IDENTITY = {
 XL_IDENTITY = {
     "xl_sales": {
         "lang": "es",
-        "lang_file": "lang_es_startup.txt",
+        "lang_file": "lang/es.txt",
         "tz": "Europe/Madrid",
     },
 }
@@ -1909,6 +1909,8 @@ INTELLIGENCE_CONFIG = {
     "deal_context_rpc": "append_deal_context",
     "deal_context_rpc_params": {"deal_id": "p_deal_id", "text": "p_text"},
     "context_stale_col": "context_stale",
+    "stale_checked_at_col": "stale_checked_at",
+    "stale_cooldown_hours": 2,
 
     # ── Columnas de FK para queries ─────────────────────────────────────────
     "fk_deal_id": "deal_id",           # calls/emails/notes → deal UUID

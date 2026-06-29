@@ -17,6 +17,7 @@ from src.config import (
     SYNC_STRATEGY,
     SYNC_CONFIG,
     CORE_TRIGGER,
+    INTELLIGENCE_CONFIG,
     HS_DEAL_PROPS,
     HS_PIPELINE_DATE_MAP,
     HS_TO_SUPABASE,
@@ -298,30 +299,46 @@ def _detect_stale(rows: list[dict]) -> list[dict]:
     if not rows:
         return rows
 
+    _I = INTELLIGENCE_CONFIG
     col_deal_id = _SC["col_deal_id"]
     col_activity = _CT["supabase_column"]
     col_stale = _SC["col_context_stale"]
+    col_checked = _I["stale_checked_at_col"]
+    cooldown_hours = _I.get("stale_cooldown_hours", 2)
+    cooldown_cutoff = (datetime.now(timezone.utc) - timedelta(hours=cooldown_hours)).isoformat()
 
     deal_ids = [r[col_deal_id] for r in rows if r.get(col_deal_id)]
-    current_activity: dict[str, str] = {}
+    current_data: dict[str, dict] = {}
 
     for i in range(0, len(deal_ids), 200):
         batch = deal_ids[i:i + 200]
         result = (
             supabase.table(_SC["deals_table"])
-            .select(f"{col_deal_id}, {col_activity}")
+            .select(f"{col_deal_id}, {col_activity}, {col_checked}")
             .in_(col_deal_id, batch)
             .execute()
         )
         for d in (result.data or []):
-            current_activity[d[col_deal_id]] = d.get(col_activity) or ""
+            current_data[d[col_deal_id]] = {
+                "activity": d.get(col_activity) or "",
+                "checked_at": d.get(col_checked) or "",
+            }
 
+    skipped_cooldown = 0
     for row in rows:
         did = row.get(col_deal_id, "")
         new_activity = _normalize_ts(row.get(col_activity) or "")
-        old_activity = _normalize_ts(current_activity.get(did, ""))
+        existing = current_data.get(did, {})
+        old_activity = _normalize_ts(existing.get("activity", ""))
         if new_activity and new_activity != old_activity:
+            checked_at = existing.get("checked_at", "")
+            if checked_at and checked_at > cooldown_cutoff:
+                skipped_cooldown += 1
+                continue
             row[col_stale] = True
+
+    if skipped_cooldown:
+        print(f"   {skipped_cooldown} deals skipped (cooldown {cooldown_hours}h)")
 
     return rows
 

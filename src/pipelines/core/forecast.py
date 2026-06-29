@@ -397,6 +397,7 @@ def run(deal_uuid: str) -> dict | None:
     snapshot_id = snapshot.get("id")
     print(f"    FORECAST: {deal_name}")
 
+    from src.lang import get_lang_prompt
     trajectory = _fetch_trajectory(deal_uuid)
     similar_won, similar_lost = _fetch_similar_deals(stage, amount, age, team)
     patterns = _fetch_patterns()
@@ -409,6 +410,9 @@ def run(deal_uuid: str) -> dict | None:
             break
 
     system_prompt = _read_prompt(_F["system_prompt_path"])
+    lang_text = get_lang_prompt(team)
+    if lang_text:
+        system_prompt += "\n\n" + lang_text
     user_prompt = _build_user_prompt(
         deal, snapshot, trajectory,
         similar_won, similar_lost,
@@ -491,6 +495,7 @@ def run_refresh(deal_uuid: str) -> dict | None:
     snapshot_id = snapshot.get("id")
     print(f"    FORECAST REFRESH: {deal_name}")
 
+    from src.lang import get_lang_prompt
     trajectory = _fetch_trajectory(deal_uuid)
     similar_won, similar_lost = _fetch_similar_deals(stage, amount, age, team)
     patterns = _fetch_patterns()
@@ -503,6 +508,9 @@ def run_refresh(deal_uuid: str) -> dict | None:
             break
 
     system_prompt = _read_prompt(_F["system_prompt_path"])
+    lang_text = get_lang_prompt(team)
+    if lang_text:
+        system_prompt += "\n\n" + lang_text
     user_prompt = _build_user_prompt(
         deal, snapshot, trajectory,
         similar_won, similar_lost,

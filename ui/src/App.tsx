@@ -26,7 +26,7 @@ function TopBar({ view, onNav }: { view: string; onNav: (v: string) => void }) {
   return (
     <header className="cz-topbar">
       <div className="cz-brand">
-        <span className="cz-logo">Closzr</span>
+        <span className="cz-logo">Claudio</span>
         <span className="cz-logo-sub">Sales Intelligence</span>
       </div>
       <nav className="cz-topnav">

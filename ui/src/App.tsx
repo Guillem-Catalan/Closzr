@@ -92,7 +92,7 @@ function App() {
       <main className="cz-main">
         {view === "TO-DOs" && <TodoView onOpen={handleOpen}/>}
         {view === "Pipeline" && <PipelineView onOpen={handleOpen}/>}
-        {view === "Forecast" && <ForecastView/>}
+        {view === "Forecast" && <ForecastView onOpen={handleOpen}/>}
         {view === "1:1" && <OneOnOneView onOpen={handleOpen}/>}
         {view === "Admin" && <Suspense fallback={<p style={{color:"var(--ink-3)"}}>Cargando...</p>}><AdminView/></Suspense>}
       </main>

@@ -39,15 +39,13 @@ function HubSpotLink({ hsId, onClick }: { hsId: string; onClick?: (e: React.Mous
 }
 
 /* ---- Expandable deal row ---- */
-function FcRow({ d, open, onToggle }: { d: ForecastDeal; open: boolean; onToggle: () => void }) {
+function FcRow({ d, open, onToggle, onOpen }: { d: ForecastDeal; open: boolean; onToggle: () => void; onOpen: (row: any, tab?: string) => void }) {
   const isWon = d.hsCategory === "Won";
   const mom = d.momentum ? MOM[d.momentum] : null;
-  const accelCount = d.forecastAccelerators ? d.forecastAccelerators.split(/\n|\d+\.\s+/).filter(Boolean).length : 0;
-  const riskCount = d.forecastRisks ? d.forecastRisks.split(/\n|\d+\.\s+/).filter(Boolean).length : 0;
 
   return (
     <>
-      <div className="cz-fctable-r" style={{ cursor: "pointer", gridTemplateColumns: "minmax(200px,1.2fr) 80px 90px 90px 90px 90px 50px 50px 24px", ...(isWon ? { background: "var(--green-tint)" } : {}) }} onClick={onToggle}>
+      <div className="cz-fctable-r" style={{ cursor: "pointer", gridTemplateColumns: "minmax(200px,1.2fr) 80px 90px 90px 90px 90px 80px 24px", ...(isWon ? { background: "var(--green-tint)" } : {}) }} onClick={onToggle}>
         <div className="cz-fct-deal">
           <span className="cz-fct-name" style={{ display: "flex", alignItems: "center", gap: 5, ...(isWon ? { color: "var(--green-ink)" } : {}) }}>
             {d.deal}
@@ -66,10 +64,10 @@ function FcRow({ d, open, onToggle }: { d: ForecastDeal; open: boolean; onToggle
         <div className="num" style={{ fontSize: 12, color: "var(--ink-2)" }}>{d.closeDate?.slice(0, 10) || "—"}</div>
         <div className="num" style={{ fontSize: 12, color: "var(--indigo)" }}>{isWon ? "—" : d.claudioCloseDate || "—"}</div>
         <div style={{ textAlign: "center" }}>
-          {!isWon && accelCount > 0 && <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 700, color: "var(--green-ink)", background: "var(--green-tint)", padding: "2px 7px", borderRadius: "var(--r-pill)" }}>{accelCount}</span>}
-        </div>
-        <div style={{ textAlign: "center" }}>
-          {!isWon && riskCount > 0 && <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 12, fontWeight: 700, color: "var(--red-ink)", background: "var(--red-tint)", padding: "2px 7px", borderRadius: "var(--r-pill)" }}>{riskCount}</span>}
+          <button onClick={e => { e.stopPropagation(); onOpen({ id: d.id }, "hist"); }}
+            style={{ fontSize: 11, fontWeight: 600, color: "var(--indigo)", background: "var(--indigo-tint)", border: "none", padding: "4px 10px", borderRadius: "var(--r-pill)", cursor: "pointer", whiteSpace: "nowrap" }}>
+            Ver deal
+          </button>
         </div>
         <div><Icon name="chevDown" size={14} style={{ color: "var(--ink-3)", transform: open ? "none" : "rotate(-90deg)", transition: "transform .18s" }} /></div>
       </div>
@@ -280,7 +278,7 @@ function EditableTarget({ value, teamFilter, targets, canEdit }: { value: number
 }
 
 /* ============================================================ */
-export default function ForecastView() {
+export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: string) => void }) {
   const D = useData();
   const F = D.forecast;
   const { profile } = usePermissions();
@@ -353,14 +351,14 @@ export default function ForecastView() {
   const sortedPushable = useMemo(() => sortDeals(filteredPushable), [filteredPushable, sort]);
 
   const fcTableHeader = (
-    <div className="cz-fctable-h" style={{ gridTemplateColumns: "minmax(200px,1.2fr) 80px 90px 90px 90px 90px 50px 50px 24px" }}>
+    <div className="cz-fctable-h" style={{ gridTemplateColumns: "minmax(200px,1.2fr) 80px 90px 90px 90px 90px 80px 24px" }}>
       <div>Deal</div><div>MRR</div><div>HS</div><div>Estado</div><div>Cierre HS</div><div>Cierre Closzr</div>
-      <div style={{ textAlign: "center" }}>Acc.</div><div style={{ textAlign: "center" }}>Risk</div><div />
+      <div /><div />
     </div>
   );
 
   const renderDealRows = (deals: ForecastDeal[]) =>
-    deals.map(d => <FcRow key={d.id} d={d} open={expandedId === d.id} onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)} />);
+    deals.map(d => <FcRow key={d.id} d={d} open={expandedId === d.id} onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)} onOpen={onOpen} />);
 
   return (
     <div className="cz-fc">

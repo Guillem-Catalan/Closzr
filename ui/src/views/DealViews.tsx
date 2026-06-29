@@ -242,7 +242,11 @@ function NextView({ d, goTo: _goTo }: { d: any; goTo: (tab: string) => void }) {
   const [note,setNote] = useState("");
   const [comment,setComment] = useState("");
   const [emailOpen,setEmailOpen] = useState(false);
+  const [briefingOpen,setBriefingOpen] = useState(false);
   const em = d.email;
+
+  const briefingTool = d.tools?.find((t: any) => t.name === "Briefing");
+  const briefingData = briefingTool?.briefingData || null;
 
   const toolIcon: Record<string, string> = { ROI:"calculator", Slides:"presentation", Battlecard:"shield", Briefing:"book" };
 
@@ -303,7 +307,8 @@ function NextView({ d, goTo: _goTo }: { d: any; goTo: (tab: string) => void }) {
             <SectionLabel letter="H" tone="teal">Herramientas</SectionLabel>
             <div className="cz-tools">
               {d.tools.map((t: any, i: number)=>(
-                <button key={i} className={"cz-tool"+(t.active?" active":"")}>
+                <button key={i} className={"cz-tool"+(t.active?" active":"")}
+                  onClick={t.name === "Briefing" && briefingData ? ()=>setBriefingOpen(true) : undefined}>
                   <span className="cz-tool-ic" style={{background:TONE[t.tone].bg,color:TONE[t.tone].fg}}>
                     <Icon name={toolIcon[t.name]||"file"} size={18}/>
                   </span>
@@ -337,6 +342,7 @@ function NextView({ d, goTo: _goTo }: { d: any; goTo: (tab: string) => void }) {
       </div>
 
       {emailOpen && em && <EmailModal em={em} onClose={()=>setEmailOpen(false)}/>}
+      {briefingOpen && briefingData && <BriefingModal brief={briefingData} dealName={d.name} onClose={()=>setBriefingOpen(false)}/>}
     </div>
   );
 }
@@ -393,6 +399,79 @@ function EmailModal({ em, onClose }: { em: any; onClose: () => void }) {
           <button className="cz-btn-soft" onClick={onClose}>Editar borrador</button>
           <span style={{flex:1}}/>
           <span className="cz-mail-note"><Icon name="route" size={13}/> Se registrará en HubSpot</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===== Briefing modal ===== */
+function BriefingModal({ brief, dealName, onClose }: { brief: { text: string; objective: string; products: string[]; productsReasoning: string; meetingType: string }; dealName: string; onClose: () => void }) {
+  useEffect(()=>{
+    const h = (e: KeyboardEvent) => { if(e.key==="Escape"){ e.stopPropagation(); onClose(); } };
+    window.addEventListener("keydown",h,true); return ()=>window.removeEventListener("keydown",h,true);
+  },[onClose]);
+
+  const typeLabel: Record<string, string> = {
+    first_demo: "Primera Demo", demo: "Demo",
+    followup_meddic: "Follow-up MEDDIC", followup: "Follow-up",
+    pricing_closing: "Pricing / Closing", closing: "Closing",
+  };
+
+  const sections = brief.text.split(/\n(?=[A-ZÁÉÍÓÚÑ]{3,}[A-ZÁÉÍÓÚÑ\s]*\n)/);
+
+  return (
+    <div className="cz-email-scrim" onMouseDown={e=>{ if(e.target===e.currentTarget) onClose(); }}>
+      <div className="cz-mail" style={{animation:"cz-scale-in .26s var(--ease) both", maxWidth: 680}}>
+        <div className="cz-mail-chrome">
+          <div className="cz-mail-dots"><span/><span/><span/></div>
+          <div className="cz-mail-chrome-title"><Icon name="book" size={14} stroke={2}/> Briefing</div>
+          <button className="cz-iconbtn sm" onClick={onClose} title="Cerrar (Esc)"><Icon name="x" size={16}/></button>
+        </div>
+
+        <div className="cz-mail-toolbar">
+          <span className="cz-mail-tag"><Icon name="sparkle" size={12}/> Generado por Closzr</span>
+          {brief.meetingType && <Chip tone="indigo" style={{fontSize:10.5, marginLeft:8}}>{typeLabel[brief.meetingType] || brief.meetingType}</Chip>}
+          <span style={{flex:1}}/>
+        </div>
+
+        <div className="cz-mail-head" style={{paddingBottom: 12}}>
+          <div className="cz-mail-subject">{dealName}</div>
+          {brief.objective && (
+            <div style={{fontSize: 13, color: "var(--ink-2)", marginTop: 6}}>
+              <b>Objetivo:</b> {brief.objective}
+            </div>
+          )}
+          {brief.products.length > 0 && (
+            <div style={{display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap"}}>
+              {brief.products.map((p, i) => <Chip key={i} tone="teal" style={{fontSize: 10.5}}>{p}</Chip>)}
+            </div>
+          )}
+          {brief.productsReasoning && (
+            <div style={{fontSize: 12, color: "var(--ink-3)", marginTop: 6}}>{brief.productsReasoning}</div>
+          )}
+        </div>
+
+        <div className="cz-mail-body" style={{maxHeight: "60vh", overflowY: "auto"}}>
+          {sections.map((section, i) => {
+            const lines = section.trim().split("\n");
+            const isHeader = lines[0] && /^[A-ZÁÉÍÓÚÑ]{3,}/.test(lines[0]);
+            return (
+              <div key={i} style={{marginBottom: 16}}>
+                {isHeader && <h4 style={{fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--indigo)", letterSpacing: ".04em", marginBottom: 6}}>{lines[0]}</h4>}
+                {(isHeader ? lines.slice(1) : lines).map((line, j) => {
+                  const trimmed = line.trim();
+                  if (!trimmed) return null;
+                  if (/^[-•]/.test(trimmed)) return <p key={j} style={{fontSize: 13.5, lineHeight: 1.6, color: "var(--ink)", paddingLeft: 12, margin: "3px 0"}}>{trimmed.replace(/^[-•]\s*/, "")}</p>;
+                  return <p key={j} style={{fontSize: 13.5, lineHeight: 1.6, color: "var(--ink)", margin: "4px 0"}}>{trimmed}</p>;
+                })}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="cz-mail-foot">
+          <button className="cz-btn-soft" onClick={onClose}>Cerrar</button>
         </div>
       </div>
     </div>

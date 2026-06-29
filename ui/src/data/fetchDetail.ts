@@ -50,6 +50,20 @@ export type DealDetail = {
   };
 };
 
+function parseBriefing(raw: string | null, meetingType?: string): { text: string; objective: string; products: string[]; productsReasoning: string; meetingType: string } | null {
+  if (!raw) return null;
+  try {
+    const data = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return {
+      text: data.briefing || "",
+      objective: data.meeting_objective || "",
+      products: data.products_to_pitch || [],
+      productsReasoning: data.products_reasoning || "",
+      meetingType: meetingType || "",
+    };
+  } catch { return null; }
+}
+
 function parseBullets(text: string | null): string[] {
   if (!text) return [];
   return text.split(/\n/).map(s => s.replace(/^[-•*\s]+/, "").trim()).filter(s => s.length > 3);
@@ -514,7 +528,7 @@ export async function fetchDealDetail(dealId: string): Promise<DealDetail | null
 
   // Fetch briefings + slides + email_drafts + product intel for this deal
   const [{ data: briefingRows }, { data: slideRows }, { data: emailRows }, { data: productRows }] = await Promise.all([
-    supabase.from("briefings").select("status,share_url").eq("deal_id", dealId).order("created_at", { ascending: false }).limit(1),
+    supabase.from("briefings").select("status,share_url,brief,meeting_type").eq("deal_id", dealId).order("created_at", { ascending: false }).limit(1),
     supabase.from("slides").select("status,share_url").eq("deal_id", dealId).order("created_at", { ascending: false }).limit(1),
     supabase.from("email_drafts").select("recipient,send_when,reason,subject,body,status").eq("deal_id", dealId).order("created_at", { ascending: false }).limit(1),
     supabase.from("deal_product_signals").select("product_assessment,product_actions,expansion_summary").eq("deal_id", dealId).order("snapshot_date", { ascending: false }).limit(1),
@@ -544,7 +558,7 @@ export async function fetchDealDetail(dealId: string): Promise<DealDetail | null
     { name: "ROI", sub: "Calculadora", tone: "green" },
     { name: "Slides", sub: slide?.status === "ready" ? "Disponible" : slide ? "Generando..." : "Presentación", tone: "blue", active: slide?.status === "ready" },
     { name: "Battlecard", sub: "vs Competencia", tone: "amber" },
-    { name: "Briefing", sub: briefing?.status === "ready" ? "Disponible" : briefing ? "Generando..." : "Prep meeting", tone: "indigo", active: briefing?.status === "ready" },
+    { name: "Briefing", sub: briefing?.status === "ready" ? "Disponible" : briefing ? "Generando..." : "Prep meeting", tone: "indigo", active: briefing?.status === "ready", briefingData: briefing?.brief ? parseBriefing(briefing.brief, briefing.meeting_type) : null },
   ];
 
   return {

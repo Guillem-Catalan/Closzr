@@ -164,7 +164,6 @@ function MeetingRow({ d, onOpen }: { d: DealRow; onOpen: () => void }) {
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
           <Chip tone="indigo" style={{ fontSize: 10, padding: "1px 6px" }}>MEETING</Chip>
-          <span className="num" style={{ fontSize: 12, fontWeight: 700, color: "var(--indigo)" }}>{d.hora}</span>
         </div>
         <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)", lineHeight: 1.4 }}>{d.deal}</div>
         <div style={{ fontSize: 12, color: "var(--ink-3)" }}>{d.owner} · {fmtMRR(d.mrr)} · {d.stage}</div>

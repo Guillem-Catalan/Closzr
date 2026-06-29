@@ -98,6 +98,7 @@ type RawDealUI = {
   forecast_category: string | null;
   deal_age_days: number | null;
   closed_lost_reason: string | null;
+  has_meeting_today: boolean | null;
 };
 
 type RawTarget = { team: string; month: string; monthly_target: number };
@@ -149,7 +150,7 @@ function toForecastDeal(d: RawDealUI, row: DealRow): ForecastDeal {
   };
 }
 
-const DEAL_UI_COLS = "deal_id,hs_deal_id,company_name,deal_name_full,stage,macro_stage,pae,pbd,team,mrr,close_probability,close_date,close_date_hs,last_contact_label,trend,is_stale,stale_days,score,bucket,action_priority,action_headline,action_headline_short,action_signal,action_type,action_who,action_due_date,action_due_label,howto_body,deal_summary,deal_assessment,m_score,e_score,dc_score,dp_score,i_score,c_score,blockers_count,signals_count,next_steps,closes_this_month,closes_next_month,forecast_confidence,deal_momentum,estimated_close_date,forecast_reasoning,push_action,forecast_risks,forecast_accelerators,outcome,outcome_summary,employees,forecast_category,deal_age_days,closed_lost_reason";
+const DEAL_UI_COLS = "deal_id,hs_deal_id,company_name,deal_name_full,stage,macro_stage,pae,pbd,team,mrr,close_probability,close_date,close_date_hs,last_contact_label,trend,is_stale,stale_days,score,bucket,action_priority,action_headline,action_headline_short,action_signal,action_type,action_who,action_due_date,action_due_label,howto_body,deal_summary,deal_assessment,m_score,e_score,dc_score,dp_score,i_score,c_score,blockers_count,signals_count,next_steps,closes_this_month,closes_next_month,forecast_confidence,deal_momentum,estimated_close_date,forecast_reasoning,push_action,forecast_risks,forecast_accelerators,outcome,outcome_summary,employees,forecast_category,deal_age_days,closed_lost_reason,has_meeting_today";
 
 async function loadData(): Promise<CZData> {
   const [allDeals, targets] = await Promise.all([
@@ -292,7 +293,15 @@ async function loadData(): Promise<CZData> {
       return { id: d.deal_id, dealId: d.deal_id, hsId: d.hs_deal_id || undefined, dealName: d.company_name || d.deal_name_full || "—", dealOwner: d.pae || d.pbd || "—", dealMrr: d.mrr, dealStage: shortStage(d.stage || ""), bucket: d.bucket || "pipeline", claudioCloseDate: d.estimated_close_date || null, actionHeadline: d.action_headline || "", actionDetail: d.howto_body || null, actionType: d.action_type || "PREP", actionWho: d.action_who || "—", actionWhen: d.action_due_label || "pendiente", actionPriority: d.action_priority || 5, actionDueDate: d.action_due_date || null, followUps, status: "pending", team: d.team || "" };
     });
 
-  return { STAGE, groups: [], nakiva: null, yukAtlas: null, pipeline, pipelineAside, forecast, oneOnOne, todos, loading: false };
+  // ---- Meetings today ----
+  const meetingRows: DealRow[] = allRows
+    .filter(r => r._raw.has_meeting_today)
+    .map(r => r as DealRow);
+  const groups = meetingRows.length > 0
+    ? [{ id: "meetings-today", title: "Meetings hoy", meta: `${meetingRows.length} deals`, tint: "indigo", rows: meetingRows }]
+    : [];
+
+  return { STAGE, groups, nakiva: null, yukAtlas: null, pipeline, pipelineAside, forecast, oneOnOne, todos, loading: false };
 }
 
 // ---- Permission-based filtering ----

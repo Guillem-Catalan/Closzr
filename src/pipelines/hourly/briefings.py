@@ -181,7 +181,12 @@ def generate_briefing(deal: dict) -> dict | None:
 
     print(f"    BRIEFING: {deal_name} ({meeting_type})")
 
+    from src.lang import get_lang_prompt
+    team = deal.get(_I["deal_col_team"]) or ""
     system_prompt = _build_system_prompt(meeting_type)
+    lang_text = get_lang_prompt(team)
+    if lang_text:
+        system_prompt += "\n\n" + lang_text
     user_prompt = _build_user_prompt(deal)
 
     print(f"    Claude ({len(user_prompt)} chars)...")

@@ -220,7 +220,12 @@ def analyze_deal(deal: dict) -> dict | None:
     stage_dates = _build_stage_dates(deal)
     product_signals = _fetch_product_signals(deal_uuid)
 
+    from src.lang import get_lang_prompt
+    team = deal.get(_I["deal_col_team"]) or ""
     system_prompt = (PROMPTS_DIR / _D["analysis_prompt_path"]).read_text(encoding="utf-8").strip()
+    lang_text = get_lang_prompt(team)
+    if lang_text:
+        system_prompt += "\n\n" + lang_text
     user_prompt = _build_user_prompt(deal, snapshots, stage_dates, product_signals)
 
     print(f"    Claude ({len(user_prompt)} chars)...")

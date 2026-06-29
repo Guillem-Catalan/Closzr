@@ -251,7 +251,11 @@ def compile_trajectory(deal: dict) -> dict | None:
     interactions = _count_interactions(deal, deal_uuid)
     team = _resolve_team(deal)
 
+    from src.lang import get_lang_prompt
     system_prompt = (PROMPTS_DIR / _D["trajectories_prompt_path"]).read_text(encoding="utf-8").strip()
+    lang_text = get_lang_prompt(team)
+    if lang_text:
+        system_prompt += "\n\n" + lang_text
     user_prompt = _build_user_prompt(deal, trajectory, stage_dates)
 
     print(f"    Claude ({len(user_prompt)} chars)...")

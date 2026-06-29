@@ -142,7 +142,7 @@ def _format_contacts(contacts: list[dict]) -> str:
 
 # ── Main ────────────────────────────────────────────────────────────────────
 
-def generate(atlas_id: str, crm_id: str, owners: dict | None = None):
+def generate(atlas_id: str, crm_id: str, owners: dict | None = None, team: str = ""):
     """Generate atlas for a company. Owners passed from run.py to avoid duplicate fetch."""
     print(f"  ATLAS: fetching company {crm_id} ...")
     company = _fetch_company(crm_id)
@@ -168,10 +168,14 @@ def generate(atlas_id: str, crm_id: str, owners: dict | None = None):
     deals_text = _format_deals(deals, owners or {})
     contacts_text = _format_contacts(contacts)
 
-    # Prompt: base (contexto Factorial) + atlas (instrucciones específicas)
+    # Prompt: base (contexto Factorial) + atlas (instrucciones específicas) + lang
+    from src.lang import get_lang_prompt
     base_prompt = (PROMPTS_DIR / _CFG["base_prompt_path"]).read_text(encoding="utf-8")
     atlas_prompt = (PROMPTS_DIR / _CFG["prompt_path"]).read_text(encoding="utf-8")
+    lang_text = get_lang_prompt(team)
     system_prompt = f"{base_prompt}\n\n{atlas_prompt}"
+    if lang_text:
+        system_prompt += "\n\n" + lang_text
     user_prompt = (
         f"## Empresa\n{company_text}\n\n"
         f"## Deals ({len(deals)} total)\n{deals_text}\n\n"

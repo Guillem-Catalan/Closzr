@@ -15,12 +15,14 @@ Everything from config.
 
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from src.config import (
     INTELLIGENCE_CONFIG,
     ACTIVE_STAGES,
     MAX_DEALS_PER_CYCLE,
     CORE_TIMEOUT_MINUTES,
+    CORE_WORKERS,
 )
 from src.db.client import supabase
 from src.pipelines.core.sync import run as sync_run
@@ -87,76 +89,100 @@ def run(full: bool = False):
         print("\n▸ No stale deals to process.")
         return
 
-    print(f"\n▸ {len(stale_deals)} stale deals (cap {MAX_DEALS_PER_CYCLE})")
+    total = len(stale_deals)
+    print(f"\n▸ {total} stale deals (cap {MAX_DEALS_PER_CYCLE}, workers {CORE_WORKERS})")
 
     ok = 0
     failed = 0
-    timed_out = False
     failures: list[str] = []
     start_time = time.time()
     timeout_seconds = CORE_TIMEOUT_MINUTES * 60
 
-    for i, deal in enumerate(stale_deals, 1):
-        elapsed = time.time() - start_time
-        if elapsed > timeout_seconds:
-            print(f"\n  ⏱ Timeout ({CORE_TIMEOUT_MINUTES}min) — {i-1} deals processed, {len(stale_deals)-i+1} remaining for next run")
-            timed_out = True
-            break
-
+    def _process_deal(idx: int, deal: dict) -> str:
+        """Process a single deal. Returns deal_name on success."""
         deal_uuid = deal[_I["deal_col_id"]]
         deal_name = deal.get(_I["deal_col_deal_name"]) or "?"
         crm_id = deal.get(_I["deal_col_crm_id"]) or ""
 
         print(f"\n{'─' * 50}")
-        print(f"  [{i}/{len(stale_deals)}] {deal_name}")
+        print(f"  [{idx}/{total}] {deal_name}")
 
         try:
-            # ── Parser: sync metadata → deal_ui ──
-            try:
-                parser.update_from_sync(deal_uuid)
-            except Exception as e:
-                print(f"    Parser sync failed: {e}")
-
-            # ── Phase 2: Atlas if needed ──
-            if _needs_atlas(deal):
-                print(f"  ▸ ATLAS")
-                try:
-                    atlas_generate(deal.get("atlas_id") or "", crm_id)
-                    parser.update_from_atlas(deal_uuid)
-                except Exception as e:
-                    print(f"    Atlas failed: {e}")
-
-            # ── Phase 3: Intelligence ──
-            print(f"  ▸ INTELLIGENCE")
-            intel_result = intelligence_run(deal_uuid)
-
-            if intel_result:
-                try:
-                    parser.update_from_intelligence(deal_uuid)
-                except Exception as e:
-                    print(f"    Parser intelligence failed: {e}")
-
-                # ── Phase 4: Forecast (only if intelligence produced a snapshot) ──
-                if intel_result.get("snapshot"):
-                    print(f"  ▸ FORECAST")
-                    try:
-                        forecast_result = forecast_run(deal_uuid)
-                        if forecast_result:
-                            parser.update_from_forecast(deal_uuid)
-                    except Exception as e:
-                        print(f"    Forecast failed: {e}")
-
-            ok += 1
-
+            parser.update_from_sync(deal_uuid)
         except Exception as e:
-            failed += 1
-            failures.append(f"{deal_name}: {e}")
-            print(f"  ✗ FAILED: {e}")
-            traceback.print_exc()
+            print(f"    Parser sync failed: {e}")
+
+        if _needs_atlas(deal):
+            print(f"  ▸ ATLAS")
+            try:
+                atlas_generate(deal.get("atlas_id") or "", crm_id, team=deal.get(_I["deal_col_team"]) or "")
+                parser.update_from_atlas(deal_uuid)
+            except Exception as e:
+                print(f"    Atlas failed: {e}")
+
+        print(f"  ▸ INTELLIGENCE")
+        intel_result = intelligence_run(deal_uuid)
+
+        if intel_result:
+            try:
+                parser.update_from_intelligence(deal_uuid)
+            except Exception as e:
+                print(f"    Parser intelligence failed: {e}")
+
+            if intel_result.get("snapshot"):
+                print(f"  ▸ FORECAST")
+                try:
+                    forecast_result = forecast_run(deal_uuid)
+                    if forecast_result:
+                        parser.update_from_forecast(deal_uuid)
+                except Exception as e:
+                    print(f"    Forecast failed: {e}")
+
+        return deal_name
+
+    with ThreadPoolExecutor(max_workers=CORE_WORKERS) as pool:
+        active: dict = {}
+        deal_iter = enumerate(stale_deals, 1)
+        stopped = False
+
+        def _submit_next():
+            """Submit next deal if slot available and not timed out."""
+            nonlocal stopped
+            if stopped:
+                return
+            elapsed = time.time() - start_time
+            if elapsed > timeout_seconds:
+                remaining = total - ok - failed - len(active)
+                print(f"\n  ⏱ Timeout ({CORE_TIMEOUT_MINUTES}min) — {ok + failed} done, {remaining} remaining for next run")
+                stopped = True
+                return
+            try:
+                i, deal = next(deal_iter)
+                future = pool.submit(_process_deal, i, deal)
+                active[future] = deal.get(_I["deal_col_deal_name"]) or "?"
+            except StopIteration:
+                stopped = True
+
+        for _ in range(CORE_WORKERS):
+            _submit_next()
+
+        while active:
+            done = next(as_completed(active))
+            deal_name = active.pop(done)
+            try:
+                done.result()
+                ok += 1
+            except Exception as e:
+                failed += 1
+                failures.append(f"{deal_name}: {e}")
+                print(f"  ✗ FAILED [{deal_name}]: {e}")
+                traceback.print_exc()
+
+            _submit_next()
 
     # ── Summary ──
     print(f"\n{'=' * 60}")
-    print(f"CORE DONE: {ok} OK, {failed} failed")
+    print(f"CORE DONE: {ok} OK, {failed} failed (workers={CORE_WORKERS})")
     if failures:
         print("Failures:")
         for f in failures:

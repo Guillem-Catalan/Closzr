@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "generate-config": "python3 ../scripts/generate_ui_config.py",
-    "prebuild": "python3 ../scripts/generate_ui_config.py",
+    "prebuild": "python3 ../scripts/generate_ui_config.py || true",
     "dev": "python3 ../scripts/generate_ui_config.py && vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

@@ -228,7 +228,7 @@ function SectionHeader({ label, count, mrr, tone, active, onClick }: { label: st
 }
 
 /* ---- Inline editable target ---- */
-function EditableTarget({ value, teamFilter, targets, canEdit }: { value: number; teamFilter: string; targets: { team: string; month: string; monthly_target: number }[]; canEdit: boolean }) {
+function EditableTarget({ value, teamFilter, targets, teams, canEdit }: { value: number; teamFilter: string; targets: { team: string; month: string; monthly_target: number }[]; teams: string[]; canEdit: boolean }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const cm = new Date().toISOString().slice(0, 7);
@@ -241,10 +241,16 @@ function EditableTarget({ value, teamFilter, targets, canEdit }: { value: number
       await supabase.from("forecast_targets").upsert({ team: teamFilter, month: cm, monthly_target: num }, { onConflict: "team,month" });
     } else {
       const teamTargets = targets.filter(t => t.month === cm);
-      if (teamTargets.length === 0) return;
-      const ratio = num / (value || 1);
-      for (const t of teamTargets) {
-        await supabase.from("forecast_targets").upsert({ team: t.team, month: cm, monthly_target: Math.round(t.monthly_target * ratio) }, { onConflict: "team,month" });
+      if (teamTargets.length === 0 && teams.length > 0) {
+        const perTeam = Math.round(num / teams.length);
+        for (const team of teams) {
+          await supabase.from("forecast_targets").upsert({ team, month: cm, monthly_target: perTeam }, { onConflict: "team,month" });
+        }
+      } else {
+        const ratio = num / (value || 1);
+        for (const t of teamTargets) {
+          await supabase.from("forecast_targets").upsert({ team: t.team, month: cm, monthly_target: Math.round(t.monthly_target * ratio) }, { onConflict: "team,month" });
+        }
       }
     }
     setEditing(false);
@@ -385,7 +391,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
         {/* 1. Objetivo */}
         <div className="cz-fc-kpi">
           <span className="eyebrow">Objetivo</span>
-          <EditableTarget value={target} teamFilter={teamFilter} targets={F.targets} canEdit={canEditTarget} />
+          <EditableTarget value={target} teamFilter={teamFilter} targets={F.targets} teams={teams} canEdit={canEditTarget} />
         </div>
 
         {/* 2. Forecast HubSpot */}

@@ -76,7 +76,7 @@ def _fetch_trajectory(deal_uuid: str) -> list[dict]:
             + ", ".join(c for c in _F["snapshot_input_cols"] if c in (
                 "m_score", "e_score", "dc_score", "dp_score", "i_score", "c_score",
                 "buyer_signals", "live_blockers", "next_step", "deal_assessment",
-                "closes_this_month", "forecast_confidence", "forecast_reasoning",
+                "forecast_confidence", "forecast_reasoning",
                 "push_action", "deal_momentum",
             ))
         )
@@ -219,10 +219,9 @@ def _build_user_prompt(
     lines.append("")
 
     # Previous forecast (continuity)
-    if prev_forecast and prev_forecast.get("closes_this_month") is not None:
-        ctm = "YES" if prev_forecast["closes_this_month"] else "NO"
+    if prev_forecast and prev_forecast.get("claudio_close_date"):
         lines.append(f"## YOUR PREVIOUS FORECAST ({prev_forecast.get(_I['fk_snapshot_date'], '?')})")
-        lines.append(f"closes_this_month: {ctm} ({prev_forecast.get('forecast_confidence', '?')})")
+        lines.append(f"estimated_close_date: {prev_forecast.get('claudio_close_date', '?')} ({prev_forecast.get('forecast_confidence', '?')})")
         lines.append(f"push_action: {prev_forecast.get('push_action') or 'none'}")
         lines.append(f"momentum: {prev_forecast.get('deal_momentum') or '?'}")
         lines.append(f"reasoning: {(prev_forecast.get('forecast_reasoning') or '')[:300]}")
@@ -405,7 +404,7 @@ def run(deal_uuid: str) -> dict | None:
 
     prev_forecast = None
     for s in reversed(trajectory):
-        if s.get("closes_this_month") is not None:
+        if s.get("claudio_close_date"):
             prev_forecast = s
             break
 
@@ -455,16 +454,15 @@ def run(deal_uuid: str) -> dict | None:
 
     ok = _update_snapshot(snapshot_id, forecast_data)
 
-    ctm = "YES" if parsed.get("closes_this_month") else "NO"
     conf = parsed.get("forecast_confidence", "?")
     mom = parsed.get("deal_momentum", "?")
     push = " | PUSHABLE" if parsed.get("forecast_pushable") else ""
-    print(f"    → {ctm} ({conf}) | prob={close_probability}% | momentum={mom}{push} | close: {parsed.get('estimated_close_date', '?')}")
+    close_dt = parsed.get("estimated_close_date", "?")
+    print(f"    → ({conf}) | prob={close_probability}% | momentum={mom}{push} | close: {close_dt}")
 
     return {
         "close_probability": close_probability,
         "claudio_forecast": claudio_forecast,
-        "closes_this_month": parsed.get("closes_this_month"),
         "forecast_confidence": conf,
         "deal_momentum": mom,
         "estimated_close_date": parsed.get("estimated_close_date"),
@@ -503,7 +501,7 @@ def run_refresh(deal_uuid: str) -> dict | None:
 
     prev_forecast = None
     for s in reversed(trajectory):
-        if s.get("closes_this_month") is not None:
+        if s.get("claudio_close_date"):
             prev_forecast = s
             break
 
@@ -553,16 +551,15 @@ def run_refresh(deal_uuid: str) -> dict | None:
 
     ok = _update_snapshot(snapshot_id, forecast_data)
 
-    ctm = "YES" if parsed.get("closes_this_month") else "NO"
     conf = parsed.get("forecast_confidence", "?")
     mom = parsed.get("deal_momentum", "?")
     push = " | PUSHABLE" if parsed.get("forecast_pushable") else ""
-    print(f"    → {ctm} ({conf}) | prob={close_probability}% | momentum={mom}{push} | close: {parsed.get('estimated_close_date', '?')}")
+    close_dt = parsed.get("estimated_close_date", "?")
+    print(f"    → ({conf}) | prob={close_probability}% | momentum={mom}{push} | close: {close_dt}")
 
     return {
         "close_probability": close_probability,
         "claudio_forecast": claudio_forecast,
-        "closes_this_month": parsed.get("closes_this_month"),
         "forecast_confidence": conf,
         "deal_momentum": mom,
         "estimated_close_date": parsed.get("estimated_close_date"),

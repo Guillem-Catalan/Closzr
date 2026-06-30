@@ -586,7 +586,7 @@ def update_from_forecast(deal_uuid: str):
 
     snap = (
         supabase.table(_I["snapshot_table"])
-        .select("close_probability, claudio_close_date, closes_this_month, closes_next_month, "
+        .select("close_probability, claudio_close_date, "
                 "forecast_confidence, deal_momentum, forecast_reasoning, "
                 "push_action, push_action_reasoning, forecast_accelerators, forecast_risks")
         .eq(_I["fk_hs_deal_id"], hs_deal_id)
@@ -600,19 +600,35 @@ def update_from_forecast(deal_uuid: str):
 
     prob = s.get("close_probability") or 0
     momentum = s.get("deal_momentum") or ""
-    closes_tm = s.get("closes_this_month")
     pushable = bool(s.get("push_action"))
+    claudio_close = s.get("claudio_close_date") or ""
+
+    # Derive closes_this/next_month from claudio_close_date
+    closes_this_month = False
+    closes_next_month = False
+    if claudio_close:
+        try:
+            close_d = date.fromisoformat(str(claudio_close)[:10])
+            today = date.today()
+            eom = (today.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+            closes_this_month = close_d <= eom
+            if not closes_this_month:
+                next_eom = (eom + timedelta(days=1)).replace(day=28) + timedelta(days=4)
+                next_eom = next_eom.replace(day=1) - timedelta(days=1)
+                closes_next_month = close_d <= next_eom
+        except (ValueError, TypeError):
+            pass
 
     # Accelerators and risks as JSONB
     accel_raw = _parse_bullets(s.get("forecast_accelerators"))
     risks_raw = _parse_bullets(s.get("forecast_risks"))
 
-    # Bucket
-    if closes_tm:
+    # Bucket — derived from claudio_close_date
+    if closes_this_month:
         bucket = "forecast"
     elif pushable:
         bucket = "pushable"
-    elif s.get("closes_next_month"):
+    elif closes_next_month:
         bucket = "next_month"
     elif risks_raw:
         bucket = "blocker"
@@ -632,10 +648,8 @@ def update_from_forecast(deal_uuid: str):
 
     row = {
         "close_probability": _safe_int(prob),
-        "close_date": s.get("claudio_close_date"),
+        "close_date": claudio_close or None,
         "forecast_amount": round((prob / 100) * mrr, 2) if mrr else None,
-        "closes_this_month": closes_tm,
-        "closes_next_month": s.get("closes_next_month"),
         "forecast_confidence": s.get("forecast_confidence") or "",
         "deal_momentum": momentum,
         "momentum_arrow": _P["momentum_arrows"].get(momentum, ""),

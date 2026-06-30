@@ -2,7 +2,7 @@
 Monthly Calibration — compare forecast predictions vs actual results.
 
 Runs on day 1 of each month. Analyzes the previous month:
-  - Deals predicted to close (closes_this_month=true) → did they?
+  - Deals with claudio_close_date in the month → did they actually close?
   - Deals that closed but were NOT predicted → false negatives
   - Accuracy of estimated_close_date → how many days off?
 
@@ -42,11 +42,12 @@ def run(target_month: str | None = None) -> int:
     month_key, month_start, month_end = _get_target_month(target_month)
     print(f"\n  CALIBRATION: analyzing {month_key}")
 
-    # ── 1. Get all deals predicted to close this month ──
+    # ── 1. Get all deals with claudio_close_date in the target month ──
     predicted_resp = (
         supabase.table(_M["snapshot_table"])
-        .select("deal_id, closes_this_month, forecast_confidence, claudio_close_date, snapshot_date")
-        .eq("closes_this_month", True)
+        .select("deal_id, forecast_confidence, claudio_close_date, snapshot_date")
+        .gte("claudio_close_date", month_start)
+        .lt("claudio_close_date", month_end)
         .gte("snapshot_date", month_start)
         .lt("snapshot_date", month_end)
         .execute()
@@ -132,7 +133,6 @@ def run(target_month: str | None = None) -> int:
             "month": month_key,
             "deal_id": deal_id,
             "deal_name": deal_name,
-            "predicted_close_this_month": True,
             "predicted_close_date": predicted_close_date or None,
             "predicted_confidence": confidence,
             "actual_outcome": actual,
@@ -168,7 +168,6 @@ def run(target_month: str | None = None) -> int:
                 "month": month_key,
                 "deal_id": deal_id,
                 "deal_name": d.get(_M["deal_col_deal_name"]) or "?",
-                "predicted_close_this_month": False,
                 "predicted_close_date": None,
                 "predicted_confidence": None,
                 "actual_outcome": "closed_won_this_month",

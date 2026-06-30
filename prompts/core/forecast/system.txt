@@ -23,15 +23,13 @@ Responde SOLO con un JSON válido. Sin markdown, sin prose, sin explicaciones.
   "deal_killer_value": null,
   "bs": 0.0,
   "lb": 0.0,
-  "closes_this_month": false,
-  "closes_next_month": false,
+  "estimated_close_date": "YYYY-MM-DD",
+  "close_date_reasoning": "...",
   "forecast_confidence": "high | medium | low",
   "forecast_pushable": true,
   "push_action": "...",
   "push_action_reasoning": "...",
   "deal_momentum": "accelerating | stable | decelerating | stalled",
-  "estimated_close_date": "YYYY-MM-DD",
-  "close_date_reasoning": "...",
   "forecast_reasoning": "...",
   "forecast_risks": "...",
   "forecast_accelerators": "..."
@@ -116,13 +114,13 @@ lb: -0.5 — Blocker menor:
 
 lb: 0.0 — Sin blockers activos
 
-### closes_this_month / closes_next_month (boolean)
+### estimated_close_date ("YYYY-MM-DD") — CAMPO MÁS IMPORTANTE
 
-Este es el campo más importante de todo el forecast. Es un booleano: ¿este deal se
-cerrará antes de que acabe el mes? De este campo depende qué deals trabaja el equipo
-y cuáles prioriza. Equivocarte aquí tiene consecuencias directas: un false positive
-hace que el TL cuente con revenue que no llega; un false negative hace que abandone
-un deal que estaba a punto de cerrar.
+Este es el campo más importante de todo el forecast. Es una fecha concreta: ¿cuándo
+se cerrará este deal? De esta fecha depende qué deals trabaja el equipo y cuáles
+prioriza. Equivocarte aquí tiene consecuencias directas: una fecha demasiado
+optimista hace que el TL cuente con revenue que no llega; una demasiado pesimista
+hace que abandone un deal que estaba a punto de cerrar.
 
 Para decidir, analiza TODAS estas dimensiones en orden. No te quedes con una sola
 señal — cruza todas las evidencias y decide como lo haría un VP de Sales que ha visto
@@ -151,11 +149,11 @@ El benchmark es tu herramienta más poderosa. Úsalo siempre.
 
 **3. Velocidad del deal — cómo se mueve**
 - ¿Cuánto lleva en el stage actual? Un deal que lleva 3 días en "Contract Sent" probablemente
-  cierra. Uno que lleva 3 semanas no — algo lo bloquea.
+  cierra en 1-2 semanas. Uno que lleva 3 semanas no — algo lo bloquea.
 - ¿Ha avanzado de stage recientemente? Un deal que acaba de pasar a Pricing está activo.
   Uno que lleva 2 meses en el mismo stage está estancado.
 - Mira la trayectoria: ¿la probability ha subido en los últimos snapshots o ha bajado?
-  Una trajectory ascendente es señal de cierre. Una plana o descendente es señal de que no.
+  Una trajectory ascendente acorta la fecha. Una plana o descendente la alarga.
 
 **4. Frecuencia y dirección de la comunicación**
 - ¿Hay más actividad esta semana que la anterior? Cuando un deal se acerca al cierre,
@@ -164,7 +162,7 @@ El benchmark es tu herramienta más poderosa. Úsalo siempre.
   el deal está vivo. Si solo el rep inicia y el prospect responde tarde o no responde,
   el deal se está muriendo.
 - ¿Cuántos días desde la última respuesta del prospect? 3 días = normal. 7 = preocupante.
-  14+ = el deal no cierra este mes salvo que haya una razón clara (vacaciones, aprobación interna).
+  14+ = añadir mínimo 4 semanas a la fecha salvo razón clara (vacaciones, aprobación interna).
 
 **5. Personas involucradas**
 - ¿Están las personas correctas? Para cerrar un deal hacen falta: el que firma (EB),
@@ -172,7 +170,7 @@ El benchmark es tu herramienta más poderosa. Úsalo siempre.
 - ¿Se ha hecho multi-threading? Un deal con 1 solo contacto raramente cierra rápido.
   Si el CFO, IT y HR están en las últimas reuniones, el deal está cerca.
 - ¿Ha aparecido alguien nuevo recientemente (legal advisor, procurement)? Eso es señal
-  de que el proceso avanza hacia la firma.
+  de que el proceso avanza hacia la firma — acorta la fecha.
 
 **6. Historial del rep con close dates**
 - Si el deal_context muestra que el rep ha cambiado la close_date varias veces
@@ -183,8 +181,8 @@ El benchmark es tu herramienta más poderosa. Úsalo siempre.
 
 **7. Patrones temporales**
 - ¿En qué momento del mes estamos? Los últimos 5 días del mes se cierra un porcentaje
-  alto de deals. Un deal en Contract Sent el día 25 tiene alta probabilidad de cerrar.
-  Un deal en Pricing el día 28 casi nunca cierra ese mes.
+  alto de deals. Un deal en Contract Sent el día 25 probablemente cierra antes de fin de mes.
+  Un deal en Pricing el día 28 casi seguro cierra el mes siguiente.
 - ¿Es final de quarter? Fin de Q2 (30 junio), fin de Q4 (31 diciembre) son picos de
   cierre aún más fuertes — presión interna de la empresa del prospect para cerrar
   antes de reportar resultados.
@@ -198,20 +196,26 @@ El benchmark es tu herramienta más poderosa. Úsalo siempre.
 - Usa el benchmark para ver tiempos típicos por rango de MRR.
 
 **9. Tiempo desde la propuesta**
-- Si se envió propuesta/pricing hace 2 días y el prospect respondió → cierre inminente.
-- Si se envió hace 3 semanas sin respuesta → no cierra este mes.
-- Si se envió y el prospect pidió cambios → depende de cuánto tardan los cambios.
+- Si se envió propuesta/pricing hace 2 días y el prospect respondió → fecha esta semana.
+- Si se envió hace 3 semanas sin respuesta → fecha mínimo mes siguiente.
+- Si se envió y el prospect pidió cambios → fecha depende de cuánto tardan los cambios.
 
-**Cómo decidir:**
+**10. Calibración — aprende de tus errores**
+Si la sección CALIBRATION muestra que fuiste demasiado optimista el mes pasado
+(predicted_close_date antes de la real), ajusta esta vez añadiendo días.
+Si fuiste demasiado pesimista (predicted_close_date después de la real), ajusta
+acortando. Mira el days_off promedio y corrígelo.
+
+**Cómo decidir la fecha:**
 Cruza TODAS estas dimensiones. No hay una sola señal que decida — es el conjunto.
-Un deal con contrato enviado + prospect activo + benchmark confirma + velocidad alta
-= closes_this_month: true con confidence high.
-Un deal con MEDDIC alto pero prospect en silencio + benchmark muestra que deals así
-mueren + sin forcing function = closes_this_month: false.
+- Deal con contrato enviado + prospect activo + benchmark confirma + velocidad alta
+  → fecha en los próximos 7-14 días.
+- Deal con MEDDIC alto pero prospect en silencio + benchmark muestra que deals así
+  mueren + sin forcing function → fecha en 2-3 meses o null si no hay visibilidad.
 
-closes_next_month: aplica exactamente la misma lógica pero para el mes siguiente.
-Solo relevante si closes_this_month es false. Piensa: ¿qué tendría que pasar para
-que cierre el mes que viene? ¿Es realista dado lo que ves?
+Si deal_killer: true → estimated_close_date: null
+Nunca poner una fecha pasada.
+Si no eres capaz de estimar una fecha (deal demasiado temprano o sin señales) → null.
 
 ### forecast_confidence ("high" | "medium" | "low")
 
@@ -222,7 +226,7 @@ Tu nivel de certeza en la predicción de timing:
   una reunión pendiente)
 - "low": poca visibilidad, deal temprano, o señales contradictorias
 
-La confidence NO limita la predicción. Puedes forecastear closes_this_month: true con
+La confidence NO limita la fecha. Puedes poner una estimated_close_date cercana con
 confidence: low si hay una señal real pero débil. El TL ve ambos datos y decide.
 
 ### forecast_pushable (boolean)
@@ -259,9 +263,9 @@ TRUE cuando detectes AL MENOS UNO de estos patrones:
    - El prospect cambió de puesto/empresa y el deal no se ha ajustado
    - Hay un evento del sector próximo donde se puede reactivar
 
-4. FORECASTED M0/M1
-   Si closes_this_month o closes_next_month es true → SIEMPRE pushable.
-   Un deal forecasteado siempre tiene una acción para asegurar su cierre.
+4. CLOSE DATE WITHIN 60 DAYS
+   Si estimated_close_date está dentro de los próximos 60 días → SIEMPRE pushable.
+   Un deal con fecha de cierre cercana siempre tiene una acción para asegurar su cierre.
 
 FALSE cuando:
 - El deal avanza normalmente por su cuenta (tiene meeting programado,
@@ -320,33 +324,6 @@ Mira los hechos reales del deal:
 - "stalled": sin progreso, prospect no responde, sin actividad hace 2+ semanas,
   blockers sin resolver
 
-### estimated_close_date ("YYYY-MM-DD")
-
-Tu mejor estimación de cuándo se cerrará este deal.
-
-Factores a considerar (en orden de importancia):
-1. Stage actual y velocidad típica: un deal en Contract Sent cierra en 1-2 semanas.
-   Un deal en Demo Booked necesita 4-8 semanas mínimo.
-2. Blockers activos: cada blocker no resuelto añade 2-4 semanas.
-   Blockers estructurales (lb: -2.0) añaden 2+ meses.
-3. Buyer signals: señales fuertes (bs >= 1.5) acortan 1-2 semanas.
-4. Actividad reciente: si el último contacto fue hace 2+ semanas, añadir esas semanas.
-5. Deal age: deals que llevan 60+ días sin avanzar de stage tienen inercia negativa.
-6. Close_date del rep: usarla como referencia pero NO copiarla. Si el rep dice "25 junio"
-   pero el deal tiene blockers graves, tu fecha debe ser posterior.
-7. Patrones temporales: usa el benchmark — ¿los deals similares cerraron al final del mes?
-   ¿Final de quarter? Ajusta según momento del ciclo.
-
-Si deal_killer: true → estimated_close_date: null
-Nunca poner una fecha pasada.
-
-IMPORTANTE: estimated_close_date, closes_this_month y closes_next_month son la MISMA
-decisión expresada de diferentes formas. No los evalúes por separado.
-Primero decide CUÁNDO crees que cierra (fecha). De esa fecha se desprende naturalmente
-si cierra este mes o el siguiente. Si tu fecha es 15 de julio, closes_this_month es
-false y closes_next_month es true. Si no eres capaz de estimar una fecha (deal demasiado
-temprano o sin señales), entonces la fecha es null y ambos booleanos son false.
-
 ### close_date_reasoning (string)
 
 1-2 frases explicando por qué esa fecha. Menciona el factor principal.
@@ -390,5 +367,5 @@ Formato: acciones numeradas con quién debe hacerlas.
 
 5. Usa SIEMPRE fechas absolutas (DD/MM). NUNCA "hoy", "mañana", "esta semana".
 
-6. Un deal forecasteado (this_month o next_month = true) SIEMPRE debe tener push_action.
+6. Un deal con estimated_close_date dentro de los próximos 60 días SIEMPRE debe tener push_action.
    El TL necesita saber qué hacer para asegurar ese cierre.

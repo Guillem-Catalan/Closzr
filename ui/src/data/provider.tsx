@@ -135,8 +135,18 @@ function toForecastDeal(d: RawDealUI, row: DealRow): ForecastDeal {
   };
   return {
     ...row,
-    closesThisMonth: d.closes_this_month || false,
-    closesNextMonth: (d.closes_next_month || false) && !(d.closes_this_month || false),
+    closesThisMonth: (() => {
+      if (!d.estimated_close_date) return false;
+      const cm = new Date().toISOString().slice(0, 7);
+      return d.estimated_close_date.startsWith(cm);
+    })(),
+    closesNextMonth: (() => {
+      if (!d.estimated_close_date) return false;
+      const now = new Date();
+      const nm = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const nmKey = nm.toISOString().slice(0, 7);
+      return d.estimated_close_date.startsWith(nmKey);
+    })(),
     pushable: d.bucket === "pushable",
     pushAction: d.push_action || null,
     momentum: d.deal_momentum || null,
@@ -150,7 +160,7 @@ function toForecastDeal(d: RawDealUI, row: DealRow): ForecastDeal {
   };
 }
 
-const DEAL_UI_COLS = "deal_id,hs_deal_id,company_name,deal_name_full,stage,macro_stage,pae,pbd,team,mrr,close_probability,close_date,close_date_hs,last_contact_label,trend,is_stale,stale_days,score,bucket,action_priority,action_headline,action_headline_short,action_signal,action_type,action_who,action_due_date,action_due_label,howto_body,deal_summary,deal_assessment,m_score,e_score,dc_score,dp_score,i_score,c_score,blockers_count,signals_count,next_steps,closes_this_month,closes_next_month,forecast_confidence,deal_momentum,estimated_close_date,forecast_reasoning,push_action,forecast_risks,forecast_accelerators,outcome,outcome_summary,employees,forecast_category,deal_age_days,closed_lost_reason,has_meeting_today";
+const DEAL_UI_COLS = "deal_id,hs_deal_id,company_name,deal_name_full,stage,macro_stage,pae,pbd,team,mrr,close_probability,close_date,close_date_hs,last_contact_label,trend,is_stale,stale_days,score,bucket,action_priority,action_headline,action_headline_short,action_signal,action_type,action_who,action_due_date,action_due_label,howto_body,deal_summary,deal_assessment,m_score,e_score,dc_score,dp_score,i_score,c_score,blockers_count,signals_count,next_steps,forecast_confidence,deal_momentum,estimated_close_date,forecast_reasoning,push_action,forecast_risks,forecast_accelerators,outcome,outcome_summary,employees,forecast_category,deal_age_days,closed_lost_reason,has_meeting_today";
 
 async function loadData(): Promise<CZData> {
   const [allDeals, targets] = await Promise.all([

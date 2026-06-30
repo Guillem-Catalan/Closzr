@@ -2110,7 +2110,6 @@ FORECAST_CONFIG = {
 
     # Columnas que Claude produce → se escriben al snapshot
     "claude_cols": [
-        "closes_this_month", "closes_next_month",
         "forecast_confidence", "forecast_reasoning",
         "forecast_risks", "forecast_accelerators",
         "forecast_pushable", "push_action", "push_action_reasoning",
@@ -2136,7 +2135,7 @@ FORECAST_CONFIG = {
         "i_score", "c_score", "comp_score",
         "buyer_signals", "live_blockers", "objections",
         "next_step", "action_signal",
-        "closes_this_month", "forecast_confidence",
+        "forecast_confidence",
         "forecast_reasoning", "push_action", "deal_momentum",
     ],
 

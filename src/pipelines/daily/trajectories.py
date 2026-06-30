@@ -60,6 +60,24 @@ def _fetch_deals_to_compile() -> list[dict]:
 
     deal_ids = [d[_I["deal_col_id"]] for d in all_deals]
 
+    # Filter to deals that have snapshots (no snapshots = no trajectory data)
+    has_snapshot: set[str] = set()
+    for i in range(0, len(deal_ids), 200):
+        batch = deal_ids[i:i + 200]
+        snap_resp = (
+            supabase.table(_I["snapshot_table"])
+            .select("deal_id")
+            .in_("deal_id", batch)
+            .execute()
+        )
+        has_snapshot.update(d["deal_id"] for d in (snap_resp.data or []))
+
+    all_deals = [d for d in all_deals if d[_I["deal_col_id"]] in has_snapshot]
+    deal_ids = [d[_I["deal_col_id"]] for d in all_deals]
+
+    if not all_deals:
+        return []
+
     # Check existing trajectories in batches
     existing = {}
     for i in range(0, len(deal_ids), 200):

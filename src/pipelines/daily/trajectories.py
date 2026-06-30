@@ -37,46 +37,43 @@ def _fetch_deals_to_compile() -> list[dict]:
     """
     all_stages = _D["closed_stages"] + _D["on_hold_stages"]
 
-    # Paginate to avoid payload too large
-    all_deals = []
+    # Get deal IDs that have snapshots (no snapshots = no trajectory data)
+    has_snapshot: set[str] = set()
     offset = 0
     while True:
-        deals_resp = (
-            supabase.table(_I["deals_table"])
-            .select("*")
-            .in_(_I["deal_col_stage"], all_stages)
-            .not_.is_("deal_context", "null")
-            .range(offset, offset + 499)
-            .execute()
-        )
-        batch = deals_resp.data or []
-        all_deals.extend(batch)
-        if len(batch) < 500 or len(all_deals) >= _D["trajectories_max_per_run"] * 3:
-            break
-        offset += 500
-
-    if not all_deals:
-        return []
-
-    deal_ids = [d[_I["deal_col_id"]] for d in all_deals]
-
-    # Filter to deals that have snapshots (no snapshots = no trajectory data)
-    has_snapshot: set[str] = set()
-    for i in range(0, len(deal_ids), 200):
-        batch = deal_ids[i:i + 200]
         snap_resp = (
             supabase.table(_I["snapshot_table"])
             .select("deal_id")
-            .in_("deal_id", batch)
+            .range(offset, offset + 999)
             .execute()
         )
-        has_snapshot.update(d["deal_id"] for d in (snap_resp.data or []))
+        batch = snap_resp.data or []
+        has_snapshot.update(d["deal_id"] for d in batch)
+        if len(batch) < 1000:
+            break
+        offset += 1000
 
-    all_deals = [d for d in all_deals if d[_I["deal_col_id"]] in has_snapshot]
-    deal_ids = [d[_I["deal_col_id"]] for d in all_deals]
+    if not has_snapshot:
+        return []
+
+    # Fetch closed deals that have snapshots
+    snapshot_ids = list(has_snapshot)
+    all_deals = []
+    for i in range(0, len(snapshot_ids), 200):
+        batch = snapshot_ids[i:i + 200]
+        deals_resp = (
+            supabase.table(_I["deals_table"])
+            .select("*")
+            .in_(_I["deal_col_id"], batch)
+            .in_(_I["deal_col_stage"], all_stages)
+            .execute()
+        )
+        all_deals.extend(deals_resp.data or [])
 
     if not all_deals:
         return []
+
+    deal_ids = [d[_I["deal_col_id"]] for d in all_deals]
 
     # Check existing trajectories in batches
     existing = {}

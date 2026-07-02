@@ -314,7 +314,7 @@ def _detect_stale(rows: list[dict]) -> list[dict]:
         batch = deal_ids[i:i + 200]
         result = (
             supabase.table(_SC["deals_table"])
-            .select(f"{col_deal_id}, {col_activity}, {col_checked}")
+            .select(f"{col_deal_id}, {col_activity}, {col_checked}, {col_stale}")
             .in_(col_deal_id, batch)
             .execute()
         )
@@ -322,19 +322,29 @@ def _detect_stale(rows: list[dict]) -> list[dict]:
             current_data[d[col_deal_id]] = {
                 "activity": d.get(col_activity) or "",
                 "checked_at": d.get(col_checked) or "",
+                "stale": d.get(col_stale),
             }
 
     skipped_cooldown = 0
     for row in rows:
         did = row.get(col_deal_id, "")
-        new_activity = _normalize_ts(row.get(col_activity) or "")
         existing = current_data.get(did, {})
-        old_activity = _normalize_ts(existing.get("activity", ""))
-        if new_activity and new_activity != old_activity:
-            checked_at = existing.get("checked_at", "")
-            if checked_at and checked_at > cooldown_cutoff:
-                skipped_cooldown += 1
-                continue
+
+        if existing.get("stale") is True:
+            row[col_stale] = True
+            continue
+
+        new_activity = _normalize_ts(row.get(col_activity) or "")
+        if not new_activity:
+            continue
+
+        checked_at = existing.get("checked_at", "")
+
+        if checked_at and checked_at > cooldown_cutoff:
+            skipped_cooldown += 1
+            continue
+
+        if not checked_at or new_activity > _normalize_ts(checked_at):
             row[col_stale] = True
 
     if skipped_cooldown:

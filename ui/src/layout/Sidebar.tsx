@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { Icon, Avatar, getInitials } from "../views/components";
 import { usePermissions, isTabEnabled } from "../permissions";
-import { NAV_GROUPS } from "./nav-items";
+import { NAV_ITEMS, type NavItem } from "./nav-items";
 
 /* ── Context ── */
 type SidebarState = { expanded: boolean; toggle: () => void };
@@ -32,116 +32,141 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={{ expanded, toggle }}>{children}</Ctx.Provider>;
 }
 
-/* ── Collapsible group ── */
-function NavGroup({ title, children }: { title?: string; children: ReactNode }) {
+/* ── Tooltip (collapsed mode) ── */
+function Tip({ label, children }: { label: string; children: ReactNode }) {
   const { expanded } = useSidebar();
-  const [open, setOpen] = useState(true);
-
-  if (!title) return <div className="cz-sb-group">{children}</div>;
-
+  if (expanded) return <>{children}</>;
   return (
-    <div className="cz-sb-group">
-      {expanded ? (
-        <button className="cz-sb-label" onClick={() => setOpen(p => !p)}>
-          <span>{title}</span>
-          <Icon name="chevDown" size={14} style={{ transform: open ? "none" : "rotate(-90deg)", transition: "transform .2s ease" }} />
-        </button>
-      ) : (
-        <div className="cz-sb-divider" />
-      )}
-      {(open || !expanded) && children}
+    <div className="cz-sb-tip-wrap">
+      {children}
+      <div className="cz-sb-tip">{label}</div>
     </div>
   );
 }
 
-/* ── Tooltip (icon mode) ── */
-function Tooltip({ label, children }: { label: string; children: ReactNode }) {
-  const { expanded } = useSidebar();
-  if (expanded) return <>{children}</>;
+/* ── Collapsible nav group ── */
+function Collapsible({ item, view, onNav }: { item: NavItem; view: string; onNav: (v: string) => void }) {
+  const { expanded: sidebarOpen } = useSidebar();
+  const { profile } = usePermissions();
+  const activeChild = item.children?.some(c => c.key === view) ?? false;
+  const [open, setOpen] = useState(true);
+
+  const visibleChildren = item.children!.filter(c => c.soon || isTabEnabled(profile, c.slug));
+
+  if (!sidebarOpen) {
+    return (
+      <div className="cz-sb-group">
+        <Tip label={item.label}>
+          <button
+            className={"cz-sb-item parent" + (activeChild && !open ? " active" : "")}
+            onClick={() => setOpen(p => !p)}
+          >
+            <Icon name={item.icon} size={20} />
+          </button>
+        </Tip>
+        {open && visibleChildren.map(child => (
+          <Tip key={child.key} label={child.label}>
+            <button
+              className={"cz-sb-item" + (view === child.key ? " active" : "") + (child.soon ? " soon" : "")}
+              onClick={() => !child.soon && onNav(child.key)}
+            >
+              <Icon name={child.icon} size={18} />
+            </button>
+          </Tip>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="cz-sb-tooltip-wrap">
-      {children}
-      <div className="cz-sb-tooltip">{label}</div>
+    <div className="cz-sb-group">
+      <button className={"cz-sb-item parent" + (activeChild && !open ? " active" : "")} onClick={() => setOpen(p => !p)}>
+        <Icon name={item.icon} size={20} />
+        <span className="cz-sb-item-text">{item.label}</span>
+        <Icon name="chevDown" size={14} className={"cz-sb-chev" + (open ? " open" : "")} />
+      </button>
+      {open && (
+        <div className="cz-sb-sub">
+          {visibleChildren.map(child => (
+            <button
+              key={child.key}
+              className={"cz-sb-sub-item" + (view === child.key ? " active" : "") + (child.soon ? " soon" : "")}
+              onClick={() => !child.soon && onNav(child.key)}
+            >
+              {child.label}
+              {child.soon && <span className="cz-sb-soon">Soon</span>}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 /* ── Sidebar ── */
-interface SidebarProps {
-  view: string;
-  onNav: (v: string) => void;
-}
-
-export default function Sidebar({ view, onNav }: SidebarProps) {
+export default function Sidebar({ view, onNav }: { view: string; onNav: (v: string) => void }) {
   const { expanded, toggle } = useSidebar();
   const { profile } = usePermissions();
   const showAdmin = isTabEnabled(profile, "admin");
-  const displayName = profile?.name || profile?.email?.split("@")[0] || "";
-  const roleLabel = profile?.role || "";
+  const name = profile?.name || profile?.email?.split("@")[0] || "";
+  const role = profile?.role || "";
 
   return (
-    <aside className={"cz-sb" + (expanded ? "" : " collapsed")} data-state={expanded ? "expanded" : "collapsed"}>
-      {/* Header */}
+    <aside className={"cz-sb" + (expanded ? "" : " collapsed")}>
+      {/* Brand */}
       <div className="cz-sb-header">
-        <div className="cz-sb-brand">
-          <span className="cz-logo">C</span>
-          {expanded && <span className="cz-logo-full">Closzr</span>}
-        </div>
-        {expanded && <span className="cz-logo-sub">Sales Intelligence</span>}
+        <span className="cz-logo">C</span>
+        {expanded && (
+          <div className="cz-sb-header-text">
+            <span className="cz-logo-full">Closzr</span>
+            <span className="cz-logo-sub">Sales Intelligence</span>
+          </div>
+        )}
       </div>
 
-      {/* Content */}
-      <nav className="cz-sb-content">
-        {NAV_GROUPS.map((group, gi) => (
-          <NavGroup key={gi} title={group.title}>
-            {group.items
-              .filter(item => item.soon || isTabEnabled(profile, item.slug))
-              .map(item => (
-                <Tooltip key={item.key} label={item.label}>
-                  <button
-                    className={"cz-sb-btn" + (view === item.key ? " active" : "") + (item.soon ? " soon" : "")}
-                    onClick={() => !item.soon && onNav(item.key)}
-                    data-active={view === item.key}
-                  >
-                    <Icon name={item.icon} size={18} />
-                    {expanded && <span className="cz-sb-btn-label">{item.label}</span>}
-                    {expanded && item.soon && <span className="cz-sb-badge">Soon</span>}
-                  </button>
-                </Tooltip>
-              ))}
-          </NavGroup>
-        ))}
+      {/* Nav */}
+      <nav className="cz-sb-nav">
+        {NAV_ITEMS.map(item =>
+          item.children ? (
+            <Collapsible key={item.key} item={item} view={view} onNav={onNav} />
+          ) : (
+            <Tip key={item.key} label={item.label}>
+              <button
+                className={"cz-sb-item parent" + (view === item.key ? " active" : "") + (item.soon ? " soon" : "")}
+                onClick={() => !item.soon && onNav(item.key)}
+              >
+                <Icon name={item.icon} size={20} />
+                {expanded && <span className="cz-sb-item-text">{item.label}</span>}
+                {expanded && item.soon && <span className="cz-sb-soon">Soon</span>}
+              </button>
+            </Tip>
+          )
+        )}
       </nav>
 
       {/* Footer */}
       <div className="cz-sb-footer">
         {showAdmin && (
-          <Tooltip label="Users">
-            <button
-              className={"cz-sb-btn" + (view === "admin" ? " active" : "")}
-              onClick={() => onNav("admin")}
-              data-active={view === "admin"}
-            >
+          <Tip label="Users">
+            <button className={"cz-sb-item" + (view === "admin" ? " active" : "")} onClick={() => onNav("admin")}>
               <Icon name="settings" size={18} />
-              {expanded && <span className="cz-sb-btn-label">Users</span>}
+              {expanded && <span className="cz-sb-item-text">Users</span>}
             </button>
-          </Tooltip>
+          </Tip>
         )}
-
         <div className="cz-sb-user">
-          <Avatar initials={getInitials(displayName)} size={expanded ? 34 : 28} name={displayName} />
+          <Avatar initials={getInitials(name)} size={expanded ? 32 : 28} name={name} />
           {expanded && (
-            <div className="cz-sb-user-info">
-              <span className="cz-sb-user-name">{displayName}</span>
+            <div className="cz-sb-user-meta">
+              <span className="cz-sb-user-name">{name}</span>
               <span className="cz-sb-user-role">
-                {roleLabel}{profile?.subteam && profile.subteam !== "Unassigned" ? ` · ${profile.subteam}` : ""}
+                {role}{profile?.subteam && profile.subteam !== "Unassigned" ? ` · ${profile.subteam}` : ""}
               </span>
             </div>
           )}
         </div>
-
-        <button className="cz-sb-trigger" onClick={toggle} title={expanded ? "Collapse (⌘B)" : "Expand (⌘B)"}>
-          <Icon name="chevRight" size={16} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .2s ease" }} />
+        <button className="cz-sb-collapse" onClick={toggle} title={expanded ? "Collapse (⌘B)" : "Expand (⌘B)"}>
+          <Icon name="chevRight" size={14} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .2s ease" }} />
         </button>
       </div>
     </aside>

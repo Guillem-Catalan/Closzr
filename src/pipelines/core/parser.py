@@ -117,16 +117,8 @@ def _due_label(due: date) -> str:
     diff = (due - TODAY).days
     if diff < 0:
         return f"atrasado ({abs(diff)}d)"
-    if diff == 0:
-        return "hoy"
-    if diff == 1:
-        return "mañana"
-    if diff < 7:
-        names = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
-        return f"{names[due.weekday()]} {due.day:02d}/{due.month:02d}"
-    if diff < 14:
-        return "próxima semana"
-    return f"{due.day:02d}/{due.month:02d}"
+    names = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
+    return f"{names[due.weekday()]} {due.day:02d}/{due.month:02d}"
 
 
 def _absolutize_text(text: str, ref: date) -> str:
@@ -194,7 +186,7 @@ def _parse_next_steps(next_step: str | None, ref: date) -> list[dict]:
 def _extract_company_name(deal_name: str) -> str:
     if not deal_name:
         return "?"
-    return deal_name.split(" - ")[0].split(" | ")[0].split(" from ")[0].strip()
+    return deal_name
 
 
 def _extract_partner_label(deal_name: str, team: str) -> str:
@@ -620,8 +612,8 @@ def update_from_forecast(deal_uuid: str):
             pass
 
     # Accelerators and risks as JSONB
-    accel_raw = _parse_bullets(s.get("forecast_accelerators"))
-    risks_raw = _parse_bullets(s.get("forecast_risks"))
+    accel_raw = _parse_bullets(s.get("forecast_accelerators"))[:3]
+    risks_raw = _parse_bullets(s.get("forecast_risks"))[:3]
 
     # Bucket — derived from claudio_close_date
     if closes_this_month:

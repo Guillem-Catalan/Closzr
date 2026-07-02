@@ -3,12 +3,12 @@
    4 sections: Meetings · Actions today · Overdue · Done
    ============================================================ */
 import { useState, useMemo } from "react";
-import { Icon, Chip, StageChip, fmtMRR } from "./components";
-import { useData } from "../data/store";
-import type { ActionItem, DealRow } from "../data/store";
-import { supabase } from "../data/supabase";
-import { hubspotDealUrl, BUCKET_STYLE, ACTION_TYPE_ICON } from "../display";
-import { distinctTeams, distinctOwnersFromActions, normalize, repNameToEmail } from "../data/filters";
+import { Icon, Chip, StageChip, fmtMRR } from "../components";
+import { useData } from "../../data/store";
+import type { ActionItem, DealRow } from "../../data/store";
+import { supabase } from "../../data/supabase";
+import { hubspotDealUrl, BUCKET_STYLE, ACTION_TYPE_ICON } from "../../display";
+import { distinctTeams, distinctOwnersFromActions, normalize, repNameToEmail } from "../../data/filters";
 
 type TimeFilter = "hoy" | "semana" | "next_week" | "mes";
 

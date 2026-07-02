@@ -2,8 +2,8 @@
    CLOSZR — 1:1 REVIEW (TL + PAE coaching)
    ============================================================ */
 import { useState } from "react";
-import { Icon, Chip, StageChip, ProbBadge, Avatar, TONE } from "./components";
-import { useData } from "../data/store";
+import { Icon, Chip, StageChip, ProbBadge, Avatar, TONE } from "../components";
+import { useData } from "../../data/store";
 
 function fmtK1(v: number | null | undefined){
   if (v==null) return "—";

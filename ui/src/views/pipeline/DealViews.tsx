@@ -2,7 +2,7 @@
    CLOSZR — ATLAS (company) + NEXT STEPS views
    ============================================================ */
 import { useState, useEffect } from "react";
-import { Icon, SectionLabel, Chip, Avatar, TONE } from "./components";
+import { Icon, SectionLabel, Chip, Avatar, TONE } from "../components";
 
 /* =========================================================
    ATLAS  — company / account intelligence

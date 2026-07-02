@@ -21,6 +21,10 @@ const DEFAULT_PERMISSIONS: Record<string, TabScope> = {
   forecast: { enabled: true, scope: "all" },
   oneone: { enabled: true, scope: "all" },
   admin: { enabled: false, scope: "all" },
+  general: { enabled: true, scope: "all" },
+  benchmark: { enabled: true, scope: "all" },
+  alerts: { enabled: true, scope: "all" },
+  uplift: { enabled: true, scope: "all" },
 };
 
 const PermCtx = createContext<{ profile: UserProfile | null; loading: boolean }>({ profile: null, loading: true });

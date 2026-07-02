@@ -2,10 +2,10 @@
    CLOSZR — PIPELINE (horizontal sales funnel)
    ============================================================ */
 import { useState, useMemo } from "react";
-import { Icon, StageChip, ProbBadge, Trend, TONE } from "./components";
-import { useData } from "../data/store";
-import { hubspotDealUrl, STAGE_DISPLAY } from "../display";
-import { normalize, distinctTeams, distinctOwners, repNameToEmail } from "../data/filters";
+import { Icon, StageChip, ProbBadge, Trend, TONE } from "../components";
+import { useData } from "../../data/store";
+import { hubspotDealUrl, STAGE_DISPLAY } from "../../display";
+import { normalize, distinctTeams, distinctOwners, repNameToEmail } from "../../data/filters";
 
 function fmtK(v: number | null | undefined){
   if (v==null) return "—";

@@ -484,4 +484,5 @@ def run(full: bool = False) -> dict:
     print(f"\n   HubSpot API requests: {hubspot.total_requests()}")
     print("=" * 60)
 
-    return {"synced": written, "stale": stale}
+    synced_ids = [r[_SC["col_deal_id"]] for r in rows if r.get(_SC["col_deal_id"])]
+    return {"synced": written, "stale": stale, "deal_ids": synced_ids}

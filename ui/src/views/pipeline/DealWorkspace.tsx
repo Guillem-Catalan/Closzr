@@ -2,9 +2,9 @@
    CLOSZR — Deal Workspace shell + HISTÓRICO view
    ============================================================ */
 import { useState, useEffect } from "react";
-import { Icon, StageChip, ProbBadge, Chip, Avatar, AreaLine, MEDDIC_AXES } from "./components";
+import { Icon, StageChip, ProbBadge, Chip, Avatar, AreaLine, MEDDIC_AXES } from "../components";
 import { AtlasView, NextView } from "./DealViews";
-import { hubspotDealUrl } from "../display";
+import { hubspotDealUrl } from "../../display";
 
 /* ---- persistent KPI pulse strip ---- */
 function PulseStrip({ d }: { d: any }) {

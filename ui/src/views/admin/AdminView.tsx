@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Icon, Chip, Avatar, getInitials } from "./components";
-import { supabase } from "../data/supabase";
-import type { TabScope } from "../permissions";
-import { ALL_TABS, ADMIN_ROLES, ADMIN_SCOPES, getAllTeamNames } from "../display";
+import { Icon, Chip, Avatar, getInitials } from "../components";
+import { supabase } from "../../data/supabase";
+import type { TabScope } from "../../permissions";
+import { ALL_TABS, ADMIN_ROLES, ADMIN_SCOPES, getAllTeamNames } from "../../display";
 
 type UserRow = {
   id: string;

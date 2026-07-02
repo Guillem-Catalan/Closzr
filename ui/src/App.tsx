@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { useData } from "./data/store";
 import { fetchDealDetail, type DealDetail } from "./data/fetchDetail";
-import Sidebar from "./layout/Sidebar";
+import Sidebar, { SidebarProvider } from "./layout/Sidebar";
 import PipelineView from "./views/pipeline/PipelineView";
 import DealWorkspace from "./views/pipeline/DealWorkspace";
 import ForecastView from "./views/forecast/ForecastView";
@@ -39,35 +39,39 @@ function App() {
 
   if (D.loading) {
     return (
-      <div className="cz-app">
-        <Sidebar view={view} onNav={setView}/>
-        <main className="cz-main" style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"60vh"}}>
-          <p style={{color:"var(--ink-3)",fontSize:15}}>Cargando datos...</p>
-        </main>
-      </div>
+      <SidebarProvider>
+        <div className="cz-app">
+          <Sidebar view={view} onNav={setView}/>
+          <main className="cz-main" style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"60vh"}}>
+            <p style={{color:"var(--ink-3)",fontSize:15}}>Cargando datos...</p>
+          </main>
+        </div>
+      </SidebarProvider>
     );
   }
 
   return (
-    <div className="cz-app">
-      <Sidebar view={view} onNav={setView}/>
-      <main className="cz-main">
-        {view === "todos" && <TodoView onOpen={handleOpen}/>}
-        {view === "pipeline" && <PipelineView onOpen={handleOpen}/>}
-        {view === "forecast" && <ForecastView onOpen={handleOpen}/>}
-        {view === "oneone" && <OneOnOneView onOpen={handleOpen}/>}
-        {view === "admin" && <Suspense fallback={<p style={{color:"var(--ink-3)"}}>Cargando...</p>}><AdminView/></Suspense>}
-        {["general","benchmark","alerts","uplift"].includes(view) && <ComingSoon label={view.charAt(0).toUpperCase() + view.slice(1)}/>}
-      </main>
-      {detailLoading && (
-        <div className="cz-overlay" style={{background:"rgba(28,24,16,.25)"}}>
-          <p style={{color:"white",fontSize:15}}>Cargando deal...</p>
-        </div>
-      )}
-      {detail && !detailLoading && (
-        <DealWorkspace detail={detail} initialTab="hist" onClose={() => setDetail(null)}/>
-      )}
-    </div>
+    <SidebarProvider>
+      <div className="cz-app">
+        <Sidebar view={view} onNav={setView}/>
+        <main className="cz-main">
+          {view === "todos" && <TodoView onOpen={handleOpen}/>}
+          {view === "pipeline" && <PipelineView onOpen={handleOpen}/>}
+          {view === "forecast" && <ForecastView onOpen={handleOpen}/>}
+          {view === "oneone" && <OneOnOneView onOpen={handleOpen}/>}
+          {view === "admin" && <Suspense fallback={<p style={{color:"var(--ink-3)"}}>Cargando...</p>}><AdminView/></Suspense>}
+          {["general","benchmark","alerts","uplift"].includes(view) && <ComingSoon label={view.charAt(0).toUpperCase() + view.slice(1)}/>}
+        </main>
+        {detailLoading && (
+          <div className="cz-overlay" style={{background:"rgba(28,24,16,.25)"}}>
+            <p style={{color:"white",fontSize:15}}>Cargando deal...</p>
+          </div>
+        )}
+        {detail && !detailLoading && (
+          <DealWorkspace detail={detail} initialTab="hist" onClose={() => setDetail(null)}/>
+        )}
+      </div>
+    </SidebarProvider>
   );
 }
 

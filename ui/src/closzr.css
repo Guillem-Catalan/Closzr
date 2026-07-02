@@ -58,6 +58,7 @@
 
   /* --- Layout --- */
   --sidebar-w: 240px;
+  --sidebar-w-icon: 56px;
 
   /* --- Density (driven by Tweaks) --- */
   --row-h: 52px;

@@ -1,197 +1,284 @@
-/* ============================================================
-   CLOSZR — 1:1 REVIEW (TL + PAE coaching)
-   ============================================================ */
-import { useState } from "react";
-import { Icon, Chip, StageChip, ProbBadge, Avatar, TONE } from "../components";
-import { useData } from "../../data/store";
+import { useState, useEffect } from "react";
+import { Icon, Chip, StageChip, ProbBadge, Avatar, getInitials, fmtMRR, TONE } from "../components";
+import { usePermissions } from "../../permissions";
+import { stageAbbr } from "../../display";
+import { WEEKS, getWeekType, type Section, type CheckItem } from "./weeks";
+import { useOneOnOne, type OODeal, type OOEntry } from "./useOneOnOne";
 
-function fmtK1(v: number | null | undefined){
-  if (v==null) return "—";
-  if (v>=1000) return "€"+(v/1000).toFixed(v%1000===0?0:1)+"K";
-  return "€"+v;
+function fmtDate(d: string | null): string {
+  if (!d) return "—";
+  const [, m, day] = d.split("-");
+  const months = ["", "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  return `${parseInt(day)} ${months[parseInt(m)]}`;
 }
 
-function MeddicBar({ label, score, base: _base }: { label: string; score: number; base: number }) {
-  const tone = score>=4 ? "green" : score>=2.5 ? "amber" : "red";
-  const c = TONE[tone].fg;
+function fmtMonthLabel(d: string | null): string {
+  if (!d) return "—";
+  const m = parseInt(d.split("-")[1]);
+  const months = ["", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  return months[m] || "—";
+}
+
+function dateAlign(repDate: string | null, claudioDate: string | null): "aligned" | "rep_only" | "claudio_only" | "mismatch" {
+  const repM = repDate?.slice(0, 7);
+  const clM = claudioDate?.slice(0, 7);
+  if (!repM && !clM) return "aligned";
+  if (repM && clM && repM === clM) return "aligned";
+  if (repM && !clM) return "rep_only";
+  if (!repM && clM) return "claudio_only";
+  return "mismatch";
+}
+
+/* ── Deal Card ── */
+function DealCard({ deal, section, session, onEntry, onOpen }: {
+  deal: OODeal; section: string;
+  session: { checks: Record<string, boolean>; entries: OOEntry[] } | null;
+  onEntry: (e: Omit<OOEntry, "at">) => void;
+  onOpen: (row: any) => void;
+}) {
+  const [note, setNote] = useState("");
+  const align = dateAlign(deal.close_date_hs, deal.estimated_close_date);
+  const entries = (session?.entries || []).filter(e => e.deal_id === deal.deal_id && e.section === section);
+  const name = deal.company_name || deal.deal_name_full || "—";
+
+  const saveNote = () => {
+    if (!note.trim()) return;
+    onEntry({ deal_id: deal.deal_id, deal_name: name, section, type: "note", note: note.trim() });
+    setNote("");
+  };
+
   return (
-    <div className="cz-mh-row">
-      <div className="cz-mh-top">
-        <span className="cz-mh-label">{label}</span>
-        <span className="cz-mh-score num" style={{color:c}}>{score.toFixed(1)}<small>/5</small></span>
+    <div className="cz-oo-deal">
+      <div className="cz-oo-deal-header">
+        <button className="cz-oo-deal-name" onClick={() => onOpen({ id: deal.deal_id })}>
+          {name}
+        </button>
+        <span className="cz-oo-deal-mrr num">{fmtMRR(deal.mrr)}</span>
+        <StageChip stage={stageAbbr(deal.stage || "")} />
+        {deal.close_probability != null && <ProbBadge value={deal.close_probability} />}
       </div>
-      <div className="cz-mh-track"><div style={{width:(score/5*100)+"%",background:c}}/></div>
+
+      <div className="cz-oo-deal-dates">
+        <span className="cz-oo-date-label">Rep:</span>
+        <span className="cz-oo-date-val num">{fmtDate(deal.close_date_hs)}</span>
+        <span className="cz-oo-date-label">Claudio:</span>
+        <span className="cz-oo-date-val num">{fmtDate(deal.estimated_close_date)}</span>
+        {align === "aligned" && <Chip tone="green" style={{ fontSize: 10 }}>✓ Alineados</Chip>}
+        {align === "mismatch" && (
+          <Chip tone="red" style={{ fontSize: 10 }}>
+            ⚠ Rep {fmtMonthLabel(deal.close_date_hs)} vs Claudio {fmtMonthLabel(deal.estimated_close_date)}
+          </Chip>
+        )}
+        {align === "rep_only" && <Chip tone="amber" style={{ fontSize: 10 }}>Solo Rep</Chip>}
+        {align === "claudio_only" && <Chip tone="amber" style={{ fontSize: 10 }}>Solo Claudio</Chip>}
+      </div>
+
+      {deal.deal_assessment && (
+        <p className="cz-oo-deal-assess">{deal.deal_assessment}</p>
+      )}
+
+      <div className="cz-oo-note-input">
+        <input
+          type="text" placeholder="Añadir nota sobre este deal..."
+          value={note} onChange={e => setNote(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && saveNote()}
+        />
+        {note.trim() && (
+          <button className="cz-oo-note-save" onClick={saveNote}>
+            <Icon name="check" size={14} />
+          </button>
+        )}
+      </div>
+
+      {entries.length > 0 && (
+        <div className="cz-oo-deal-log">
+          {entries.map((e, i) => (
+            <div key={i} className="cz-oo-log-entry">
+              <Icon name={e.type === "note" ? "note" : e.type === "change" ? "calendar" : "flag"} size={13} />
+              <span className="cz-oo-log-text">
+                {e.type === "change" && <><b>{e.field}</b>: {e.old_val} → {e.new_val}</>}
+                {e.type === "note" && e.note}
+                {e.type === "commitment" && <><b>Compromiso:</b> {e.note}</>}
+              </span>
+              <span className="cz-oo-log-time num">{new Date(e.at).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-interface OneOnOneViewProps {
-  onOpen: (row: any, tab: string) => void;
+/* ── Check Item ── */
+function CheckItemRow({ item, section, checked, deals, session, onToggle, onEntry, onOpen }: {
+  item: CheckItem; section: string; checked: boolean;
+  deals: OODeal[];
+  session: { checks: Record<string, boolean>; entries: OOEntry[] } | null;
+  onToggle: () => void;
+  onEntry: (e: Omit<OOEntry, "at">) => void;
+  onOpen: (row: any) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const hasDeals = deals.length > 0;
+
+  return (
+    <div className="cz-oo-check">
+      <div className="cz-oo-check-row">
+        <button className={"cz-oo-checkbox" + (checked ? " done" : "")} onClick={onToggle}>
+          {checked && <Icon name="check" size={12} stroke={2.5} />}
+        </button>
+        <span className={"cz-oo-check-text" + (checked ? " done" : "")}>{item.text}</span>
+        {hasDeals && (
+          <button className="cz-oo-check-count" onClick={() => setOpen(p => !p)}>
+            <span className="num">{deals.length} deal{deals.length !== 1 ? "s" : ""}</span>
+            <Icon name="chevDown" size={13} style={{ transform: open ? "none" : "rotate(-90deg)", transition: "transform .15s" }} />
+          </button>
+        )}
+        {item.query && deals.length === 0 && (
+          <Chip tone="green" style={{ fontSize: 10, marginLeft: "auto" }}>0 deals ✓</Chip>
+        )}
+      </div>
+      {hasDeals && open && (
+        <div className="cz-oo-deals-panel">
+          {deals.map(d => (
+            <DealCard key={d.deal_id} deal={d} section={section} session={session} onEntry={onEntry} onOpen={onOpen} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
-function OneOnOneView({ onOpen }: OneOnOneViewProps) {
-  const D = useData();
-  const O = D.oneOnOne;
-  const [rep,setRep] = useState(O.rep);
-  const [sortBy,setSortBy] = useState("mrr");
-  const [hygieneOpen,setHygieneOpen] = useState<string|null>(null);
+/* ── Section ── */
+function SectionBlock({ section, session, getDealsFor, onToggle, onEntry, onOpen }: {
+  section: Section;
+  session: { checks: Record<string, boolean>; entries: OOEntry[] } | null;
+  getDealsFor: (q: string) => OODeal[];
+  onToggle: (id: string) => void;
+  onEntry: (e: Omit<OOEntry, "at">) => void;
+  onOpen: (row: any) => void;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+  const checks = session?.checks || {};
+  const done = section.items.filter(i => checks[i.id]).length;
+  const total = section.items.length;
+  const t = TONE[section.tone] || TONE.ink;
 
-  const initials = (n: string) => n.split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
-  const top10 = [...O.top10].sort((a: any, b: any)=> sortBy==="mrr" ? (b.mrr-a.mrr) : (b.prob-a.prob));
-  const openDeal = (r: any)=> onOpen({ id:r.id, deal:r.deal, stage:r.stage, mrr:r.mrr, prob:r.prob, score:r.score||2.8, last:"Hace 3d", trend:r.prob||0, owner:rep, hora:"—" }, "hist");
-  void Math.max(...O.weakness.map((w: any)=>w.count));
+  return (
+    <div className="cz-oo-section">
+      <button className="cz-oo-section-header" onClick={() => setCollapsed(p => !p)}>
+        <span className="cz-oo-section-num" style={{ background: t.bg, color: t.fg }}>{section.num}</span>
+        <span className="cz-oo-section-title">{section.title}</span>
+        <span className="cz-oo-section-progress" style={{
+          background: done === total && total > 0 ? "var(--green-tint)" : t.bg,
+          color: done === total && total > 0 ? "var(--green-ink)" : t.fg,
+        }}>
+          {done}/{total}
+        </span>
+        <Icon name="chevDown" size={15} style={{ color: "var(--ink-4)", transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform .15s" }} />
+      </button>
+      {!collapsed && (
+        <div className="cz-oo-section-body">
+          {section.items.map(item => (
+            <CheckItemRow
+              key={item.id} item={item} section={section.num}
+              checked={!!checks[item.id]}
+              deals={item.query ? getDealsFor(item.query) : []}
+              session={session}
+              onToggle={() => onToggle(item.id)}
+              onEntry={onEntry} onOpen={onOpen}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Main View ── */
+export default function OneOnOneView({ onOpen }: { onOpen: (row: any, tab?: string) => void }) {
+  const { profile } = usePermissions();
+  const tlEmail = profile?.email || "";
+  const [weekType, setWeekType] = useState(getWeekType);
+  const [selectedRep, setSelectedRep] = useState("");
+  const week = WEEKS[weekType];
+
+  const { reps, session, loading, getDealsFor, toggleCheck, addEntry } = useOneOnOne(selectedRep, weekType, tlEmail);
+
+  // Auto-select first rep
+  useEffect(() => {
+    if (!selectedRep && reps.length > 0) setSelectedRep(reps[0]);
+  }, [reps, selectedRep]);
+
+  const totalChecks = week.sections.reduce((s, sec) => s + sec.items.length, 0);
+  const doneChecks = week.sections.reduce((s, sec) => s + sec.items.filter(i => session?.checks[i.id]).length, 0);
+  const pct = totalChecks > 0 ? Math.round(doneChecks / totalChecks * 100) : 0;
 
   return (
     <div className="cz-oo">
-      {/* toolbar */}
+      {/* Toolbar */}
       <div className="cz-toolbar">
         <div className="cz-tb-title">
           <h2 className="display">1:1 Review</h2>
         </div>
-        <label className="cz-rep-select">
-          <Avatar initials={initials(rep)} size={26} name={rep}/>
-          <select value={rep} onChange={e=>setRep(e.target.value)}>
-            {O.reps.map((r: string)=><option key={r}>{r}</option>)}
-          </select>
-          <Icon name="chevDown" size={15} style={{color:"var(--ink-3)"}}/>
-        </label>
-        <span className="cz-tb-meta num">{O.activeDeals} deals activos · {fmtK1(O.pipeline)} pipeline</span>
+        {reps.length > 0 && (
+          <label className="cz-rep-select">
+            <Avatar initials={getInitials(selectedRep)} size={26} name={selectedRep} />
+            <select value={selectedRep} onChange={e => setSelectedRep(e.target.value)}>
+              {reps.map(r => <option key={r}>{r}</option>)}
+            </select>
+            <Icon name="chevDown" size={15} style={{ color: "var(--ink-3)" }} />
+          </label>
+        )}
+        {totalChecks > 0 && (
+          <span className="cz-tb-meta num">{doneChecks}/{totalChecks} completados</span>
+        )}
       </div>
 
-      <div className="cz-oo-grid">
-        {/* LEFT */}
-        <div className="cz-col">
-          {/* Top 10 */}
-          <div className="cz-card cz-pad">
-            <div className="cz-ovh">
-              <span className="eyebrow">Top 10 deals del rep</span>
-              <div className="cz-metric-seg" style={{marginLeft:"auto"}}>
-                <button className={sortBy==="mrr"?"on":""} onClick={()=>setSortBy("mrr")}>Por MRR</button>
-                <button className={sortBy==="prob"?"on":""} onClick={()=>setSortBy("prob")}>Por prob.</button>
-              </div>
-            </div>
-            <div className="cz-top10">
-              {top10.map((r: any, i: number)=>(
-                <button key={r.id} className="cz-t10" onClick={()=>openDeal(r)}>
-                  <span className="cz-t10-rank num">{i+1}</span>
-                  <span className="cz-t10-name">{r.deal}</span>
-                  <StageChip stage={r.stage}/>
-                  <span style={{flex:1}}/>
-                  <span className="cz-t10-mrr num">{fmtK1(r.mrr)}</span>
-                  <ProbBadge value={r.prob}/>
-                  <Icon name="arrowRight" size={14} stroke={2} style={{color:"var(--ink-4)"}}/>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* TL action */}
-          <div className="cz-card cz-pad">
-            <div className="cz-ovh">
-              <span className="eyebrow">Acciones del TL</span>
-              <Chip tone="red" style={{marginLeft:"auto"}}>{O.tlActions.length} a revisar</Chip>
-            </div>
-            <p className="cz-oo-hint">Dónde el TL puede desbloquear o ayudar al rep en esta sesión.</p>
-            <div className="cz-tlactions">
-              {O.tlActions.map((a: any, i: number)=>(
-                <button key={i} className="cz-tla" onClick={()=>openDeal(a)}>
-                  <span className={"cz-tla-ic "+(a.sev==="alto"?"hi":"")}><Icon name="alert" size={14} stroke={2}/></span>
-                  <div className="cz-tla-body">
-                    <div className="cz-tla-top">
-                      <span className="cz-tla-deal">{a.deal}</span>
-                      <Chip tone={a.sev==="alto"?"red":"amber"} style={{fontSize:10.5}}>{a.flag}</Chip>
-                      <span style={{flex:1}}/>
-                      <StageChip stage={a.stage}/>
-                      <span className="cz-tla-mrr num">{fmtK1(a.mrr)}</span>
-                    </div>
-                    <p className="cz-tla-text">{a.text}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Methodology */}
-          <div className="cz-card cz-pad">
-            <div className="cz-ovh">
-              <span className="eyebrow">Higiene de pipeline</span>
-              <span className="cz-tb-meta num" style={{marginLeft:"auto"}}>{O.methodologyOpen} deals abiertos</span>
-            </div>
-            <div className="cz-method">
-              {O.methodology.map((m: any, i: number)=>{
-                const isOpen = hygieneOpen === m.key;
-                return (
-                  <div key={i}>
-                    <button className="cz-method-row" onClick={()=>setHygieneOpen(isOpen?null:m.key)}>
-                      <span className={"cz-method-n num "+m.tone}>{m.n}</span>
-                      <span className="cz-method-label">{m.label}</span>
-                      <Icon name="chevDown" size={15} style={{color:"var(--ink-4)",transform:isOpen?"none":"rotate(-90deg)",transition:"transform .18s"}}/>
-                    </button>
-                    {isOpen && m.deals && (
-                      <div style={{padding:"8px 6px 12px",display:"flex",flexDirection:"column",gap:4}}>
-                        {m.deals.slice(0,15).map((d: any, j: number)=>(
-                          <button key={j} className="cz-t10" onClick={()=>openDeal(d)} style={{padding:"6px"}}>
-                            <span className="cz-t10-name" style={{maxWidth:200}}>{d.deal}</span>
-                            <span style={{flex:1}}/>
-                            <span className="cz-t10-mrr num">{fmtK1(d.mrr)}</span>
-                            <StageChip stage={d.stage}/>
-                          </button>
-                        ))}
-                        {m.deals.length>15 && <span style={{fontSize:12,color:"var(--ink-3)",paddingLeft:6}}>+{m.deals.length-15} más</span>}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {!O.methodology.length && <p className="cz-oo-hint">Sin problemas de higiene detectados.</p>}
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT */}
-        <div className="cz-col">
-          {/* MEDDIC heatmap */}
-          <div className="cz-card cz-pad">
-            <div className="cz-ovh">
-              <span className="eyebrow">Perfil MEDDIC del rep</span>
-            </div>
-            <p className="cz-oo-hint">Media en {O.meddicBase} deals post-MEDDPICC</p>
-            <div className="cz-mh">
-              {O.meddic.map((m: any, i: number)=><MeddicBar key={i} label={m.key} score={m.score} base={O.meddicBase}/>)}
-            </div>
-            <div className="cz-coach">
-              <span className="cz-coach-ic"><Icon name="sparkle" size={15}/></span>
-              <div>
-                <span className="eyebrow" style={{color:"var(--amber-ink)"}}>Patrón de debilidad</span>
-                <p>{O.meddicNote}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Weakness patterns */}
-          <div className="cz-card cz-pad">
-            <div className="cz-ovh">
-              <span className="eyebrow">Dónde fallan los deals</span>
-            </div>
-            <p className="cz-oo-hint">Deals con score &lt;4 sobre {O.meddicBase} post-MEDDPICC</p>
-            <div className="cz-weak">
-              {O.weakness.map((w: any, i: number)=>{
-                const pct = Math.round(w.count/O.meddicBase*100);
-                const tone = pct>=70?"red":pct>=40?"amber":"green";
-                return (
-                  <div className="cz-weak-row" key={i}>
-                    <span className="cz-weak-label">{w.label}</span>
-                    <div className="cz-weak-track"><div style={{width:pct+"%",background:TONE[tone].fg}}/></div>
-                    <span className="cz-weak-count num"><b>{w.count}</b>/{O.meddicBase}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+      {/* Week tabs */}
+      <div className="cz-oo-weeks">
+        {WEEKS.map(w => (
+          <button
+            key={w.type}
+            className={"cz-oo-week-tab" + (weekType === w.type ? " active" : "") + (w.sections.length === 0 ? " soon" : "")}
+            onClick={() => w.sections.length > 0 && setWeekType(w.type)}
+          >
+            <span className="cz-oo-week-label">{w.label}</span>
+            <span className="cz-oo-week-sub">{w.subtitle}</span>
+          </button>
+        ))}
       </div>
+
+      {/* Progress bar */}
+      {totalChecks > 0 && (
+        <div className="cz-oo-progress">
+          <div className="cz-oo-progress-bar">
+            <div style={{ width: pct + "%", background: pct === 100 ? "var(--green)" : "var(--indigo)", transition: "width .3s" }} />
+          </div>
+          <span className="cz-oo-progress-text num">{pct}%</span>
+        </div>
+      )}
+
+      {/* Sections */}
+      {loading ? (
+        <p style={{ color: "var(--ink-3)", padding: 24 }}>Cargando deals...</p>
+      ) : week.sections.length === 0 ? (
+        <div className="cz-oo-empty">
+          <Icon name="clock" size={32} style={{ color: "var(--ink-4)" }} />
+          <p>Esta semana aún no está configurada.</p>
+        </div>
+      ) : (
+        <div className="cz-oo-sections">
+          {week.sections.map(sec => (
+            <SectionBlock
+              key={sec.num} section={sec} session={session}
+              getDealsFor={getDealsFor}
+              onToggle={toggleCheck} onEntry={addEntry}
+              onOpen={(row) => onOpen(row, "hist")}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
-
-export default OneOnOneView;

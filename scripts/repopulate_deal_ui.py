@@ -30,16 +30,16 @@ BATCH = 500
 
 
 def fetch_all_deal_ids():
+    from src.config import INTELLIGENCE_CONFIG
+    closed = list(INTELLIGENCE_CONFIG.get("closed_stages", []))
+    stage_col = INTELLIGENCE_CONFIG.get("deal_col_stage", "deal_stage")
     ids = []
     offset = 0
     while True:
-        resp = (
-            supabase.table("deals")
-            .select("id")
-            .not_.in_("macro_stage", ["closed_won", "closed_lost"])
-            .range(offset, offset + BATCH - 1)
-            .execute()
-        )
+        q = supabase.table("deals").select("id").range(offset, offset + BATCH - 1)
+        if closed:
+            q = q.not_.in_(stage_col, closed)
+        resp = q.execute()
         batch = resp.data or []
         ids.extend(r["id"] for r in batch)
         if len(batch) < BATCH:

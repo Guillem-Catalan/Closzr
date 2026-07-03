@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
-import { Icon, Chip, StageChip, ProbBadge, Avatar, getInitials, fmtMRR, TONE } from "../components";
+import { useState, useEffect, useMemo, Fragment } from "react";
+import { Icon, Chip, StageChip, Avatar, getInitials, fmtMRR, TONE } from "../components";
 import { usePermissions } from "../../permissions";
 import { stageAbbr } from "../../display";
-import { WEEKS, getWeekType, type Section, type CheckItem } from "./weeks";
-import { useOneOnOne, type OODeal, type OOEntry } from "./useOneOnOne";
+import { WEEKS, getWeekType, getMondayOfWeek, currentYearMonth, type Section, type CheckItem } from "./weeks";
+import { useOneOnOne, type OODeal, type OOEntry, type OOSession } from "./useOneOnOne";
 
 function fmtDate(d: string | null): string {
   if (!d) return "—";
@@ -12,91 +12,294 @@ function fmtDate(d: string | null): string {
   return `${parseInt(day)} ${months[parseInt(m)]}`;
 }
 
-function fmtMonthLabel(d: string | null): string {
-  if (!d) return "—";
-  const m = parseInt(d.split("-")[1]);
-  const months = ["", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  return months[m] || "—";
+function fmtDateFull(d: string | null): string {
+  if (!d) return "Sin fecha";
+  const [y, m, day] = d.split("-");
+  const months = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  return `${parseInt(day)} ${months[parseInt(m)]} ${y}`;
 }
 
-function dateAlign(repDate: string | null, claudioDate: string | null): "aligned" | "rep_only" | "claudio_only" | "mismatch" {
-  const repM = repDate?.slice(0, 7);
-  const clM = claudioDate?.slice(0, 7);
-  if (!repM && !clM) return "aligned";
-  if (repM && clM && repM === clM) return "aligned";
-  if (repM && !clM) return "rep_only";
-  if (!repM && clM) return "claudio_only";
-  return "mismatch";
+function daysOverdue(d: string | null): number | null {
+  if (!d) return null;
+  const diff = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+  return diff > 0 ? diff : null;
 }
 
-/* ── Deal Card ── */
-function DealCard({ deal, section, session, onEntry, onOpen }: {
+/* ── Query → panel config ──
+   Each query type defines:
+   - info: what contextual data to show (left side)
+   - actions: what buttons to show (right side)
+   - confirmPlaceholder: per-action textarea placeholder
+*/
+type ActionMode = "keep" | "change" | "action" | "lost" | "push";
+
+type PanelConfig = {
+  infoRender: (deal: OODeal) => JSX.Element;
+  actions: { mode: ActionMode; label: string; icon: string; tone: string }[];
+};
+
+function panelFor(query: string | undefined): PanelConfig {
+  switch (query) {
+    case "past_close":
+      return {
+        infoRender: (d) => {
+          const over = daysOverdue(d.close_date_hs);
+          return (
+            <div className="cz-oo-info-boxes">
+              <InfoBox icon="calendar" label="Cierre programado" value={fmtDateFull(d.close_date_hs)} warn={!!over} />
+              {over && <InfoBox icon="alert" label="Retraso" value={`${over} días`} warn />}
+            </div>
+          );
+        },
+        actions: [
+          { mode: "change", label: "Cambiar fecha", icon: "calendar", tone: "change" },
+          { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        ],
+      };
+
+    case "same_stage_30d":
+      return {
+        infoRender: (d) => (
+          <div className="cz-oo-info-boxes">
+            <InfoBox icon="layers" label="Stage actual" value={d.stage || "—"} />
+            <InfoBox icon="clock" label="Días en este stage" value={`${d.stale_days ?? "—"} días`} warn={(d.stale_days || 0) >= 30} />
+          </div>
+        ),
+        actions: [
+          { mode: "action", label: "Definir acción", icon: "flag", tone: "keep" },
+          { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        ],
+      };
+
+    case "stale_7d":
+      return {
+        infoRender: (d) => (
+          <div className="cz-oo-info-boxes">
+            <InfoBox icon="clock" label="Último contacto" value={d.last_contact_label || "Sin datos"} warn={(d.stale_days || 0) >= 14} />
+            <InfoBox icon="alert" label="Días sin actividad" value={`${d.stale_days ?? "—"} días`} warn={(d.stale_days || 0) >= 7} />
+          </div>
+        ),
+        actions: [
+          { mode: "action", label: "Definir acción", icon: "flag", tone: "keep" },
+          { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        ],
+      };
+
+    case "demo_6w":
+      return {
+        infoRender: (d) => (
+          <div className="cz-oo-info-boxes">
+            <InfoBox icon="clock" label="Antigüedad del deal" value={`${d.deal_age_days ?? "—"} días`} warn={(d.deal_age_days || 0) > 42} />
+            <InfoBox icon="layers" label="Stage" value={d.stage || "—"} />
+          </div>
+        ),
+        actions: [
+          { mode: "action", label: "Acelerar o limpiar", icon: "flag", tone: "keep" },
+          { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        ],
+      };
+
+    case "past_close_or_stale":
+      return {
+        infoRender: (d) => {
+          const over = daysOverdue(d.close_date_hs);
+          return (
+            <div className="cz-oo-info-boxes">
+              <InfoBox icon="calendar" label="Cierre programado" value={fmtDateFull(d.close_date_hs)} warn={!!over} />
+              <InfoBox icon="clock" label="Último contacto" value={d.last_contact_label || "Sin datos"} warn={(d.stale_days || 0) >= 7} />
+            </div>
+          );
+        },
+        actions: [
+          { mode: "change", label: "Cambiar fecha", icon: "calendar", tone: "change" },
+          { mode: "action", label: "Definir acción", icon: "flag", tone: "keep" },
+          { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        ],
+      };
+
+    case "m1_m2_pusheable":
+      return {
+        infoRender: (d) => (
+          <div className="cz-oo-info-boxes">
+            <InfoBox icon="trendUp" label="Momentum" value={d.deal_momentum || "—"} />
+            <InfoBox icon="target" label="Probabilidad" value={d.close_probability != null ? `${d.close_probability}%` : "—"} />
+          </div>
+        ),
+        actions: [
+          { mode: "push", label: "Adelantar a M+1", icon: "check", tone: "keep" },
+          { mode: "keep", label: "Mantener fecha", icon: "check", tone: "keep" },
+        ],
+      };
+
+    case "m0_at_risk":
+      return {
+        infoRender: (d) => (
+          <div className="cz-oo-info-boxes">
+            <InfoBox icon="clock" label="Último contacto" value={d.last_contact_label || "Sin datos"} warn={(d.stale_days || 0) >= 5} />
+            <InfoBox icon="trendUp" label="Momentum" value={d.deal_momentum || "—"} warn={d.deal_momentum === "stalling" || d.deal_momentum === "declining"} />
+          </div>
+        ),
+        actions: [
+          { mode: "action", label: "Definir acción", icon: "flag", tone: "keep" },
+          { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        ],
+      };
+
+    case "m0_closing_soon":
+      return {
+        infoRender: (d) => {
+          const daysLeft = d.close_date_hs ? Math.max(0, Math.floor((new Date(d.close_date_hs).getTime() - Date.now()) / 86400000)) : null;
+          return (
+            <div className="cz-oo-info-boxes">
+              <InfoBox icon="calendar" label="Cierre programado" value={fmtDateFull(d.close_date_hs)} />
+              {daysLeft != null && <InfoBox icon="alert" label="Días para cierre" value={`${daysLeft} días`} warn={daysLeft <= 3} />}
+            </div>
+          );
+        },
+        actions: [
+          { mode: "keep", label: "Confirmar cierre", icon: "check", tone: "keep" },
+          { mode: "change", label: "Cambiar fecha", icon: "calendar", tone: "change" },
+          { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        ],
+      };
+
+    // m0, m1, m2 and default: close date comparison
+    default:
+      return {
+        infoRender: (d) => (
+          <div className="cz-oo-info-boxes">
+            <InfoBox icon="users" label="Cierre Account" value={fmtDateFull(d.close_date_hs)} />
+            <InfoBox icon="sparkle" label="Cierre Closzr" value={fmtDateFull(d.estimated_close_date)} />
+          </div>
+        ),
+        actions: [
+          { mode: "keep", label: "Mantener fecha", icon: "check", tone: "keep" },
+          { mode: "change", label: "Cambiar fecha", icon: "calendar", tone: "change" },
+          { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        ],
+      };
+  }
+}
+
+function confirmPlaceholder(mode: ActionMode): string {
+  switch (mode) {
+    case "keep": return "¿Por qué se mantiene esta fecha?";
+    case "change": return "¿Por qué se cambia la fecha?";
+    case "action": return "¿Por qué lleva tanto sin avanzar? ¿Qué acción concreta se hará y para cuándo?";
+    case "lost": return "¿Por qué se cierra este deal?";
+    case "push": return "¿Qué haría falta para cerrar un mes antes?";
+  }
+}
+
+/* ── Info Box (reusable) ── */
+function InfoBox({ icon, label, value, warn }: { icon: string; label: string; value: string; warn?: boolean }) {
+  return (
+    <div className={"cz-oo-ibox" + (warn ? " warn" : "")}>
+      <span className="cz-oo-ibox-icon"><Icon name={icon} size={14} /></span>
+      <div className="cz-oo-ibox-body">
+        <span className="cz-oo-ibox-label">{label}</span>
+        <span className="cz-oo-ibox-val">{value}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Action Panel (expanded below a table row) ── */
+function DealActionPanel({ deal, section, session, onEntry, query }: {
   deal: OODeal; section: string;
   session: { checks: Record<string, boolean>; entries: OOEntry[] } | null;
   onEntry: (e: Omit<OOEntry, "at">) => void;
-  onOpen: (row: any) => void;
+  query?: string;
 }) {
-  const [note, setNote] = useState("");
-  const align = dateAlign(deal.close_date_hs, deal.estimated_close_date);
+  const [mode, setMode] = useState<ActionMode | null>(null);
+  const [reason, setReason] = useState("");
+  const [newDate, setNewDate] = useState("");
   const entries = (session?.entries || []).filter(e => e.deal_id === deal.deal_id && e.section === section);
   const name = deal.company_name || deal.deal_name_full || "—";
+  const summary = deal.deal_summary || deal.deal_assessment || null;
+  const panel = panelFor(query);
 
-  const saveNote = () => {
-    if (!note.trim()) return;
-    onEntry({ deal_id: deal.deal_id, deal_name: name, section, type: "note", note: note.trim() });
-    setNote("");
+  const confirmAction = () => {
+    if (!reason.trim()) return;
+    if (mode === "keep") {
+      onEntry({ deal_id: deal.deal_id, deal_name: name, section, type: "note",
+        note: `Fecha mantenida (${fmtDateFull(deal.close_date_hs)}): ${reason.trim()}` });
+    } else if (mode === "change" && newDate) {
+      onEntry({ deal_id: deal.deal_id, deal_name: name, section, type: "change",
+        field: "close_date", old_val: fmtDateFull(deal.close_date_hs), new_val: fmtDateFull(newDate),
+        note: reason.trim() });
+    } else if (mode === "action" || mode === "push") {
+      onEntry({ deal_id: deal.deal_id, deal_name: name, section, type: "commitment",
+        note: reason.trim() });
+    } else if (mode === "lost") {
+      onEntry({ deal_id: deal.deal_id, deal_name: name, section, type: "change",
+        field: "stage", old_val: deal.stage || "—", new_val: "Closed Lost",
+        note: reason.trim() });
+    }
+    setMode(null);
+    setReason("");
+    setNewDate("");
   };
 
+  const resetMode = () => { setMode(null); setReason(""); setNewDate(""); };
+
   return (
-    <div className="cz-oo-deal">
-      <div className="cz-oo-deal-header">
-        <button className="cz-oo-deal-name" onClick={() => onOpen({ id: deal.deal_id })}>
-          {name}
-        </button>
-        <span className="cz-oo-deal-mrr num">{fmtMRR(deal.mrr)}</span>
-        <StageChip stage={stageAbbr(deal.stage || "")} />
-        {deal.close_probability != null && <ProbBadge value={deal.close_probability} />}
-      </div>
+    <div className="cz-oo-action" onClick={e => e.stopPropagation()}>
+      {/* Summary — always */}
+      {summary && <p className="cz-oo-action-summary">{summary}</p>}
 
-      <div className="cz-oo-deal-dates">
-        <span className="cz-oo-date-label">Rep:</span>
-        <span className="cz-oo-date-val num">{fmtDate(deal.close_date_hs)}</span>
-        <span className="cz-oo-date-label">Claudio:</span>
-        <span className="cz-oo-date-val num">{fmtDate(deal.estimated_close_date)}</span>
-        {align === "aligned" && <Chip tone="green" style={{ fontSize: 10 }}>✓ Alineados</Chip>}
-        {align === "mismatch" && (
-          <Chip tone="red" style={{ fontSize: 10 }}>
-            ⚠ Rep {fmtMonthLabel(deal.close_date_hs)} vs Claudio {fmtMonthLabel(deal.estimated_close_date)}
-          </Chip>
+      {/* Body row: info LEFT + actions RIGHT */}
+      <div className="cz-oo-action-row">
+        {panel.infoRender(deal)}
+        {!mode && (
+          <div className="cz-oo-action-side">
+            {panel.actions.map(a => (
+              <button key={a.mode} className={`cz-oo-btn ${a.tone}`} onClick={() => setMode(a.mode)}>
+                <Icon name={a.icon} size={14} />{a.label}
+              </button>
+            ))}
+          </div>
         )}
-        {align === "rep_only" && <Chip tone="amber" style={{ fontSize: 10 }}>Solo Rep</Chip>}
-        {align === "claudio_only" && <Chip tone="amber" style={{ fontSize: 10 }}>Solo Claudio</Chip>}
       </div>
 
-      {deal.deal_assessment && (
-        <p className="cz-oo-deal-assess">{deal.deal_assessment}</p>
+      {/* Confirm flow — full width below */}
+      {mode && (
+        <div className={"cz-oo-confirm-flow" + (mode === "lost" ? " lost" : "")}>
+          <div className="cz-oo-confirm-header">
+            <Icon name={panel.actions.find(a => a.mode === mode)?.icon || "check"} size={14} />
+            <span>{panel.actions.find(a => a.mode === mode)?.label} — <b>{name}</b></span>
+            <button className="cz-oo-confirm-cancel" onClick={resetMode}><Icon name="x" size={14} /></button>
+          </div>
+          {mode === "change" && (
+            <div className="cz-oo-date-pick">
+              <label className="cz-oo-date-pick-label">Nueva fecha</label>
+              <input type="date" className="cz-oo-date-pick-input" value={newDate} onChange={e => setNewDate(e.target.value)} />
+            </div>
+          )}
+          <textarea
+            className="cz-oo-confirm-reason"
+            placeholder={confirmPlaceholder(mode)}
+            value={reason} onChange={e => setReason(e.target.value)}
+            rows={2} autoFocus
+          />
+          <button
+            className={"cz-oo-confirm-btn" + (mode === "lost" ? " lost" : "")}
+            disabled={!reason.trim() || (mode === "change" && !newDate)}
+            onClick={confirmAction}
+          >
+            <Icon name={mode === "lost" ? "x" : "check"} size={14} />Confirmar
+          </button>
+        </div>
       )}
 
-      <div className="cz-oo-note-input">
-        <input
-          type="text" placeholder="Añadir nota sobre este deal..."
-          value={note} onChange={e => setNote(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && saveNote()}
-        />
-        {note.trim() && (
-          <button className="cz-oo-note-save" onClick={saveNote}>
-            <Icon name="check" size={14} />
-          </button>
-        )}
-      </div>
-
+      {/* Entry log */}
       {entries.length > 0 && (
         <div className="cz-oo-deal-log">
           {entries.map((e, i) => (
             <div key={i} className="cz-oo-log-entry">
-              <Icon name={e.type === "note" ? "note" : e.type === "change" ? "calendar" : "flag"} size={13} />
+              <Icon name={e.type === "note" ? "note" : e.type === "change" ? "calendar" : "flag"} size={12} />
               <span className="cz-oo-log-text">
-                {e.type === "change" && <><b>{e.field}</b>: {e.old_val} → {e.new_val}</>}
+                {e.type === "change" && <><b>{e.field}</b>: {e.old_val} → {e.new_val}{e.note ? ` — ${e.note}` : ""}</>}
                 {e.type === "note" && e.note}
                 {e.type === "commitment" && <><b>Compromiso:</b> {e.note}</>}
               </span>
@@ -105,6 +308,71 @@ function DealCard({ deal, section, session, onEntry, onOpen }: {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Deal Data Table ── */
+function DealTable({ deals, section, session, onEntry, onOpen, query }: {
+  deals: OODeal[]; section: string;
+  session: { checks: Record<string, boolean>; entries: OOEntry[] } | null;
+  onEntry: (e: Omit<OOEntry, "at">) => void;
+  onOpen: (row: any) => void;
+  query?: string;
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  return (
+    <div className="cz-oo-tw">
+      <table className="cz-oo-t">
+        <thead>
+          <tr>
+            <th>Deal</th>
+            <th className="cz-oo-th-r">MRR</th>
+            <th className="cz-oo-th-r">Stage</th>
+            <th className="cz-oo-th-r">Último contacto</th>
+            <th className="cz-oo-th-r">Cierre Account</th>
+            <th className="cz-oo-th-r">Cierre Closzr</th>
+            <th style={{ width: 1 }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {deals.map(deal => {
+            const expanded = expandedId === deal.deal_id;
+            const name = deal.company_name || deal.deal_name_full || "—";
+            return (
+              <Fragment key={deal.deal_id}>
+                <tr
+                  className={expanded ? "on" : ""}
+                  onClick={() => setExpandedId(expanded ? null : deal.deal_id)}
+                >
+                  <td className="cz-oo-td-co">{name}</td>
+                  <td className="num cz-oo-td-r" style={{ fontWeight: 700 }}>{fmtMRR(deal.mrr)}</td>
+                  <td className="cz-oo-td-r"><StageChip stage={stageAbbr(deal.stage || "")} /></td>
+                  <td className="cz-oo-td-r cz-oo-td-lc">{deal.last_contact_label || "—"}</td>
+                  <td className="num cz-oo-td-r">{fmtDate(deal.close_date_hs)}</td>
+                  <td className="num cz-oo-td-r">{fmtDate(deal.estimated_close_date)}</td>
+                  <td className="cz-oo-td-r">
+                    <button
+                      className="cz-oo-ver"
+                      onClick={e => { e.stopPropagation(); onOpen({ id: deal.deal_id }); }}
+                    >
+                      Ver deal<Icon name="external" size={12} />
+                    </button>
+                  </td>
+                </tr>
+                {expanded && (
+                  <tr className="cz-oo-xrow">
+                    <td colSpan={7}>
+                      <DealActionPanel deal={deal} section={section} session={session} onEntry={onEntry} query={query} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -118,31 +386,30 @@ function CheckItemRow({ item, section, checked, deals, session, onToggle, onEntr
   onEntry: (e: Omit<OOEntry, "at">) => void;
   onOpen: (row: any) => void;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const hasDeals = deals.length > 0;
 
   return (
     <div className="cz-oo-check">
-      <div className="cz-oo-check-row">
-        <button className={"cz-oo-checkbox" + (checked ? " done" : "")} onClick={onToggle}>
-          {checked && <Icon name="check" size={12} stroke={2.5} />}
+      <div className={"cz-oo-check-row" + (hasDeals ? " clickable" : "")} onClick={hasDeals ? () => setOpen(p => !p) : undefined}>
+        <button className={"cz-oo-checkbox" + (checked ? " done" : "")} onClick={e => { e.stopPropagation(); onToggle(); }}>
+          {checked && <Icon name="check" size={10} stroke={3} />}
         </button>
         <span className={"cz-oo-check-text" + (checked ? " done" : "")}>{item.text}</span>
         {hasDeals && (
-          <button className="cz-oo-check-count" onClick={() => setOpen(p => !p)}>
-            <span className="num">{deals.length} deal{deals.length !== 1 ? "s" : ""}</span>
-            <Icon name="chevDown" size={13} style={{ transform: open ? "none" : "rotate(-90deg)", transition: "transform .15s" }} />
-          </button>
+          <span className="cz-oo-check-count">
+            <span className="num">{deals.length}</span>
+            <span>deal{deals.length !== 1 ? "s" : ""}</span>
+            <Icon name="chevDown" size={12} style={{ transform: open ? "none" : "rotate(-90deg)", transition: "transform .15s" }} />
+          </span>
         )}
         {item.query && deals.length === 0 && (
-          <Chip tone="green" style={{ fontSize: 10, marginLeft: "auto" }}>0 deals ✓</Chip>
+          <Chip tone="green" style={{ fontSize: 10, marginLeft: "auto" }}>0 deals</Chip>
         )}
       </div>
       {hasDeals && open && (
         <div className="cz-oo-deals-panel">
-          {deals.map(d => (
-            <DealCard key={d.deal_id} deal={d} section={section} session={session} onEntry={onEntry} onOpen={onOpen} />
-          ))}
+          <DealTable deals={deals} section={section} session={session} onEntry={onEntry} onOpen={onOpen} query={item.query} />
         </div>
       )}
     </div>
@@ -195,20 +462,96 @@ function SectionBlock({ section, session, getDealsFor, onToggle, onEntry, onOpen
   );
 }
 
+/* ── Month helpers ── */
+const MONTH_NAMES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+function monthOptions(): { value: string; label: string }[] {
+  const opts: { value: string; label: string }[] = [];
+  const now = new Date();
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    opts.push({ value: v, label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}` });
+  }
+  return opts;
+}
+
+function fmtYM(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  return `${MONTH_NAMES[m - 1]} ${y}`;
+}
+
+/* ── Histórico Panel ── */
+function HistoricoPanel({ history, repName }: { history: OOSession[]; repName: string }) {
+  const byMonth = useMemo(() => {
+    const map = new Map<string, OOSession[]>();
+    for (const s of history) {
+      const ym = s.session_date.slice(0, 7);
+      if (!map.has(ym)) map.set(ym, []);
+      map.get(ym)!.push(s);
+    }
+    for (const sessions of map.values()) sessions.sort((a, b) => a.week_type - b.week_type);
+    return map;
+  }, [history]);
+
+  if (history.length === 0) {
+    return (
+      <div className="cz-oo-hist">
+        <p style={{ color: "var(--ink-3)", fontSize: 13, padding: "20px 0" }}>No hay sesiones registradas para {repName}.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="cz-oo-hist">
+      {[...byMonth.entries()].map(([ym, sessions]) => (
+        <div key={ym} className="cz-oo-hist-month">
+          <span className="cz-oo-hist-label">{fmtYM(ym)}</span>
+          <div className="cz-oo-hist-weeks">
+            {sessions.map(s => {
+              const w = WEEKS[s.week_type];
+              const total = w ? w.sections.reduce((a, sec) => a + sec.items.length, 0) : 0;
+              const done = w ? w.sections.reduce((a, sec) => a + sec.items.filter(i => s.checks[i.id]).length, 0) : 0;
+              const nEntries = (s.entries || []).length;
+              return (
+                <div key={s.id || s.week_type} className="cz-oo-hist-card">
+                  <span className="cz-oo-hist-wk">W{s.week_type}</span>
+                  <span className="cz-oo-hist-wt">{w?.subtitle || "—"}</span>
+                  <span className="cz-oo-hist-stat num">{done}/{total}</span>
+                  {nEntries > 0 && <span className="cz-oo-hist-entries">{nEntries} nota{nEntries !== 1 ? "s" : ""}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── Main View ── */
 export default function OneOnOneView({ onOpen }: { onOpen: (row: any, tab?: string) => void }) {
   const { profile } = usePermissions();
   const tlEmail = profile?.email || "";
+  const [month, setMonth] = useState(currentYearMonth);
   const [weekType, setWeekType] = useState(getWeekType);
   const [selectedRep, setSelectedRep] = useState("");
+  const [showHist, setShowHist] = useState(false);
   const week = WEEKS[weekType];
+  const monday = getMondayOfWeek(month, weekType);
+  const mOpts = useMemo(monthOptions, []);
+  const isCurrent = month === currentYearMonth();
 
-  const { reps, session, loading, getDealsFor, toggleCheck, addEntry } = useOneOnOne(selectedRep, weekType, tlEmail);
+  const { reps, session, history, loading, getDealsFor, toggleCheck, addEntry } = useOneOnOne(selectedRep, weekType, tlEmail, monday);
 
-  // Auto-select first rep
   useEffect(() => {
     if (!selectedRep && reps.length > 0) setSelectedRep(reps[0]);
   }, [reps, selectedRep]);
+
+  useEffect(() => {
+    if (isCurrent) setWeekType(getWeekType());
+    else setWeekType(0);
+  }, [month, isCurrent]);
 
   const totalChecks = week.sections.reduce((s, sec) => s + sec.items.length, 0);
   const doneChecks = week.sections.reduce((s, sec) => s + sec.items.filter(i => session?.checks[i.id]).length, 0);
@@ -216,68 +559,86 @@ export default function OneOnOneView({ onOpen }: { onOpen: (row: any, tab?: stri
 
   return (
     <div className="cz-oo">
-      {/* Toolbar */}
-      <div className="cz-toolbar">
-        <div className="cz-tb-title">
-          <h2 className="display">1:1 Review</h2>
-        </div>
-        {reps.length > 0 && (
-          <label className="cz-rep-select">
-            <Avatar initials={getInitials(selectedRep)} size={26} name={selectedRep} />
-            <select value={selectedRep} onChange={e => setSelectedRep(e.target.value)}>
-              {reps.map(r => <option key={r}>{r}</option>)}
-            </select>
-            <Icon name="chevDown" size={15} style={{ color: "var(--ink-3)" }} />
-          </label>
-        )}
-        {totalChecks > 0 && (
-          <span className="cz-tb-meta num">{doneChecks}/{totalChecks} completados</span>
-        )}
-      </div>
-
-      {/* Week tabs */}
-      <div className="cz-oo-weeks">
-        {WEEKS.map(w => (
-          <button
-            key={w.type}
-            className={"cz-oo-week-tab" + (weekType === w.type ? " active" : "") + (w.sections.length === 0 ? " soon" : "")}
-            onClick={() => w.sections.length > 0 && setWeekType(w.type)}
-          >
-            <span className="cz-oo-week-label">{w.label}</span>
-            <span className="cz-oo-week-sub">{w.subtitle}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Progress bar */}
-      {totalChecks > 0 && (
-        <div className="cz-oo-progress">
-          <div className="cz-oo-progress-bar">
-            <div style={{ width: pct + "%", background: pct === 100 ? "var(--green)" : "var(--indigo)", transition: "width .3s" }} />
+      {/* Header */}
+      <div className="cz-oo-head">
+        <div className="cz-oo-head-top">
+          <div>
+            <h2>1:1 Review</h2>
+            <p className="cz-oo-head-sub">Guía paso a paso para tus sesiones semanales</p>
           </div>
-          <span className="cz-oo-progress-text num">{pct}%</span>
+          <button className={"cz-oo-hist-btn" + (showHist ? " on" : "")} onClick={() => setShowHist(p => !p)}>
+            <Icon name="book" size={15} />Histórico
+          </button>
         </div>
-      )}
+
+        <div className="cz-oo-controls">
+          {reps.length > 0 && (
+            <label className="cz-oo-sel">
+              <Avatar initials={getInitials(selectedRep)} size={24} name={selectedRep} />
+              <select value={selectedRep} onChange={e => setSelectedRep(e.target.value)}>
+                {reps.map(r => <option key={r}>{r}</option>)}
+              </select>
+              <Icon name="chevDown" size={14} style={{ color: "var(--ink-4)" }} />
+            </label>
+          )}
+          <label className="cz-oo-sel">
+            <Icon name="calendar" size={15} style={{ color: "var(--ink-3)" }} />
+            <select value={month} onChange={e => setMonth(e.target.value)}>
+              {mOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <Icon name="chevDown" size={14} style={{ color: "var(--ink-4)" }} />
+          </label>
+        </div>
+      </div>
+
+      {/* Week cards */}
+      <div className="cz-oo-weeks">
+        {WEEKS.map(w => {
+          const wTotal = w.sections.reduce((s, sec) => s + sec.items.length, 0);
+          const wDone = weekType === w.type ? doneChecks : 0;
+          return (
+            <button
+              key={w.type}
+              className={"cz-oo-wcard" + (weekType === w.type ? " on" : "") + (wTotal === 0 ? " soon" : "")}
+              onClick={() => wTotal > 0 && setWeekType(w.type)}
+            >
+              <span className="cz-oo-wcard-num">W{w.type}</span>
+              <span className="cz-oo-wcard-title">{w.subtitle}</span>
+              {weekType === w.type && wTotal > 0 && (
+                <span className="cz-oo-wcard-count num">{wDone}/{wTotal}</span>
+              )}
+            </button>
+          );
+        })}
+        {totalChecks > 0 && (
+          <div className="cz-oo-progress-inline">
+            <div className="cz-oo-progress-bar">
+              <div style={{ width: pct + "%", background: pct === 100 ? "var(--green)" : "var(--indigo)" }} />
+            </div>
+            <span className="cz-oo-progress-text num">{pct}%</span>
+          </div>
+        )}
+      </div>
+
+      {/* Histórico */}
+      {showHist && <HistoricoPanel history={history} repName={selectedRep} />}
 
       {/* Sections */}
-      {loading ? (
-        <p style={{ color: "var(--ink-3)", padding: 24 }}>Cargando deals...</p>
-      ) : week.sections.length === 0 ? (
-        <div className="cz-oo-empty">
-          <Icon name="clock" size={32} style={{ color: "var(--ink-4)" }} />
-          <p>Esta semana aún no está configurada.</p>
-        </div>
-      ) : (
-        <div className="cz-oo-sections">
-          {week.sections.map(sec => (
-            <SectionBlock
-              key={sec.num} section={sec} session={session}
-              getDealsFor={getDealsFor}
-              onToggle={toggleCheck} onEntry={addEntry}
-              onOpen={(row) => onOpen(row, "hist")}
-            />
-          ))}
-        </div>
+      {!showHist && (
+        loading ? (
+          <p style={{ color: "var(--ink-3)", padding: 24 }}>Cargando deals...</p>
+        ) : (
+          <div className="cz-oo-sections">
+            {week.sections.map(sec => (
+              <SectionBlock
+                key={sec.num} section={sec} session={session}
+                getDealsFor={getDealsFor}
+                onToggle={toggleCheck} onEntry={addEntry}
+                onOpen={(row) => onOpen(row, "hist")}
+              />
+            ))}
+          </div>
+        )
       )}
     </div>
   );

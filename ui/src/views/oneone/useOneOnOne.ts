@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../data/supabase";
-import { getMonday, getWeekType } from "./weeks";
 
 const OO_COLS = "deal_id,hs_deal_id,company_name,deal_name_full,stage,macro_stage,pae,pbd,team,mrr,close_probability,close_date_hs,estimated_close_date,is_stale,stale_days,deal_assessment,forecast_reasoning,forecast_confidence,deal_momentum,last_contact_label,deal_age_days,action_headline,deal_summary";
 
@@ -63,7 +62,7 @@ function inMonth(date: string | null, ym: string): boolean {
   return !!date && date.startsWith(ym);
 }
 
-export function useOneOnOne(repName: string, weekType: number, tlEmail: string) {
+export function useOneOnOne(repName: string, weekType: number, tlEmail: string, monday: string) {
   const [deals, setDeals] = useState<OODeal[]>([]);
   const [reps, setReps] = useState<string[]>([]);
   const [session, setSession] = useState<OOSession | null>(null);
@@ -72,7 +71,6 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string) 
   const sessionRef = useRef(session);
   sessionRef.current = session;
 
-  // Fetch all reps (distinct PAEs with active deals)
   useEffect(() => {
     supabase.from("deal_ui").select("pae").not("macro_stage", "in", "(closed,excluded)").not("pae", "is", null)
       .then(({ data }) => {
@@ -81,7 +79,6 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string) 
       });
   }, []);
 
-  // Fetch deals for selected rep
   useEffect(() => {
     if (!repName) { setDeals([]); setLoading(false); return; }
     setLoading(true);
@@ -92,10 +89,8 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string) 
       });
   }, [repName]);
 
-  // Load or create session for this week
   useEffect(() => {
-    if (!repName || !tlEmail) { setSession(null); return; }
-    const monday = getMonday();
+    if (!repName || !tlEmail || !monday) { setSession(null); return; }
     supabase.from("oneone_sessions").select("*")
       .eq("tl_email", tlEmail).eq("rep_name", repName).eq("session_date", monday)
       .maybeSingle()
@@ -109,9 +104,8 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string) 
           });
         }
       });
-  }, [repName, tlEmail, weekType]);
+  }, [repName, tlEmail, weekType, monday]);
 
-  // Load session history for this rep
   useEffect(() => {
     if (!repName || !tlEmail) { setHistory([]); return; }
     supabase.from("oneone_sessions").select("*")
@@ -119,9 +113,7 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string) 
       .then(({ data }) => setHistory((data || []) as OOSession[]));
   }, [repName, tlEmail]);
 
-  // Persist session (upsert)
   const persist = useCallback(async (updated: OOSession) => {
-    const monday = getMonday();
     const row = {
       tl_email: updated.tl_email, rep_name: updated.rep_name,
       team: updated.team, week_type: updated.week_type,
@@ -130,7 +122,7 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string) 
     const { data } = await supabase.from("oneone_sessions")
       .upsert(row, { onConflict: "tl_email,rep_name,session_date" }).select().single();
     if (data) setSession(data as OOSession);
-  }, []);
+  }, [monday]);
 
   const toggleCheck = useCallback((checkId: string) => {
     const s = sessionRef.current;
@@ -149,7 +141,6 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string) 
     persist(next);
   }, [persist]);
 
-  // Deal filters
   const today = new Date().toISOString().slice(0, 10);
   const m0 = monthKey(0);
   const m1 = monthKey(1);
@@ -173,6 +164,26 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string) 
         return deals.filter(d => inMonth(d.close_date_hs, m1) || inMonth(d.estimated_close_date, m1));
       case "m2":
         return deals.filter(d => inMonth(d.close_date_hs, m2) || inMonth(d.estimated_close_date, m2));
+      case "m1_m2_pusheable":
+        return deals.filter(d => {
+          const isM2 = inMonth(d.close_date_hs, m2) || inMonth(d.estimated_close_date, m2);
+          const isLateM1 = inMonth(d.close_date_hs, m1) || inMonth(d.estimated_close_date, m1);
+          return (isM2 || isLateM1) && (d.deal_momentum === "accelerating" || (d.close_probability || 0) >= 40);
+        });
+      case "m0_at_risk":
+        return deals.filter(d => {
+          const isM0 = inMonth(d.close_date_hs, m0) || inMonth(d.estimated_close_date, m0);
+          return isM0 && ((d.stale_days || 0) >= 5 || d.deal_momentum === "stalling" || d.deal_momentum === "declining");
+        });
+      case "m0_closing_soon": {
+        const nextWeek = new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        const nw = nextWeek.toISOString().slice(0, 10);
+        return deals.filter(d => {
+          const isM0 = inMonth(d.close_date_hs, m0) || inMonth(d.estimated_close_date, m0);
+          return isM0 && d.close_date_hs && d.close_date_hs <= nw;
+        });
+      }
       default:
         return [];
     }

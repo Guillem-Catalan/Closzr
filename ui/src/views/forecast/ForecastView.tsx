@@ -5,13 +5,13 @@
    - 3-section deal list (this month / next month / pushable)
    ============================================================ */
 import { useState, useMemo } from "react";
-import { Icon, Chip, fmtMRR } from "./components";
-import { useData } from "../data/store";
-import type { ForecastDeal, ClosedDeal, LostDeal } from "../data/store";
-import { hubspotDealUrl, MOMENTUM_DISPLAY, CONFIDENCE_TONE, ADMIN_ROLES } from "../display";
-import { normalize, distinctTeams, distinctOwners } from "../data/filters";
-import { usePermissions } from "../permissions";
-import { supabase } from "../data/supabase";
+import { Icon, Chip, fmtMRR } from "../components";
+import { useData } from "../../data/store";
+import type { ForecastDeal, ClosedDeal, LostDeal } from "../../data/store";
+import { hubspotDealUrl, MOMENTUM_DISPLAY, CONFIDENCE_TONE, ADMIN_ROLES } from "../../display";
+import { normalize, distinctTeams, distinctOwners } from "../../data/filters";
+import { usePermissions } from "../../permissions";
+import { supabase } from "../../data/supabase";
 
 function fmtEur(v: number | null | undefined): string {
   if (v == null || v === 0) return "—";

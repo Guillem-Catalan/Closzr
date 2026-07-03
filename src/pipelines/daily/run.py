@@ -1,16 +1,13 @@
 """
 Daily Run — morning safety net + closed deal processing.
 
-Runs once per day at 03:00. Dispatched by pg_cron via GitHub Actions.
+Runs once per day. Dispatched by pg_cron via GitHub Actions.
 
 Steps:
-  1. Full sync — all active deals from HubSpot (catches metadata changes CORE missed)
-  2. Forecast refresh — re-forecast deals with imminent Claudio close date
-  3. Closed deal detection — detect HubSpot stage transitions to closed
-  4. Parser — full deal_ui refresh (all 5 entry points for every deal)
-
-No CORE activation — if sync detects new activity, it marks context_stale=True
-and the next CORE run picks it up.
+  1. Sync — refresh metadata from HubSpot for all open deals
+  2. Forecast refresh — new snapshot + forecast for deals with imminent/past close date
+  3. Closed deal detection — find HubSpot closed transitions, run final snapshot + trajectory + analysis
+  4. Parser — update deal_ui for all deals touched in steps 1-3
 
 Everything from config.
 """
@@ -21,8 +18,8 @@ from datetime import date, timedelta
 from src.config import (
     INTELLIGENCE_CONFIG,
     DAILY_CONFIG,
-    ACTIVE_STAGES,
     STAGE_ID_TO_LABEL,
+    ACTIVE_STAGES,
     CLOSED_ALL,
     HS_ALL_DEAL_PROPS,
     SYNC_CONFIG,
@@ -48,49 +45,70 @@ _D = DAILY_CONFIG
 _SC = SYNC_CONFIG
 _CLOSED_LOWER = frozenset(s.lower() for s in CLOSED_ALL)
 
+FORECAST_REFRESH_DAYS = _D.get("forecast_refresh_days", 5)
+REFRESH_COOLDOWN_DAYS = 3
 
-def _refresh_imminent_forecasts() -> int:
-    """Re-forecast deals whose Claudio close date is within N days."""
-    threshold_days = _D.get("forecast_refresh_days", 5)
-    threshold = (date.today() + timedelta(days=threshold_days)).isoformat()
+
+# ─────────────────────────────────────────────────────────────
+# STEP 2 — Forecast refresh
+# ─────────────────────────────────────────────────────────────
+
+def _refresh_imminent_forecasts() -> list[str]:
+    """Re-snapshot + re-forecast deals with close date within N days or past due.
+    Skips deals already refreshed in the last REFRESH_COOLDOWN_DAYS.
+    Returns list of deal_uuids processed."""
+
+    today = date.today()
+    threshold = (today + timedelta(days=FORECAST_REFRESH_DAYS)).isoformat()
+    cooldown = (today - timedelta(days=REFRESH_COOLDOWN_DAYS)).isoformat()
 
     resp = (
         supabase.table("deal_ui")
-        .select("deal_id, deal_name_full, estimated_close_date")
+        .select("deal_id, deal_name_full, estimated_close_date, snapshot_date")
         .is_("outcome", "null")
         .not_.is_("estimated_close_date", "null")
         .lte("estimated_close_date", threshold)
         .execute()
     )
-    deals = resp.data or []
-    if not deals:
-        return 0
 
-    print(f"    {len(deals)} deals with close date <= {threshold}")
+    candidates = [
+        d for d in (resp.data or [])
+        if not d.get("snapshot_date") or d["snapshot_date"] < cooldown
+    ]
 
-    refreshed = 0
-    for d in deals:
+    if not candidates:
+        print("  No deals need forecast refresh")
+        return []
+
+    print(f"  {len(candidates)} deals to refresh (close date <= {threshold}, snapshot older than {cooldown})")
+
+    refreshed_ids = []
+    for d in candidates:
         deal_uuid = d["deal_id"]
         deal_name = (d.get("deal_name_full") or "?")[:50]
-        close_dt = d.get("estimated_close_date") or "?"
+        old_date = d.get("estimated_close_date") or "?"
 
         try:
+            intelligence_run(deal_uuid)
             result = forecast_refresh(deal_uuid)
-            if result:
-                parser.update_from_forecast(deal_uuid)
-                refreshed += 1
-                print(f"    ✓ {deal_name} ({close_dt} → {result.get('estimated_close_date', '?')})")
+            new_date = result.get("estimated_close_date", "?") if result else "unchanged"
+            print(f"    ✓ {deal_name} ({old_date} → {new_date})")
+            refreshed_ids.append(deal_uuid)
         except Exception as e:
             print(f"    ✗ {deal_name}: {e}")
 
-    return refreshed
+    return refreshed_ids
 
 
-def _detect_and_process_closed() -> int:
-    """Find deals that transitioned to closed in HubSpot but Supabase still shows active.
-    Re-syncs ALL properties from HubSpot, then processes final snapshot + trajectory + analysis."""
+# ─────────────────────────────────────────────────────────────
+# STEP 3 — Closed deal detection
+# ─────────────────────────────────────────────────────────────
 
-    # 1. Get ALL deals with active stage in Supabase (no snapshot filter)
+def _detect_and_process_closed() -> list[str]:
+    """Find deals that transitioned to closed in HubSpot.
+    Re-syncs properties, runs final snapshot + trajectory + analysis.
+    Returns list of deal_uuids processed."""
+
     active_stages = list(ACTIVE_STAGES)
     active_deals = []
     offset = 0
@@ -109,9 +127,8 @@ def _detect_and_process_closed() -> int:
         offset += 1000
 
     if not active_deals:
-        return 0
+        return []
 
-    # Deduplicate by deal UUID
     seen = set()
     unique = []
     for d in active_deals:
@@ -120,9 +137,8 @@ def _detect_and_process_closed() -> int:
             seen.add(did)
             unique.append(d)
     active_deals = unique
-    print(f"    {len(active_deals)} active deals in Supabase")
+    print(f"  {len(active_deals)} active deals in Supabase")
 
-    # 2. Batch read dealstage from HubSpot
     hs_ids = [d[_I["deal_col_deal_id"]] for d in active_deals if d.get(_I["deal_col_deal_id"])]
     hs_stages: dict[str, str] = {}
     for i in range(0, len(hs_ids), 100):
@@ -139,20 +155,16 @@ def _detect_and_process_closed() -> int:
         except Exception as e:
             print(f"    Batch read failed: {e}")
 
-    # 3. Find transitions: Supabase active → HubSpot closed
-    transitions = []
-    for d in active_deals:
-        hs_id = d.get(_I["deal_col_deal_id"], "")
-        hs_stage = hs_stages.get(hs_id, "")
-        if hs_stage.lower() in _CLOSED_LOWER:
-            transitions.append(d)
+    transitions = [
+        d for d in active_deals
+        if hs_stages.get(d.get(_I["deal_col_deal_id"], ""), "").lower() in _CLOSED_LOWER
+    ]
 
     if not transitions:
-        return 0
+        return []
 
-    print(f"    {len(transitions)} deals transitioned to closed")
+    print(f"  {len(transitions)} deals transitioned to closed")
 
-    # 4. Re-sync full properties from HubSpot for transitioned deals
     transition_hs_ids = [d[_I["deal_col_deal_id"]] for d in transitions if d.get(_I["deal_col_deal_id"])]
     owners = _fetch_owners()
     company_map = _fetch_company_associations(transition_hs_ids)
@@ -170,7 +182,6 @@ def _detect_and_process_closed() -> int:
         except Exception as e:
             print(f"    Full property batch read failed: {e}")
 
-    # Resolve and upsert full deal data (allow_closed=True to not skip closed stages)
     resolved_by_uuid: dict[str, dict] = {}
     for hd in hs_full:
         row = _resolve_deal(hd, owners, company_map, partner_map, allow_closed=True)
@@ -184,10 +195,9 @@ def _detect_and_process_closed() -> int:
         for i in range(0, len(rows_to_upsert), UPSERT_BATCH_SIZE):
             batch = rows_to_upsert[i:i + UPSERT_BATCH_SIZE]
             supabase.table(_SC["deals_table"]).upsert(batch, on_conflict=_SC["deals_upsert_key"]).execute()
-        print(f"    ✓ {len(resolved_by_uuid)} deals fully re-synced from HubSpot")
+        print(f"  ✓ {len(resolved_by_uuid)} deals re-synced from HubSpot")
 
-    # 5. Process each: snapshot + trajectory + analysis
-    processed = 0
+    closed_ids = []
     for deal in transitions:
         deal_uuid = deal[_I["deal_col_id"]]
         deal_name = deal.get(_I["deal_col_deal_name"]) or "?"
@@ -196,21 +206,18 @@ def _detect_and_process_closed() -> int:
         print(f"\n    [{deal_name[:40]}] {deal.get(_I['deal_col_stage'])} → {new_stage}")
 
         try:
-            # Final snapshot (no forecast — deal is closed)
-            result = intelligence_run(deal_uuid)
-            if result:
-                parser.update_from_sync(deal_uuid)
-                parser.update_from_intelligence(deal_uuid)
-                print(f"    ✓ Final snapshot")
-            else:
-                parser.update_from_sync(deal_uuid)
+            intelligence_run(deal_uuid)
+            print(f"    ✓ Final snapshot")
 
-            # Re-fetch deal with updated data for trajectory + analysis
-            deal_fresh = supabase.table(_I["deals_table"]).select("*").eq(_I["deal_col_id"], deal_uuid).limit(1).execute()
+            deal_fresh = (
+                supabase.table(_I["deals_table"])
+                .select("*")
+                .eq(_I["deal_col_id"], deal_uuid)
+                .limit(1)
+                .execute()
+            )
             if deal_fresh.data:
                 d = deal_fresh.data[0]
-
-                # Trajectory
                 try:
                     traj = compile_trajectory(d)
                     if traj:
@@ -218,98 +225,113 @@ def _detect_and_process_closed() -> int:
                 except Exception as e:
                     print(f"    ✗ Trajectory failed: {e}")
 
-                # Deal analysis
                 try:
                     analysis = analyze_deal(d)
                     if analysis:
-                        parser.update_from_daily(deal_uuid)
                         print(f"    ✓ Analysis done")
                 except Exception as e:
                     print(f"    ✗ Analysis failed: {e}")
 
-            processed += 1
+            closed_ids.append(deal_uuid)
         except Exception as e:
             print(f"    ✗ Failed: {e}")
 
-    return processed
+    return closed_ids
 
+
+# ─────────────────────────────────────────────────────────────
+# STEP 4 — Parser (deal_ui refresh for touched deals only)
+# ─────────────────────────────────────────────────────────────
+
+def _run_parser(sync_ids: list[str], refresh_ids: list[str], closed_ids: list[str]) -> int:
+    """Update deal_ui for deals touched during the daily run.
+    - sync_ids: metadata only (update_from_sync)
+    - refresh_ids: snapshot + forecast (sync + intelligence + forecast)
+    - closed_ids: full (all 5 entry points)
+    """
+    refresh_set = set(refresh_ids)
+    closed_set = set(closed_ids)
+    all_ids = list(dict.fromkeys(sync_ids + refresh_ids + closed_ids))
+
+    updated = 0
+    errors = 0
+
+    for deal_uuid in all_ids:
+        try:
+            parser.update_from_sync(deal_uuid)
+
+            if deal_uuid in closed_set:
+                parser.update_from_atlas(deal_uuid)
+                parser.update_from_intelligence(deal_uuid)
+                parser.update_from_forecast(deal_uuid)
+                parser.update_from_daily(deal_uuid)
+            elif deal_uuid in refresh_set:
+                parser.update_from_intelligence(deal_uuid)
+                parser.update_from_forecast(deal_uuid)
+
+            updated += 1
+        except Exception as e:
+            errors += 1
+            if errors <= 5:
+                print(f"    Parser error ({deal_uuid}): {e}")
+
+    return updated
+
+
+# ─────────────────────────────────────────────────────────────
+# ORCHESTRATOR
+# ─────────────────────────────────────────────────────────────
 
 def run():
     print("=" * 60)
     print("DAILY RUN")
     print("=" * 60)
 
-    # ── 1. Full sync ──
-    print("\n▸ FULL SYNC")
+    sync_ids: list[str] = []
+    refresh_ids: list[str] = []
+    closed_ids: list[str] = []
+
+    # ── 1. Sync — metadata from HubSpot ──
+    print("\n▸ STEP 1: SYNC")
     try:
         result = sync_run(full=True)
+        sync_ids = result.get("deal_ids", []) if isinstance(result, dict) else []
         synced = result.get("synced", 0) if isinstance(result, dict) else 0
         stale = result.get("stale", 0) if isinstance(result, dict) else 0
-        print(f"  {synced} deals synced, {stale} marked stale for next CORE")
+        print(f"  {synced} deals synced, {stale} marked stale")
     except Exception as e:
-        print(f"  ✗ Full sync failed: {e}")
+        print(f"  ✗ Sync failed: {e}")
         traceback.print_exc()
 
-    # ── 2. Forecast refresh — deals with imminent close date ──
-    print("\n▸ FORECAST REFRESH")
+    # ── 2. Forecast refresh — imminent/past close dates ──
+    print("\n▸ STEP 2: FORECAST REFRESH")
     try:
-        refreshed = _refresh_imminent_forecasts()
-        print(f"  {refreshed} forecasts refreshed")
+        refresh_ids = _refresh_imminent_forecasts()
+        print(f"  {len(refresh_ids)} forecasts refreshed")
     except Exception as e:
         print(f"  ✗ Forecast refresh failed: {e}")
         traceback.print_exc()
 
-    # ── 3. Detect closed deals ──
-    print("\n▸ CLOSED DEAL DETECTION")
-    closed = 0
+    # ── 3. Closed deal detection ──
+    print("\n▸ STEP 3: CLOSED DEAL DETECTION")
     try:
-        closed = _detect_and_process_closed()
-        print(f"  {closed} closed deals processed")
+        closed_ids = _detect_and_process_closed()
+        print(f"  {len(closed_ids)} closed deals processed")
     except Exception as e:
         print(f"  ✗ Closed detection failed: {e}")
         traceback.print_exc()
 
-    # ── 4. Parser — full deal_ui refresh ──
-    print("\n▸ PARSER — full deal_ui refresh")
-    stages = list(ACTIVE_STAGES) + _D["closed_stages"] + _D["on_hold_stages"]
-    updated = 0
-    errors = 0
-    offset = 0
-    page_size = 500
-
-    while True:
-        resp = (
-            supabase.table(_I["deals_table"])
-            .select(_I["deal_col_id"])
-            .in_(_I["deal_col_stage"], stages)
-            .range(offset, offset + page_size - 1)
-            .execute()
-        )
-        deals = resp.data or []
-        if not deals:
-            break
-
-        for d in deals:
-            deal_uuid = d[_I["deal_col_id"]]
-            try:
-                parser.update_from_sync(deal_uuid)
-                parser.update_from_atlas(deal_uuid)
-                parser.update_from_intelligence(deal_uuid)
-                parser.update_from_forecast(deal_uuid)
-                parser.update_from_daily(deal_uuid)
-                updated += 1
-            except Exception as e:
-                errors += 1
-                if errors <= 3:
-                    print(f"    Parser error ({deal_uuid}): {e}")
-
-        if len(deals) < page_size:
-            break
-        offset += page_size
-
-    print(f"  {updated} deals fully refreshed, {errors} errors")
+    # ── 4. Parser — deal_ui refresh for touched deals ──
+    total_unique = len(set(sync_ids + refresh_ids + closed_ids))
+    print(f"\n▸ STEP 4: PARSER ({total_unique} deals)")
+    try:
+        updated = _run_parser(sync_ids, refresh_ids, closed_ids)
+        print(f"  {updated} deals updated in deal_ui")
+    except Exception as e:
+        print(f"  ✗ Parser failed: {e}")
+        traceback.print_exc()
 
     # ── Summary ──
     print(f"\n{'=' * 60}")
-    print(f"DAILY DONE: {updated} deals refreshed, {closed} closed processed")
+    print(f"DAILY DONE: {len(sync_ids)} synced, {len(refresh_ids)} refreshed, {len(closed_ids)} closed")
     print("=" * 60)

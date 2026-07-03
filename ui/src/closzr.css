@@ -56,6 +56,10 @@
   --sh-lg: 0 24px 60px -16px rgba(28,24,16,.30), 0 8px 24px -8px rgba(28,24,16,.16);
   --sh-pop: 0 12px 36px -8px rgba(28,24,16,.22), 0 2px 8px rgba(28,24,16,.08);
 
+  /* --- Layout --- */
+  --sidebar-w: 240px;
+  --sidebar-w-icon: 56px;
+
   /* --- Density (driven by Tweaks) --- */
   --row-h: 52px;
   --gap: 20px;

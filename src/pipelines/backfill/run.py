@@ -232,11 +232,8 @@ def run(team: str, limit: int = 500):
     print(f"\n▸ SYNC {team}")
     hubspot.reset_counter()
 
-    # Check if deals already exist in Supabase for this team
-    existing_count = supabase.table(_I["deals_table"]).select("id", count="exact").eq(_I["deal_col_team"], team).execute().count or 0
-    if existing_count > 0:
-        print(f"  {existing_count} deals already in Supabase — skipping sync")
-    else:
+    # Always sync — upsert is idempotent
+    if True:
         oids = get_owner_ids_for_team(team)
         if not oids:
             print(f"  No owner IDs for {team}")

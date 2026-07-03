@@ -640,7 +640,7 @@ def update_from_forecast(deal_uuid: str):
 
     row = {
         "close_probability": _safe_int(prob),
-        "close_date": claudio_close or None,
+        "close_date": deal.get(_I["deal_col_close_date"]),
         "forecast_amount": round((prob / 100) * mrr, 2) if mrr else None,
         "forecast_confidence": s.get("forecast_confidence") or "",
         "deal_momentum": momentum,

@@ -885,6 +885,8 @@
 
 /* deals panel */
 .cz-oo-deals-panel { padding: 4px 18px 16px 48px; max-height: 420px; overflow-y: auto; scrollbar-width: thin; }
+.cz-oo-item-note { padding-top: 8px; }
+.cz-oo-item-note .cz-oo-deal-log { margin-top: 8px; }
 
 /* data table */
 .cz-oo-tw { border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; }
@@ -909,46 +911,44 @@
 .cz-oo-xrow > td { padding: 0 !important; border-bottom: 1px solid var(--line) !important; }
 
 /* action panel */
-.cz-oo-action { padding: 18px 20px 20px; background: var(--card-2); display: flex; flex-direction: column; gap: 14px; }
+.cz-oo-action { padding: 18px 20px 20px; background: var(--card-2); display: flex; flex-direction: column; gap: 12px; }
 .cz-oo-action-summary { margin: 0; font-size: 13px; line-height: 1.65; color: var(--ink-2); padding: 10px 14px; background: var(--card); border-left: 3px solid var(--indigo-300); border-radius: 0 var(--r-xs) var(--r-xs) 0; white-space: pre-wrap; word-break: break-word; }
 
-/* action body: info LEFT + buttons RIGHT */
-.cz-oo-action-row { display: flex; gap: 16px; align-items: flex-start; }
-.cz-oo-action-side { display: flex; flex-direction: column; gap: 6px; flex: none; margin-left: auto; }
+/* dates line + alignment chip */
+.cz-oo-dates-line { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.cz-oo-dates-pair { display: inline-flex; align-items: center; gap: 5px; }
+.cz-oo-dates-label { font-size: 11.5px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.cz-oo-dates-val { font-size: 13.5px; font-weight: 700; }
 
-/* info boxes */
-.cz-oo-info-boxes { display: flex; gap: 10px; flex-wrap: wrap; flex: 1; min-width: 0; }
-.cz-oo-ibox { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--card); min-width: 150px; transition: border-color .15s; }
-.cz-oo-ibox.warn { border-color: var(--amber); }
-.cz-oo-ibox-icon { width: 30px; height: 30px; border-radius: var(--r-xs); background: var(--paper-2); display: flex; align-items: center; justify-content: center; flex: none; color: var(--ink-3); }
-.cz-oo-ibox.warn .cz-oo-ibox-icon { background: var(--amber-tint); color: var(--amber-ink); }
-.cz-oo-ibox-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.cz-oo-ibox-label { font-size: 10.5px; font-weight: 600; color: var(--ink-4); }
-.cz-oo-ibox-val { font-size: 14px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+/* context tag — inline on dates line */
+.cz-oo-ctx-tag { display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 600; color: var(--ink-3); padding: 2px 10px; border-radius: 999px; background: var(--paper-2); white-space: nowrap; margin-left: auto; }
+.cz-oo-ctx-tag.warn { background: var(--amber-tint); color: var(--amber-ink); }
 
-/* action buttons */
-.cz-oo-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: var(--r-xs); font-size: 13px; font-weight: 600; transition: all .12s; cursor: pointer; white-space: nowrap; }
-.cz-oo-btn.keep { background: var(--card); border: 1px solid var(--line); color: var(--ink); }
-.cz-oo-btn.keep:hover { border-color: var(--green); background: var(--green-tint); color: var(--green-ink); }
-.cz-oo-btn.change { background: var(--card); border: 1px solid var(--line); color: var(--ink); }
-.cz-oo-btn.change:hover { border-color: var(--indigo); background: var(--indigo-tint); color: var(--indigo); }
-.cz-oo-btn.lost { background: var(--card); border: 1px solid var(--line); color: var(--red); }
-.cz-oo-btn.lost:hover { border-color: var(--red); background: var(--red-tint); }
+/* action buttons — big + Lost as link */
+.cz-oo-action-buttons { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cz-oo-btn-big { display: inline-flex; align-items: center; gap: 7px; padding: 10px 22px; border-radius: var(--r-sm); font-size: 13.5px; font-weight: 700; cursor: pointer; transition: all .12s; white-space: nowrap; }
+.cz-oo-btn-big.keep { background: var(--green-tint); border: 1px solid var(--green); color: var(--green-ink); }
+.cz-oo-btn-big.keep:hover { background: var(--green); color: #fff; }
+.cz-oo-btn-big.change { background: var(--indigo-tint); border: 1px solid var(--indigo-300); color: var(--indigo); }
+.cz-oo-btn-big.change:hover { background: var(--indigo); color: #fff; }
+.cz-oo-lost-link { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; font-size: 12.5px; font-weight: 600; color: var(--red); cursor: pointer; transition: opacity .12s; margin-left: 4px; }
+.cz-oo-lost-link:hover { opacity: .7; text-decoration: underline; }
 
-/* confirm flow */
-.cz-oo-confirm-flow { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--card); }
+/* confirm flow — horizontal */
+.cz-oo-confirm-flow { display: flex; flex-direction: column; gap: 8px; }
+.cz-oo-confirm-flow.lost .cz-oo-confirm-btn { background: var(--red); }
 .cz-oo-confirm-header { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink); }
 .cz-oo-confirm-header b { font-weight: 700; }
 .cz-oo-confirm-cancel { margin-left: auto; width: 24px; height: 24px; border-radius: var(--r-xs); display: inline-flex; align-items: center; justify-content: center; color: var(--ink-3); transition: all .1s; }
 .cz-oo-confirm-cancel:hover { background: var(--paper-2); color: var(--ink); }
-.cz-oo-confirm-reason { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r-xs); font-family: var(--font-sans); font-size: 13px; color: var(--ink); background: var(--card-2); outline: none; resize: vertical; min-height: 44px; transition: border-color .15s; }
-.cz-oo-confirm-reason:focus { border-color: var(--indigo); }
-.cz-oo-confirm-reason::placeholder { color: var(--ink-4); }
-.cz-oo-confirm-btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 8px 20px; border-radius: var(--r-xs); font-size: 13px; font-weight: 700; background: var(--green); color: #fff; transition: opacity .12s; }
+.cz-oo-confirm-inline { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: var(--r-sm); overflow: hidden; background: var(--card); transition: border-color .15s; }
+.cz-oo-confirm-inline:focus-within { border-color: var(--indigo); }
+.cz-oo-confirm-input { flex: 1; padding: 10px 14px; border: none; font-family: var(--font-sans); font-size: 13px; color: var(--ink); background: transparent; outline: none; min-width: 0; }
+.cz-oo-confirm-input::placeholder { color: var(--ink-4); }
+.cz-oo-confirm-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; font-size: 13px; font-weight: 700; background: var(--green); color: #fff; transition: opacity .12s; white-space: nowrap; flex: none; }
 .cz-oo-confirm-btn:hover { opacity: .9; }
 .cz-oo-confirm-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .cz-oo-confirm-btn.lost { background: var(--red); }
-.cz-oo-confirm-flow.lost { border-color: var(--red-tint); }
 
 /* date picker */
 .cz-oo-date-pick { display: flex; align-items: center; gap: 10px; }

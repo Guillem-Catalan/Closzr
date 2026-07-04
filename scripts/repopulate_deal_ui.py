@@ -15,6 +15,7 @@ import os
 import sys
 import time
 
+sys.stdout.reconfigure(line_buffering=True)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.db.client import supabase
@@ -74,7 +75,7 @@ def run():
             except Exception as e:
                 errors.append((deal_id, name, str(e)))
 
-        if i % 50 == 0:
+        if i % 10 == 0:
             elapsed = time.time() - t0
             rate = i / elapsed
             eta = (len(deal_ids) - i) / rate if rate > 0 else 0

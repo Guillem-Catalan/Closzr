@@ -120,7 +120,7 @@ function toDealRow(d: RawDealUI): DealRow & { _macro: string; _amount: number; _
     score: d.score ?? undefined,
     _macro: d.macro_stage || "other",
     _amount: d.mrr || 0,
-    _closeDate: d.close_date || d.close_date_hs || null,
+    _closeDate: d.close_date_hs || null,
     _raw: d,
   };
 }
@@ -156,7 +156,7 @@ function toForecastDeal(d: RawDealUI, row: DealRow): ForecastDeal {
     forecastRisks: joinTexts(d.forecast_risks),
     forecastAccelerators: joinTexts(d.forecast_accelerators),
     hsCategory: d.forecast_category || "",
-    closeDate: d.close_date || d.close_date_hs || null,
+    closeDate: d.close_date_hs || null,
   };
 }
 

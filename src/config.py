@@ -2605,7 +2605,8 @@ def get_slack_channel_by_name(name: str) -> str | None:
 
 def get_deal_team(partner_id: str | None, owner_email: str | None) -> str | None:
     """Assign team from owner email via orgchart. If owner belongs to multiple
-    teams, use partner association to disambiguate."""
+    teams, use partner association to disambiguate. Falls back to partner when
+    no owner is available."""
     if owner_email:
         teams = _EMAIL_TO_TEAMS.get(owner_email, [])
         if len(teams) == 1:
@@ -2617,6 +2618,8 @@ def get_deal_team(partner_id: str | None, owner_email: str | None) -> str | None
             return teams[0]
         if teams:
             return teams[0]
+    if partner_id:
+        return PARTNER_OBJECT_MAP.get(partner_id)
     return None
 
 

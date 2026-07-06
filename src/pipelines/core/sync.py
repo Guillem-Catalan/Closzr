@@ -338,14 +338,16 @@ def _detect_stale(rows: list[dict]) -> list[dict]:
         if not new_activity:
             continue
 
-        checked_at = existing.get("checked_at", "")
+        old_activity = _normalize_ts(existing.get("activity", ""))
+        if new_activity == old_activity:
+            continue
 
+        checked_at = existing.get("checked_at", "")
         if checked_at and checked_at > cooldown_cutoff:
             skipped_cooldown += 1
             continue
 
-        if not checked_at or new_activity > _normalize_ts(checked_at):
-            row[col_stale] = True
+        row[col_stale] = True
 
     if skipped_cooldown:
         print(f"   {skipped_cooldown} deals skipped (cooldown {cooldown_hours}h)")

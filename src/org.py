@@ -1589,6 +1589,53 @@ CRM_PIPELINE_NAMES = {v["name"]: k for k, v in CRM_PIPELINE_MAP.items()}
 CRM_ACTIVE_PIPELINE_IDS = [pid for pid, v in CRM_PIPELINE_MAP.items() if v["active"]]
 CRM_EXCLUDE_PIPELINE_IDS = {pid for pid, v in CRM_PIPELINE_MAP.items() if not v["active"]}
 
+# ? CRM stage label (from CRM_STAGE_MAP) → schema internal name
+CRM_STAGE_LABEL_TO_INTERNAL = {
+    "New":                                  "new",
+    "New Deals":                            "new_deals",
+    "New Qualified Opportunity":            "new_qualified",
+    "Research & Outreach":                  "research_outreach",
+    "Outreach":                             "outreach",
+    "Pre-qualified":                        "pre_qualified",
+    "Attempting to contact":                "attempting_to_contact",
+    "Attempted to contact":                 "attempted_to_contact",
+    "Associating the partner":              "associating_partner",
+    "Connected - Not Engaged":              "connected_not_engaged",
+    "Engaged":                              "engaged",
+    "Demo request from Prospect":           "demo_request",
+    "Demo Request from Prospect":           "demo_request",
+    "Demo Booked":                          "demo_booked",
+    "Meeting Booked":                       "meeting_booked",
+    "Meeting scheduled":                    "meeting_scheduled",
+    "Discovery":                            "discovery",
+    "MEDDPICC Criteria Validation Started": "meddpicc_validation",
+    "Factorial Project Alignment started":  "factorial_project_alignment",
+    "Product Alignment":                    "product_alignment",
+    "Economical Alignment Started":         "economical_alignment",
+    "Pricing & Packaging":                  "pricing_packaging",
+    "Pricing and Packaging":                "pricing_packaging",
+    "Contracting":                          "contracting",
+    "Contract Sent":                        "contract_sent",
+    "Contract negotiation (Ongoing) ":      "contract_negotiation",
+    "Closed - pending finance validation":  "closed_pending_validation",
+    "Closed Pending Payment":               "closed_pending_payment",
+    "Closed Won":                           "closed_won",
+    "Closed won":                           "closed_won",
+    "Closed Won - Finance Only":            "closed_won_finance",
+    "Closed Lost":                          "closed_lost",
+    "Closed lost":                          "closed_lost",
+    "Opportunity lost":                     "opportunity_lost",
+    "Opportunity Lost":                     "opportunity_lost",
+    "Opportunity Lost ":                    "opportunity_lost",
+    "On Hold":                              "on_hold",
+    "To reschedule":                        "to_reschedule",
+    "To Reschedule":                        "to_reschedule",
+    "Nurturing":                            "nurturing",
+    "Hot Nurturing":                        "hot_nurturing",
+    "Long Nurturing":                       "long_nurturing",
+    "Sales Nurturing":                      "sales_nurturing",
+}
+
 SLACK_ACTIVE = {email for email, ch in SLACK_PERSON_CHANNELS.items() if ch}
 
 

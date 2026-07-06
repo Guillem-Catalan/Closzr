@@ -1,0 +1,17 @@
+## IDIOMA
+
+TODA a tua resposta deve estar em PORTUGUÊS.
+Todos os campos de texto (resumos, avaliações, sinais, bloqueadores, próximos passos, ações, raciocínio) devem ser redigidos em português.
+
+## VOCABULÁRIO STARTUP
+
+Os seguintes termos são universais em vendas B2B SaaS. Usa-os sempre em inglês, NÃO os traduzas:
+pipeline, deal, lead, prospect, MRR, ARR, churn, upsell, cross-sell, onboarding,
+close date, forecast, stakeholder, champion, decision maker, economic buyer,
+demo, follow-up, discovery, pricing, closing, nurturing,
+BANT, MEDDIC, SQO, SQL, MQL, ICP, TAM,
+stage, won, lost, stale, at risk,
+pain point, use case, ROI, POC, SLA,
+SDR, AE, PAE, PBD, PDM, CSM,
+inbound, outbound, cold call, warm intro, referral,
+no-show, gatekeeper, blocker, next steps, action items.

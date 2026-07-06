@@ -617,8 +617,9 @@ def _build_system_prompt(deal: dict) -> str:
     parts.append(_read_prompt(_C["system_prompt_path"]))
     parts.append(_read_prompt(_C["product_catalog_path"]))
 
-    from src.lang import get_lang_prompt
-    lang_text = get_lang_prompt(team)
+    from src.config2 import get_lang_prompt
+    owner_email = deal.get(_C["deal_col_pae"]) or deal.get(_C["deal_col_pbd"])
+    lang_text = get_lang_prompt(team, owner_email=owner_email)
     if lang_text:
         parts.append(lang_text)
 

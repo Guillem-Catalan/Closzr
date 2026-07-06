@@ -520,6 +520,33 @@ def get_lang_file(email: str) -> str:
     return "lang_en.txt"
 
 
+def get_lang_prompt(team: str, owner_email: str | None = None) -> str:
+    lang = None
+    if owner_email:
+        lang = org.PERSON_LANG_OVERRIDE.get(owner_email)
+    if not lang and owner_email:
+        owner_team = get_subteam(owner_email)
+        if owner_team:
+            pi = org.PARTNER_IDENTITY.get(owner_team, {})
+            if pi:
+                lang = pi.get("lang")
+    if not lang:
+        pi = org.PARTNER_IDENTITY.get(team, {})
+        if pi:
+            lang = pi.get("lang")
+    if not lang:
+        for ti in org.TEAM_IDENTITY.values():
+            if ti.get("lang"):
+                lang = ti["lang"]
+                break
+    if not lang:
+        lang = org.OUTPUT_LANG_DEFAULT
+    path = PROMPTS_DIR / "lang" / f"{lang}.txt"
+    if path.exists():
+        return path.read_text(encoding="utf-8").strip()
+    return ""
+
+
 def get_tl_channel(team_name: str) -> str:
     sc = org.SLACK_TEAM_CHANNELS.get(team_name, {})
     return sc.get("tl_channel", org.SLACK_FALLBACK_CHANNEL)

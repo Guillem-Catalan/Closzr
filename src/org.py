@@ -1488,6 +1488,11 @@ OUTPUT_LANGUAGES = {  # & ALL entries — language per team
     "en": "Always respond in English.",
     "it": "Rispondi sempre in italiano.",
     "de": "Antworte immer auf Deutsch.",
+    "pt": "Responde sempre em português.",
+}
+
+PERSON_LANG_OVERRIDE: dict[str, str] = {  # & ALL entries — person-level language exceptions
+    "andre.reis@factorial.co": "pt",
 }
 
 TIMEZONES = {  # & ALL entries — timezone per team

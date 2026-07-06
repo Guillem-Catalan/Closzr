@@ -115,7 +115,11 @@ def run(full: bool = False):
         if _needs_atlas(deal):
             print(f"  ▸ ATLAS")
             try:
-                atlas_generate(deal.get("atlas_id") or "", crm_id, team=deal.get(_I["deal_col_team"]) or "")
+                atlas_generate(
+                    deal.get("atlas_id") or "", crm_id,
+                    team=deal.get(_I["deal_col_team"]) or "",
+                    owner_email=deal.get(_I["deal_col_pae"]) or deal.get(_I["deal_col_pbd"]) or "",
+                )
                 parser.update_from_atlas(deal_uuid)
             except Exception as e:
                 print(f"    Atlas failed: {e}")

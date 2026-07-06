@@ -184,7 +184,7 @@ PARTNERS_ORGCHART = {
 
     # ====================================================================
     # MEXICO — equipo México
-    # Deals con partner association "Santander México" → team = "Santander Mexico"
+    # Deals con partner association "Santander México" → team = "Mexico"
     # Deals sin partner → team = "Mexico"
     # ====================================================================
 
@@ -552,7 +552,7 @@ PARTNER_OBJECT_TYPE_ID = "2-3229093"
 # HubSpot Partner object ID → team name
 PARTNER_OBJECT_MAP = {
     "4767807590":    "Santander",       # Santander
-    "401845373146":  "Santander Mexico",# Santander México
+    "401845373146":  "Mexico",          # Santander México
     "28079747484":   "Santander",       # Santander PT
     "4767660726":    "Telefonica",      # Telefonica
     "25968646986":   "TIM",             # TIM

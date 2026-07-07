@@ -221,13 +221,13 @@ DIRECT_SALES_ES = {
     },
     "teams": {
         "DS Mireia": {
-            "active": False,
+            "active": True,
             "tl": "mireia.bach@factorial.co",
             "tl_name": "Mireia Bach Ruiz",
             "role": "AE OB Senior Manager Spain",
             "subteams": {
                 "DS Rubén": {
-                    "active": False,
+                    "active": True,
                     "tl": "ruben.mariscal@factorial.co",
                     "tl_name": "Rubén Mariscal",
                     "ae": {
@@ -241,7 +241,7 @@ DIRECT_SALES_ES = {
                     },
                 },
                 "DS Andrea C": {
-                    "active": False,
+                    "active": True,
                     "tl": "andrea.castanar@factorial.co",
                     "tl_name": "Andrea Castañar Esteban",
                     "ae": {

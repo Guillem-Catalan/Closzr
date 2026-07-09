@@ -18,6 +18,7 @@ Everything from config.
 import json
 import re
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
 
 from src.config import (
@@ -291,7 +292,8 @@ def run(team: str, limit: int = 500):
     skipped = 0
     failures: list[str] = []
 
-    for i, deal in enumerate(deals, 1):
+    def _process_deal(i: int, deal: dict) -> str:
+        """Process a single deal. Returns 'ok', 'skipped', or 'failed:<reason>'."""
         deal_uuid = deal[_I["deal_col_id"]]
         deal_name = deal.get(_I["deal_col_deal_name"]) or "?"
         stage = deal.get(_I["deal_col_stage"]) or "?"
@@ -299,7 +301,7 @@ def run(team: str, limit: int = 500):
 
         print(f"\n{'─' * 50}")
         print(f"  [{i}/{len(deals)}] {deal_name[:50]}")
-        print(f"  Stage: {stage} | MRR: €{mrr}")
+        print(f"  Stage: {stage} | MRR: €{mrr}", flush=True)
 
         try:
             # Atlas
@@ -320,7 +322,7 @@ def run(team: str, limit: int = 500):
                 except Exception as e:
                     print(f"    Atlas failed: {e}")
 
-            # Intelligence — 50 comms per pass, loop until all processed
+            # Intelligence — 30 comms per pass, loop until all processed
             print(f"  ▸ INTELLIGENCE")
             intel_result = None
             pass_num = 0
@@ -355,17 +357,29 @@ def run(team: str, limit: int = 500):
                 except Exception as e:
                     print(f"    Parser failed: {e}")
 
-                ok += 1
-                print(f"  ✓ Done")
+                print(f"  ✓ Done", flush=True)
+                return "ok"
             else:
-                skipped += 1
-                print(f"  ⏳ Skipped (no new comms or pending)")
+                print(f"  ⏳ Skipped (no new comms or pending)", flush=True)
+                return "skipped"
 
         except Exception as e:
-            failed += 1
-            failures.append(f"{deal_name[:30]}: {e}")
             print(f"  ✗ FAILED: {e}")
             traceback.print_exc()
+            return f"failed:{deal_name[:30]}: {e}"
+
+    BACKFILL_WORKERS = 2
+    with ThreadPoolExecutor(max_workers=BACKFILL_WORKERS) as pool:
+        futures = {pool.submit(_process_deal, i, deal): deal for i, deal in enumerate(deals, 1)}
+        for future in as_completed(futures):
+            result = future.result()
+            if result == "ok":
+                ok += 1
+            elif result == "skipped":
+                skipped += 1
+            elif result.startswith("failed:"):
+                failed += 1
+                failures.append(result[7:])
 
     print(f"\n{'=' * 60}")
     print(f"BACKFILL {team}: {ok} OK, {skipped} skipped, {failed} failed")

@@ -4,7 +4,8 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { useData } from "./data/store";
 import { fetchDealDetail, type DealDetail } from "./data/fetchDetail";
-import Sidebar, { SidebarProvider } from "./layout/Sidebar";
+import Sidebar, { SidebarProvider, useSidebar } from "./layout/Sidebar";
+import { Icon } from "./views/components";
 import PipelineView from "./views/pipeline/PipelineView";
 import DealWorkspace from "./views/pipeline/DealWorkspace";
 import ForecastView from "./views/forecast/ForecastView";
@@ -12,6 +13,15 @@ import OneOnOneView from "./views/oneone/OneOnOneView";
 import TodoView from "./views/todo/TodoView";
 import ComingSoon from "./views/ComingSoon";
 const AdminView = lazy(() => import("./views/admin/AdminView"));
+
+function SidebarToggle() {
+  const { toggle, expanded } = useSidebar();
+  return (
+    <button className="cz-sb-toggle" onClick={toggle} title={expanded ? "Collapse (⌘B)" : "Expand (⌘B)"}>
+      <Icon name="panelLeft" size={18} />
+    </button>
+  );
+}
 
 function App() {
   const D = useData();
@@ -43,6 +53,7 @@ function App() {
         <div className="cz-app">
           <Sidebar view={view} onNav={setView}/>
           <main className="cz-main" style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"60vh"}}>
+            <SidebarToggle/>
             <p style={{color:"var(--ink-3)",fontSize:15}}>Cargando datos...</p>
           </main>
         </div>
@@ -55,6 +66,7 @@ function App() {
       <div className="cz-app">
         <Sidebar view={view} onNav={setView}/>
         <main className="cz-main">
+          <SidebarToggle/>
           {view === "todos" && <TodoView onOpen={handleOpen}/>}
           {view === "pipeline" && <PipelineView onOpen={handleOpen}/>}
           {view === "forecast" && <ForecastView onOpen={handleOpen}/>}

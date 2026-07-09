@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, Fragment } from "react";
 import { Icon, Chip, StageChip, Avatar, getInitials, fmtMRR, TONE } from "../components";
 import { usePermissions } from "../../permissions";
 import { stageAbbr } from "../../display";
-import { WEEKS, getWeekType, getMondayOfWeek, currentYearMonth, type Section, type CheckItem } from "./weeks";
+import { WEEKS, getWeekType, getMondayOfWeek, currentYearMonth, PROBLEM_LABELS, type Section, type CheckItem } from "./weeks";
 import { useOneOnOne, type OODeal, type OOEntry, type OOSession } from "./useOneOnOne";
 
 function fmtDate(d: string | null): string {
@@ -268,14 +268,16 @@ function DealActionPanel({ deal, section, session, onEntry, query }: {
 }
 
 /* ── Deal Data Table ── */
-function DealTable({ deals, section, session, onEntry, onOpen, query }: {
+function DealTable({ deals, section, session, onEntry, onOpen, query, dealProblems }: {
   deals: OODeal[]; section: string;
   session: { checks: Record<string, boolean>; entries: OOEntry[] } | null;
   onEntry: (e: Omit<OOEntry, "at">) => void;
   onOpen: (row: any) => void;
   query?: string;
+  dealProblems?: Map<string, { queries: string[]; labels: string[] }>;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const showProblems = dealProblems && dealProblems.size > 0;
 
   return (
     <div className="cz-oo-tw">
@@ -283,6 +285,7 @@ function DealTable({ deals, section, session, onEntry, onOpen, query }: {
         <thead>
           <tr>
             <th>Deal</th>
+            {showProblems && <th>Problema</th>}
             <th className="cz-oo-th-r">MRR</th>
             <th className="cz-oo-th-r">Stage</th>
             <th className="cz-oo-th-r">Último contacto</th>
@@ -302,6 +305,15 @@ function DealTable({ deals, section, session, onEntry, onOpen, query }: {
                   onClick={() => setExpandedId(expanded ? null : deal.deal_id)}
                 >
                   <td className="cz-oo-td-co">{name}</td>
+                  {showProblems && (
+                    <td>
+                      <div className="cz-oo-problem-tags">
+                        {(dealProblems.get(deal.deal_id)?.labels || []).map(l => (
+                          <span key={l} className="cz-oo-problem-tag">{l}</span>
+                        ))}
+                      </div>
+                    </td>
+                  )}
                   <td className="num cz-oo-td-r" style={{ fontWeight: 700 }}>{fmtMRR(deal.mrr)}</td>
                   <td className="cz-oo-td-r"><StageChip stage={stageAbbr(deal.stage || "")} /></td>
                   <td className="cz-oo-td-r cz-oo-td-lc">{deal.last_contact_label || "—"}</td>
@@ -318,7 +330,7 @@ function DealTable({ deals, section, session, onEntry, onOpen, query }: {
                 </tr>
                 {expanded && (
                   <tr className="cz-oo-xrow">
-                    <td colSpan={7}>
+                    <td colSpan={showProblems ? 8 : 7}>
                       <DealActionPanel deal={deal} section={section} session={session} onEntry={onEntry} query={query} />
                     </td>
                   </tr>
@@ -333,9 +345,9 @@ function DealTable({ deals, section, session, onEntry, onOpen, query }: {
 }
 
 /* ── Check Item ── */
-function CheckItemRow({ item, section, checked, deals, session, onToggle, onEntry, onOpen }: {
+function CheckItemRow({ item, section, checked, getDealsFor, session, onToggle, onEntry, onOpen }: {
   item: CheckItem; section: string; checked: boolean;
-  deals: OODeal[];
+  getDealsFor: (q: string) => OODeal[];
   session: { checks: Record<string, boolean>; entries: OOEntry[] } | null;
   onToggle: () => void;
   onEntry: (e: Omit<OOEntry, "at">) => void;
@@ -343,6 +355,33 @@ function CheckItemRow({ item, section, checked, deals, session, onToggle, onEntr
 }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
+
+  const { deals, dealProblems } = useMemo(() => {
+    if (item.queries) {
+      const seen = new Set<string>();
+      const merged: OODeal[] = [];
+      const problems = new Map<string, { queries: string[]; labels: string[] }>();
+      for (const q of item.queries) {
+        for (const d of getDealsFor(q)) {
+          if (!seen.has(d.deal_id)) {
+            seen.add(d.deal_id);
+            merged.push(d);
+          }
+          const entry = problems.get(d.deal_id) || { queries: [], labels: [] };
+          if (!entry.queries.includes(q)) {
+            entry.queries.push(q);
+            const lbl = PROBLEM_LABELS[q];
+            if (lbl) entry.labels.push(lbl);
+          }
+          problems.set(d.deal_id, entry);
+        }
+      }
+      return { deals: merged, dealProblems: problems };
+    }
+    if (item.query) return { deals: getDealsFor(item.query), dealProblems: undefined };
+    return { deals: [] as OODeal[], dealProblems: undefined };
+  }, [item.query, item.queries, getDealsFor]);
+
   const hasDeals = deals.length > 0;
   const itemNotes = (session?.entries || []).filter(e => e.deal_id === `item:${item.id}` && e.section === section);
 
@@ -365,21 +404,31 @@ function CheckItemRow({ item, section, checked, deals, session, onToggle, onEntr
             <span>deal{deals.length !== 1 ? "s" : ""}</span>
           </span>
         )}
-        {item.query && deals.length === 0 && (
+        {(item.query || item.queries) && deals.length === 0 && (
           <Chip tone="green" style={{ fontSize: 10, marginLeft: "auto" }}>0 deals</Chip>
         )}
-        {itemNotes.length > 0 && !hasDeals && !item.query && (
+        {itemNotes.length > 0 && !hasDeals && !item.query && !item.queries && (
           <span className="cz-oo-check-count">
             <span className="num">{itemNotes.length}</span>
             <span>nota{itemNotes.length !== 1 ? "s" : ""}</span>
           </span>
         )}
-        <Icon name="chevDown" size={12} style={{ color: "var(--ink-4)", transform: open ? "none" : "rotate(-90deg)", transition: "transform .15s", marginLeft: hasDeals || (item.query && deals.length === 0) || (itemNotes.length > 0 && !hasDeals && !item.query) ? 0 : "auto" }} />
+        <Icon name="chevDown" size={12} style={{ color: "var(--ink-4)", transform: open ? "none" : "rotate(-90deg)", transition: "transform .15s", marginLeft: hasDeals || ((item.query || item.queries) && deals.length === 0) || (itemNotes.length > 0 && !hasDeals && !item.query && !item.queries) ? 0 : "auto" }} />
       </div>
       {open && (
         <div className="cz-oo-deals-panel">
+          {item.guide && (
+            <div className="cz-oo-guide">
+              {item.guide.map((g, i) => (
+                <div key={i} className="cz-oo-guide-item">
+                  <span className="cz-oo-guide-bullet" />
+                  <span>{g}</span>
+                </div>
+              ))}
+            </div>
+          )}
           {hasDeals && (
-            <DealTable deals={deals} section={section} session={session} onEntry={onEntry} onOpen={onOpen} query={item.query} />
+            <DealTable deals={deals} section={section} session={session} onEntry={onEntry} onOpen={onOpen} query={item.query} dealProblems={dealProblems} />
           )}
           <div className="cz-oo-item-note">
             <div className="cz-oo-confirm-inline">
@@ -432,6 +481,7 @@ function SectionBlock({ section, session, getDealsFor, onToggle, onEntry, onOpen
       <button className="cz-oo-section-header" onClick={() => setCollapsed(p => !p)}>
         <span className="cz-oo-section-num" style={{ background: t.bg, color: t.fg }}>{section.num}</span>
         <span className="cz-oo-section-title">{section.title}</span>
+        <span className="cz-oo-section-time">{section.time} min</span>
         <span className="cz-oo-section-progress" style={{
           background: done === total && total > 0 ? "var(--green-tint)" : t.bg,
           color: done === total && total > 0 ? "var(--green-ink)" : t.fg,
@@ -446,7 +496,7 @@ function SectionBlock({ section, session, getDealsFor, onToggle, onEntry, onOpen
             <CheckItemRow
               key={item.id} item={item} section={section.num}
               checked={!!checks[item.id]}
-              deals={item.query ? getDealsFor(item.query) : []}
+              getDealsFor={getDealsFor}
               session={session}
               onToggle={() => onToggle(item.id)}
               onEntry={onEntry} onOpen={onOpen}
@@ -600,6 +650,7 @@ export default function OneOnOneView({ onOpen }: { onOpen: (row: any, tab?: stri
             >
               <span className="cz-oo-wcard-num">W{w.type}</span>
               <span className="cz-oo-wcard-title">{w.subtitle}</span>
+              <span className="cz-oo-wcard-dur">{w.duration} min</span>
               {weekType === w.type && wTotal > 0 && (
                 <span className="cz-oo-wcard-count num">{wDone}/{wTotal}</span>
               )}

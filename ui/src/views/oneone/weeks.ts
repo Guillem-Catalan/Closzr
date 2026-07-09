@@ -2,6 +2,8 @@ export type CheckItem = {
   id: string;
   text: string;
   query?: string;
+  queries?: string[];
+  guide?: string[];
   metric?: string;
 };
 
@@ -9,6 +11,7 @@ export type Section = {
   num: string;
   title: string;
   tone: string;
+  time: number;
   items: CheckItem[];
 };
 
@@ -16,159 +19,118 @@ export type WeekConfig = {
   type: number;
   label: string;
   subtitle: string;
+  duration: number;
   sections: Section[];
 };
 
+const HIGIENE_QUERIES = ["past_close", "same_stage_30d", "stale_7d", "demo_6w"];
+const HIGIENE_GUIDE = [
+  "Close Date pasada → actualiza o mueve a Lost",
+  "Mismo stage +30d → define acción concreta o ciérralo",
+  "Sin actividad 7d → pide que explique y define próximo paso",
+  "Demo hace +6 sem → acelera o limpia",
+];
+
+const M0_REVIEW_GUIDE = [
+  "¿El forecast category es correcto?",
+  "¿Hay riesgos no nombrados?",
+  "¿Tiene próximos pasos definidos?",
+  "¿Hay algún bloqueo donde debas intervenir tú?",
+];
+
+const M1_REVIEW_GUIDE = [
+  "¿El stage refleja dónde está realmente la oportunidad?",
+  "¿La Close Date es realista? Que la justifique con hechos",
+  "¿Tiene next step concreto con fecha en los próximos 7 días?",
+  "¿La nota de forecast es clara?",
+];
+
 export const WEEKS: WeekConfig[] = [
   {
-    type: 0, label: "W0", subtitle: "Higiene + M0",
+    type: 0, label: "W0", subtitle: "Higiene + M0 + M1", duration: 60,
     sections: [
-      {
-        num: "01", title: "HIGIENE DEL PIPELINE", tone: "red",
-        items: [
-          { id: "01.1", text: "Revisa los deals con Close Date en el pasado — actualiza la fecha o muévelos a Closed Lost", query: "past_close" },
-          { id: "01.2", text: "Revisa deals estancados en el mismo stage +30 días — pregunta por qué no avanza y define una acción concreta o ciérralo", query: "same_stage_30d" },
-          { id: "01.3", text: "Repasa deals sin actividad en los últimos 7 días — pide que explique qué pasó y define el próximo paso", query: "stale_7d" },
-          { id: "01.4", text: "Mira deals con demo de hace +6 semanas — marca Ageing, acelera o limpia", query: "demo_6w" },
-        ],
-      },
-      {
-        num: "02", title: "MES ACTUAL (M+0)", tone: "amber",
-        items: [
-          { id: "02.1", text: "Pide que confirme M+0: forecast claro, riesgos nombrados y próximos pasos definidos para cada deal", query: "m0" },
-          { id: "02.2", text: "Si hay gap por segmento, alinead qué generación o matching se necesita con SDs este mes" },
-          { id: "02.3", text: "Pregunta si hay algún bloqueo real donde debas intervenir tú (Director, partner, contractual)" },
-          { id: "02.4", text: "Pide que actualice el Forecast Submission según lo que habéis acordado" },
-        ],
-      },
+      { num: "01", title: "HIGIENE DEL PIPELINE", tone: "red", time: 20, items: [
+        { id: "w0-hyg", text: "Limpieza de pipeline — revisa cada deal problemático, actualiza o cierra", queries: HIGIENE_QUERIES, guide: HIGIENE_GUIDE },
+      ]},
+      { num: "02", title: "MES ACTUAL — M+0", tone: "amber", time: 15, items: [
+        { id: "w0-m0", text: "Revisión deal por deal M+0 — forecast, riesgos y próximos pasos", query: "m0", guide: M0_REVIEW_GUIDE },
+        { id: "w0-m0-gap", text: "Si hay gap por segmento, alinead generación o matching con SDs" },
+        { id: "w0-m0-fc", text: "Pide que actualice el Forecast Submission con lo acordado" },
+      ]},
+      { num: "03", title: "PRÓXIMO MES — M+1", tone: "blue", time: 15, items: [
+        { id: "w0-m1", text: "Revisión deal por deal M+1 — stage, fecha y next steps", query: "m1", guide: M1_REVIEW_GUIDE, metric: "coverage_m1" },
+      ]},
+      { num: "04", title: "COMPROMISOS", tone: "green", time: 10, items: [
+        { id: "w0-comp", text: "Pide que resuma 2-3 compromisos: deals concretos, acciones y fechas" },
+        { id: "w0-next", text: "Confirmad fecha y hora del próximo 1:1" },
+      ]},
     ],
   },
   {
-    type: 1, label: "W1", subtitle: "Setup completo",
+    type: 1, label: "W1", subtitle: "Pipe building", duration: 45,
     sections: [
-      {
-        num: "01", title: "PRE-SESIÓN (prepara antes del 1:1)", tone: "indigo",
-        items: [
-          { id: "01.1", text: "Abre la pipeline filtrada por este AE, ordenada por Close Date" },
-          { id: "01.2", text: "Identifica deals con Close Date pasada o sin actividad en 7 días", query: "past_close_or_stale" },
-          { id: "01.3", text: "Apunta todos los deals de M+1 — en esta sesión los vais a revisar todos", query: "m1" },
-          { id: "01.4", text: "Calcula el coverage de M+1: suma MRR de deals M+1 / cuota mensual", metric: "coverage_m1" },
-        ],
-      },
-      {
-        num: "02", title: "HIGIENE DEL PIPELINE", tone: "red",
-        items: [
-          { id: "02.1", text: "Revisa los deals con Close Date en el pasado — actualiza la fecha o muévelos a Closed Lost", query: "past_close" },
-          { id: "02.2", text: "Revisa deals estancados en el mismo stage +30 días — pregunta por qué no avanza y define una acción concreta o ciérralo", query: "same_stage_30d" },
-          { id: "02.3", text: "Repasa deals sin actividad en los últimos 7 días — pide que explique qué pasó y define el próximo paso", query: "stale_7d" },
-          { id: "02.4", text: "Mira deals con demo de hace +6 semanas — marca Ageing, acelera o limpia", query: "demo_6w" },
-        ],
-      },
-      {
-        num: "03", title: "MES ACTUAL (M+0)", tone: "amber",
-        items: [
-          { id: "03.1", text: "Pide que confirme M+0: forecast claro, riesgos nombrados y próximos pasos definidos para cada deal", query: "m0" },
-          { id: "03.2", text: "Si hay gap por segmento, alinead qué generación o matching se necesita con SDs este mes" },
-          { id: "03.3", text: "Pregunta si hay algún bloqueo real donde debas intervenir tú (Director, partner, contractual)" },
-          { id: "03.4", text: "Pide que actualice el Forecast Submission según lo que habéis acordado" },
-        ],
-      },
-      {
-        num: "04", title: "PRÓXIMOS MESES (M+1 / M+2)", tone: "blue",
-        items: [
-          { id: "04.1", text: "Deal por deal en M+1: comprueba que el stage refleja dónde está realmente la oportunidad", query: "m1" },
-          { id: "04.2", text: "Pregunta por cada deal M+1: ¿la Close Date es realista? Pide que la justifique con hechos concretos" },
-          { id: "04.3", text: "Para cada deal M+1: pide el next step concreto con fecha en los próximos 7 días" },
-          { id: "04.4", text: "Comprueba el coverage de M+1 (guía: 2.5x) — si hay gap, hablad de dónde sacar más pipeline", metric: "coverage_m1" },
-          { id: "04.5", text: "Pide que deje o actualice la nota de cada deal M+1 revisado — valida que sea clara" },
-          { id: "04.6", text: "Haz una pasada rápida por M+2 segmento M/L: ¿el stage es correcto para cerrar en 2 meses?", query: "m2" },
-          { id: "04.7", text: "Identifica 1-2 deals de M+2 que se puedan acelerar a M+1 si el coverage es corto" },
-        ],
-      },
-      {
-        num: "05", title: "COMPROMISOS Y CIERRE", tone: "green",
-        items: [
-          { id: "05.1", text: "Pide que repita en voz alta sus 2-3 compromisos: deals concretos, acciones concretas, fechas concretas" },
-          { id: "05.2", text: "Revisa que cree o actualice Tasks para cada compromiso — valida owner, fecha y next step" },
-          { id: "05.3", text: "Pide que actualice el Forecast Submission para M+1 — valida la lógica de forecast" },
-          { id: "05.4", text: "Comprueba que la nota de forecast esté clara y con próximos pasos" },
-          { id: "05.5", text: "Cerrad confirmando fecha y hora del próximo 1:1" },
-        ],
-      },
+      { num: "01", title: "HIGIENE RÁPIDA", tone: "red", time: 5, items: [
+        { id: "w1-hyg", text: "Limpieza rápida — solo deals nuevos con problemas desde W0", queries: HIGIENE_QUERIES, guide: HIGIENE_GUIDE },
+      ]},
+      { num: "02", title: "M+0 — CONFIRMAR", tone: "amber", time: 5, items: [
+        { id: "w1-m0", text: "Confirma que M+0 va según previsto — solo alertas o cambios importantes", query: "m0", guide: ["¿Algún cambio desde W0?", "¿Algún deal en riesgo?", "¿Necesita tu ayuda para desbloquear algo?"] },
+      ]},
+      { num: "03", title: "M+1 / M+2 — DEEP REVIEW", tone: "blue", time: 25, items: [
+        { id: "w1-m1", text: "Revisión deal por deal M+1 — stage, fecha, next step y nota de forecast", query: "m1", guide: [...M1_REVIEW_GUIDE, "Pide que deje o actualice la nota de cada deal revisado"], metric: "coverage_m1" },
+        { id: "w1-m2", text: "Pasada rápida M+2 — ¿stage correcto para cerrar en 2 meses?", query: "m2", guide: ["¿El stage es correcto para el timeline?", "Si coverage M+1 corto, identifica 1-2 deals para acelerar a M+1"] },
+      ]},
+      { num: "04", title: "COMPROMISOS", tone: "green", time: 5, items: [
+        { id: "w1-comp", text: "Pide que resuma compromisos: deals, acciones y fechas concretas" },
+        { id: "w1-next", text: "Confirmad próximo 1:1" },
+      ]},
     ],
   },
   {
-    type: 2, label: "W2", subtitle: "Lock M+1 & push pipe",
+    type: 2, label: "W2", subtitle: "Lock M+1 & push", duration: 45,
     sections: [
-      {
-        num: "01", title: "SEGUIMIENTO M+1", tone: "blue",
-        items: [
-          { id: "01.1", text: "Repasa deal por deal en M+1 — pide el estado real de cada uno y si el forecast category sigue siendo correcto", query: "m1" },
-          { id: "01.2", text: "Para cada deal M+1: pregunta cuál fue el último contacto y qué respuesta hubo" },
-          { id: "01.3", text: "Si algún deal M+1 no ha tenido actividad en 5+ días, pide que contacte esta semana o lo baje de forecast", query: "stale_7d" },
-          { id: "01.4", text: "Comprueba el coverage de M+1 (guía: 2.5x) — si está corto, pasad a la sección de push", metric: "coverage_m1" },
-          { id: "01.5", text: "Pide que actualice el Forecast Submission de M+1 con lo que habéis acordado" },
-        ],
-      },
-      {
-        num: "02", title: "DEALS PUSHEABLES (M+2 → M+1)", tone: "indigo",
-        items: [
-          { id: "02.1", text: "Revisa los deals de M+2 con momentum positivo o probabilidad ≥40% — ¿se pueden adelantar a M+1?", query: "m1_m2_pusheable" },
-          { id: "02.2", text: "Para cada deal pusheable: pregunta qué haría falta para cerrar un mes antes (reunión, propuesta, aprobación)" },
-          { id: "02.3", text: "Si hay gap de coverage en M+1, elegid juntos 1-3 deals de M+2 para acelerar y definid acciones concretas" },
-          { id: "02.4", text: "Revisa deals M+2 en general — ¿el stage y la fecha son correctos o necesitan actualización?", query: "m2" },
-        ],
-      },
-      {
-        num: "03", title: "M+0 — REVISIÓN RÁPIDA", tone: "amber",
-        items: [
-          { id: "03.1", text: "Pregunta cómo van los deals de M+0 que revisasteis la semana pasada — ¿algún cambio importante?", query: "m0" },
-          { id: "03.2", text: "Si hay deals M+0 en riesgo (sin actividad o momentum negativo), define una acción esta semana", query: "m0_at_risk" },
-          { id: "03.3", text: "Pregunta si necesita tu ayuda para desbloquear algo de M+0 esta semana" },
-        ],
-      },
-      {
-        num: "04", title: "COMPROMISOS", tone: "green",
-        items: [
-          { id: "04.1", text: "Pide que resuma sus compromisos: qué deals va a mover, qué acciones concretas, para cuándo" },
-          { id: "04.2", text: "Revisa que los Tasks estén creados o actualizados para cada compromiso" },
-          { id: "04.3", text: "Cerrad confirmando fecha y hora del próximo 1:1" },
-        ],
-      },
+      { num: "01", title: "M+1 — LOCK", tone: "blue", time: 20, items: [
+        { id: "w2-m1", text: "Seguimiento M+1 — estado real, forecast category, última actividad", query: "m1", guide: ["¿El forecast category sigue siendo correcto?", "¿Cuál fue el último contacto y qué respuesta hubo?", "Sin actividad 5+ días → contactar esta semana o bajar de forecast", "Pide que actualice el Forecast Submission de M+1"], metric: "coverage_m1" },
+      ]},
+      { num: "02", title: "PUSH M+2 → M+1", tone: "indigo", time: 10, items: [
+        { id: "w2-push", text: "Deals pusheables — momentum positivo o prob ≥40%, ¿se pueden adelantar?", query: "m1_m2_pusheable", guide: ["¿Qué haría falta para cerrar un mes antes?", "Si gap de coverage M+1, elegid 1-3 deals de M+2 para acelerar"] },
+        { id: "w2-m2", text: "Revisión general M+2 — stage y fecha correctos", query: "m2" },
+      ]},
+      { num: "03", title: "M+0 — RÁPIDA", tone: "amber", time: 5, items: [
+        { id: "w2-m0", text: "M+0 — cambios desde W1 y deals en riesgo", query: "m0", guide: ["¿Algún cambio importante?", "Deals sin actividad o momentum negativo → acción esta semana", "¿Necesita tu ayuda para desbloquear?"] },
+      ]},
+      { num: "04", title: "COMPROMISOS", tone: "green", time: 5, items: [
+        { id: "w2-comp", text: "Pide que resuma compromisos: deals, acciones y fechas" },
+        { id: "w2-next", text: "Confirmad próximo 1:1" },
+      ]},
     ],
   },
   {
-    type: 3, label: "W3", subtitle: "Cierre M+0",
+    type: 3, label: "W3", subtitle: "Cierre M+0", duration: 45,
     sections: [
-      {
-        num: "01", title: "M+0 — FOCO TOTAL EN CIERRE", tone: "red",
-        items: [
-          { id: "01.1", text: "Repasa todos los deals de M+0 uno por uno — pregunta exactamente qué falta para cerrar cada uno", query: "m0" },
-          { id: "01.2", text: "Identifica los deals M+0 que cierran esta semana — ¿están confirmados o hay riesgo de slip?", query: "m0_closing_soon" },
-          { id: "01.3", text: "Para cada deal en riesgo: define una acción concreta que haga hoy o mañana, no 'la semana que viene'", query: "m0_at_risk" },
-          { id: "01.4", text: "Pregunta deal por deal: ¿quién firma? ¿cuándo? ¿hay algún paso intermedio que pueda retrasarlo?" },
-          { id: "01.5", text: "Si algún deal M+0 ya no va a cerrar este mes, muévelo a M+1 o a Lost — no lo dejes en limbo" },
-        ],
-      },
-      {
-        num: "02", title: "INTERVENCIÓN DEL TL", tone: "amber",
-        items: [
-          { id: "02.1", text: "Pregunta en qué deals concretos necesita que entres tú: llamada a director, email a partner, escalación interna" },
-          { id: "02.2", text: "Si hay algún deal bloqueado por contrato, legal o pricing — define quién lo resuelve y para cuándo" },
-          { id: "02.3", text: "Revisa si hay algún deal donde un contacto tuyo con el cliente pueda acelerar la decisión" },
-        ],
-      },
-      {
-        num: "03", title: "CIERRE DE MES", tone: "green",
-        items: [
-          { id: "03.1", text: "Haz un recuento final de M+0: ¿cuánto MRR queda por cerrar? ¿Es alcanzable?", query: "m0" },
-          { id: "03.2", text: "Pide que actualice el Forecast Submission final del mes — tiene que reflejar la realidad" },
-          { id: "03.3", text: "Cerrad con los compromisos de cierre: quién hace qué, cuándo y qué pasa si no se cierra" },
-        ],
-      },
+      { num: "01", title: "M+0 — FOCO TOTAL EN CIERRE", tone: "red", time: 25, items: [
+        { id: "w3-m0", text: "Revisión deal por deal M+0 — qué falta para cerrar cada uno", query: "m0", guide: ["¿Quién firma? ¿Cuándo? ¿Paso intermedio que pueda retrasarlo?", "Si no cierra este mes → mueve a M+1 o Lost, no dejar en limbo", "¿Hay bloqueo por contrato, legal o pricing? Define quién resuelve y cuándo"] },
+        { id: "w3-m0-soon", text: "Deals que cierran esta semana — confirmar o alertar slip", query: "m0_closing_soon", guide: ["¿Están confirmados o hay riesgo de slip?", "Acción concreta hoy o mañana, no 'la semana que viene'"] },
+      ]},
+      { num: "02", title: "INTERVENCIÓN DEL TL", tone: "amber", time: 10, items: [
+        { id: "w3-tl", text: "¿En qué deals necesita que entres tú? Llamada a director, email a partner, escalación", guide: ["Deals bloqueados por contrato, legal o pricing", "Contacto tuyo con el cliente que pueda acelerar la decisión"] },
+      ]},
+      { num: "03", title: "M+1 — RÁPIDA", tone: "blue", time: 5, items: [
+        { id: "w3-m1", text: "Pasada rápida M+1 — ¿algún cambio desde W2?", query: "m1" },
+      ]},
+      { num: "04", title: "CIERRE Y COMPROMISOS", tone: "green", time: 5, items: [
+        { id: "w3-cierre", text: "Recuento final M+0 — MRR pendiente, ¿alcanzable? Pide Forecast Submission final", query: "m0" },
+        { id: "w3-comp", text: "Compromisos de cierre: quién hace qué, cuándo. Confirmad próximo 1:1" },
+      ]},
     ],
   },
 ];
+
+export const PROBLEM_LABELS: Record<string, string> = {
+  past_close: "Fecha pasada",
+  same_stage_30d: "Estancado +30d",
+  stale_7d: "Sin actividad",
+  demo_6w: "Demo antigua",
+};
 
 export function getWeekType(date: Date = new Date()): number {
   return Math.min(3, Math.floor((date.getDate() - 1) / 7));

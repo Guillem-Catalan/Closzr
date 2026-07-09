@@ -2,6 +2,7 @@
    CLOSZR — App root
    ============================================================ */
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { useData } from "./data/store";
 import { fetchDealDetail, type DealDetail } from "./data/fetchDetail";
 import Sidebar, { SidebarProvider, useSidebar } from "./layout/Sidebar";
@@ -83,6 +84,7 @@ function App() {
           <DealWorkspace detail={detail} initialTab="hist" onClose={() => setDetail(null)}/>
         )}
       </div>
+      <Analytics />
     </SidebarProvider>
   );
 }

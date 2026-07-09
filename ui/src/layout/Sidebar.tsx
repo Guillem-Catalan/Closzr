@@ -105,7 +105,7 @@ function Collapsible({ item, view, onNav }: { item: NavItem; view: string; onNav
 
 /* ── Sidebar ── */
 export default function Sidebar({ view, onNav }: { view: string; onNav: (v: string) => void }) {
-  const { expanded, toggle } = useSidebar();
+  const { expanded } = useSidebar();
   const { profile } = usePermissions();
   const showAdmin = isTabEnabled(profile, "admin");
   const name = profile?.name || profile?.email?.split("@")[0] || "";

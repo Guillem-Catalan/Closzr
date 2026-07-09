@@ -165,9 +165,6 @@ export default function Sidebar({ view, onNav }: { view: string; onNav: (v: stri
             </div>
           )}
         </div>
-        <button className="cz-sb-collapse" onClick={toggle} title={expanded ? "Collapse (⌘B)" : "Expand (⌘B)"}>
-          <Icon name="chevRight" size={14} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .2s ease" }} />
-        </button>
       </div>
     </aside>
   );

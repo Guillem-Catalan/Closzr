@@ -50,7 +50,7 @@ const MANAGEMENT_ROLES = new Set(ADMIN_ROLES.filter(r => ["Admin", "Manager", "D
 type Panel = "m0" | "m1" | "m2" | "closed";
 
 /* ---- Expandable deal row (pipeline-unified) ---- */
-function FcRow({ d, open, onToggle, onOpen, showPushChip }: { d: ForecastDeal; open: boolean; onToggle: () => void; onOpen: (row: any, tab?: string) => void; showPushChip?: boolean }) {
+function FcRow({ d, open, onToggle, onOpen, showPushChip, dotColor }: { d: ForecastDeal; open: boolean; onToggle: () => void; onOpen: (row: any, tab?: string) => void; showPushChip?: boolean; dotColor?: string }) {
   const cdTone = closeDateTone(d.closeDate, d.claudioCloseDate);
   return (
     <>
@@ -70,7 +70,10 @@ function FcRow({ d, open, onToggle, onOpen, showPushChip }: { d: ForecastDeal; o
             )}
           </span>
         </div>
-        <div className="num">{fmtMRR(d.mrr)}</div>
+        <div className="num" style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "center" }}>
+          {dotColor && <span style={{ width: 7, height: 7, borderRadius: "50%", background: dotColor, flex: "none" }} />}
+          {fmtMRR(d.mrr)}
+        </div>
         <div><Chip tone={d.hsCategory === "Commit" ? "green" : d.hsCategory === "Upside" ? "amber" : "ink"} style={{ fontSize: 10.5 }}>{d.hsCategory || "—"}</Chip></div>
         <div><ProbBadge value={d.prob}/></div>
         <div className="cz-pc-close">
@@ -138,26 +141,43 @@ function FcRow({ d, open, onToggle, onOpen, showPushChip }: { d: ForecastDeal; o
 }
 
 /* ---- Closed Won row ---- */
-function ClosedRow({ d, open, onToggle }: { d: ClosedDeal; open: boolean; onToggle: () => void }) {
-  const hookLine = d.strengths?.split("\n")[0]?.replace(/^[-•]\s*/, "") || "";
-  const bullets = (d.strengths || "").split("\n").slice(1).map(s => s.replace(/^[-•]\s*/, "").trim()).filter(Boolean);
+const closedGrid: React.CSSProperties = { gridTemplateColumns: "minmax(180px,1.4fr) 90px 90px 70px 130px 110px" };
+
+function ClosedRow({ d, open, onToggle, onOpen }: { d: ClosedDeal; open: boolean; onToggle: () => void; onOpen: (row: any, tab?: string) => void }) {
+  const allBullets = (d.strengths || "").split("\n").map(s => s.replace(/^[-•]\s*/, "").trim()).filter(Boolean);
   return (
     <>
-      <div className="cz-prow" style={{ cursor: "pointer" }} onClick={onToggle}>
-        <div className="cz-pc-deal"><span className="cz-pc-name">{d.deal}</span></div>
+      <div className="cz-prow" style={{ cursor: "pointer", ...closedGrid }} onClick={onToggle}>
+        <div className="cz-pc-deal">
+          <span className="cz-pc-name" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {d.deal}
+            {d.hsId && (
+              <a href={hubspotDealUrl(d.hsId)} target="_blank" rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()} style={{ display: "inline-flex", color: "#ff7a59", flex: "none", opacity: 0.7, transition: "opacity .15s" }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.7")}>
+                <HsLogo size={14} />
+              </a>
+            )}
+          </span>
+        </div>
         <div className="num">{fmtMRR(d.mrr)}</div>
-        <div className="num">{d.last}</div>
+        <div className="num">{fmtDate(d.last)}</div>
         <div className="num">{d.dealAge ? d.dealAge + "d" : "—"}</div>
         <div className="cz-pc-owner">{d.owner}</div>
-        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--green-ink)", fontSize: 13 }}>{hookLine || "—"}</div>
-        <div><Icon name="chevDown" size={14} style={{ color: "var(--ink-3)", transform: open ? "none" : "rotate(-90deg)", transition: "transform .18s" }} /></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button onClick={e => { e.stopPropagation(); onOpen({ id: d.id }, "hist"); }}
+            style={{ fontSize: 11, fontWeight: 600, color: "var(--indigo)", background: "var(--indigo-tint)", border: "none", padding: "4px 10px", borderRadius: "var(--r-pill)", cursor: "pointer", whiteSpace: "nowrap" }}>
+            Ver deal
+          </button>
+          <Icon name="chevDown" size={14} style={{ color: "var(--ink-3)", transform: open ? "none" : "rotate(-90deg)", transition: "transform .18s" }} />
+        </div>
       </div>
-      {open && bullets.length > 0 && (
+      {open && allBullets.length > 0 && (
         <div style={{ padding: "16px 22px 20px", background: "var(--card-2)", borderBottom: "1px solid var(--line-2)" }}>
           <div style={{ padding: "12px 16px", background: "var(--green-tint)", borderRadius: "var(--r-sm)" }}>
             <span className="eyebrow" style={{ display: "block", marginBottom: 8, color: "var(--green-ink)" }}>How it was won</span>
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
-              {bullets.map((b, i) => (
+              {allBullets.map((b, i) => (
                 <li key={i} style={{ display: "flex", gap: 8, fontSize: 13, lineHeight: 1.55, color: "var(--green-ink)" }}>
                   <span style={{ color: "var(--green)", flex: "none" }}>•</span><span>{b}</span>
                 </li>
@@ -171,27 +191,43 @@ function ClosedRow({ d, open, onToggle }: { d: ClosedDeal; open: boolean; onTogg
 }
 
 /* ---- Lost row ---- */
-function LostRow({ d }: { d: LostDeal }) {
+function LostRow({ d, open, onToggle, onOpen }: { d: LostDeal; open: boolean; onToggle: () => void; onOpen: (row: any, tab?: string) => void }) {
   return (
-    <div className="cz-prow">
-      <div className="cz-pc-deal">
-        <span className="cz-pc-name" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {d.deal}
-          {d.hsId && (
-            <a href={hubspotDealUrl(d.hsId)} target="_blank" rel="noopener noreferrer"
-              onClick={e => e.stopPropagation()} style={{ display: "inline-flex", color: "#ff7a59", flex: "none", opacity: 0.7 }}>
-              <HsLogo size={14} />
-            </a>
-          )}
-        </span>
+    <>
+      <div className="cz-prow" style={{ cursor: "pointer", ...closedGrid }} onClick={onToggle}>
+        <div className="cz-pc-deal">
+          <span className="cz-pc-name" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {d.deal}
+            {d.hsId && (
+              <a href={hubspotDealUrl(d.hsId)} target="_blank" rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()} style={{ display: "inline-flex", color: "#ff7a59", flex: "none", opacity: 0.7, transition: "opacity .15s" }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.7")}>
+                <HsLogo size={14} />
+              </a>
+            )}
+          </span>
+        </div>
+        <div className="num">{fmtMRR(d.mrr)}</div>
+        <div className="num">{fmtDate(d.closeDate)}</div>
+        <div className="num">{d.dealAge ? d.dealAge + "d" : "—"}</div>
+        <div className="cz-pc-owner">{d.owner}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button onClick={e => { e.stopPropagation(); onOpen({ id: d.id }, "hist"); }}
+            style={{ fontSize: 11, fontWeight: 600, color: "var(--indigo)", background: "var(--indigo-tint)", border: "none", padding: "4px 10px", borderRadius: "var(--r-pill)", cursor: "pointer", whiteSpace: "nowrap" }}>
+            Ver deal
+          </button>
+          <Icon name="chevDown" size={14} style={{ color: "var(--ink-3)", transform: open ? "none" : "rotate(-90deg)", transition: "transform .18s" }} />
+        </div>
       </div>
-      <div className="num">{fmtMRR(d.mrr)}</div>
-      <div className="num">{fmtDate(d.closeDate)}</div>
-      <div className="num">{d.dealAge ? d.dealAge + "d" : "—"}</div>
-      <div className="cz-pc-owner">{d.owner}</div>
-      <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--red-ink)", fontSize: 13 }}>{d.lostReason || "—"}</div>
-      <div />
-    </div>
+      {open && d.lostReason && (
+        <div style={{ padding: "16px 22px 20px", background: "var(--card-2)", borderBottom: "1px solid var(--line-2)" }}>
+          <div style={{ padding: "12px 16px", background: "var(--red-tint)", borderRadius: "var(--r-sm)" }}>
+            <span className="eyebrow" style={{ display: "block", marginBottom: 8, color: "var(--red-ink)" }}>Lost reason</span>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: "var(--red-ink)" }}>{d.lostReason}</p>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -421,9 +457,19 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
     return { all: deals.length, hs, cz, shared };
   };
 
+  const dealDotColor = (d: ForecastDeal) => {
+    const mk = viewMonthKey(panel);
+    const h = matchHs(d, mk), c = matchCz(d, mk);
+    if (h && c) return "var(--green)";
+    if (c) return "var(--indigo)";
+    if (h) return "var(--ink-2)";
+    return undefined;
+  };
+
   const renderDealRows = (deals: ForecastDeal[], showPush = false) =>
     sortDeals(applyView(deals)).map(d => (
       <FcRow key={d.id} d={d} open={expandedId === d.id} showPushChip={showPush}
+        dotColor={dealDotColor(d)}
         onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)} onOpen={onOpen} />
     ));
 
@@ -619,20 +665,22 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
             </div>
             {closedTab === "won" ? (
               <>
-                <div className="cz-pthead" style={{ gridTemplateColumns: "minmax(180px,1.4fr) 80px 90px 70px 120px minmax(200px,1.5fr) 24px" }}>
-                  <div>Deal</div><div>MRR</div><div>Closed</div><div>Cycle</div><div>Owner</div><div>How it was won</div><div />
+                <div className="cz-pthead" style={{ gridTemplateColumns: "minmax(180px,1.4fr) 90px 90px 70px 130px 110px" }}>
+                  <div>Deal</div><div>MRR</div><div>Closed</div><div>Cycle</div><div>Owner</div><div></div>
                 </div>
                 {fClosed.map((d, i) => (
-                  <ClosedRow key={d.id || i} d={d} open={expandedId === d.id} onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)} />
+                  <ClosedRow key={d.id || i} d={d} open={expandedId === d.id} onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)} onOpen={onOpen} />
                 ))}
                 {!fClosed.length && <div className="cz-empty">No closed won deals this month.</div>}
               </>
             ) : (
               <>
-                <div className="cz-pthead" style={{ gridTemplateColumns: "minmax(180px,1.4fr) 80px 90px 70px 120px minmax(200px,1.5fr) 24px" }}>
-                  <div>Deal</div><div>MRR</div><div>Closed</div><div>Cycle</div><div>Owner</div><div>Lost reason</div><div />
+                <div className="cz-pthead" style={{ gridTemplateColumns: "minmax(180px,1.4fr) 90px 90px 70px 130px 110px" }}>
+                  <div>Deal</div><div>MRR</div><div>Closed</div><div>Cycle</div><div>Owner</div><div></div>
                 </div>
-                {fLost.map((d, i) => <LostRow key={d.id || i} d={d} />)}
+                {fLost.map((d, i) => (
+                  <LostRow key={d.id || i} d={d} open={expandedId === d.id} onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)} onOpen={onOpen} />
+                ))}
                 {!fLost.length && <div className="cz-empty">No lost deals this month.</div>}
               </>
             )}

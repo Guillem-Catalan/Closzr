@@ -88,6 +88,9 @@ export type ForecastData = {
   lostDeals: LostDeal[];
   allDeals: ForecastDeal[];
   targets: { team: string; month: string; monthly_target: number }[];
+  m0Deals: ForecastDeal[];
+  m1Deals: ForecastDeal[];
+  m2Deals: ForecastDeal[];
 };
 
 export type MethodologyItem = {

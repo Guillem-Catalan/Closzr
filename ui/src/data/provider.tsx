@@ -11,7 +11,7 @@ import { DataContext, type CZData, type DealRow, type FunnelStage, type Forecast
 import { supabase } from "./supabase";
 import { usePermissions, type UserProfile } from "../permissions";
 import { PIPELINE_FUNNEL, PIPELINE_ASIDE, stageAbbr, shortStage, CLOSED_WON_STAGES, CLOSED_LOST_STAGES, STAGE_TONES } from "../display";
-import { repNameToEmail } from "./filters";
+import { repNameToEmail, expandTeam } from "./filters";
 
 // ---- Paginated fetch ----
 async function fetchPaged<T>(table: string, cols: string, filter?: (q: any) => any): Promise<T[]> {
@@ -201,7 +201,7 @@ async function loadData(): Promise<CZData> {
 
   // Active deals = not won, not lost
   const activeFcDeals: ForecastDeal[] = allRows
-    .filter(r => !wonSet.has(stageLower(r._raw)) && !lostSet.has(stageLower(r._raw)))
+    .filter(r => !wonSet.has(stageLower(r._raw)) && !lostSet.has(stageLower(r._raw)) && r._raw.outcome !== "won" && r._raw.outcome !== "lost")
     .map(r => toForecastDeal(r._raw, r));
 
   // All forecast deals (for filters/teams — active + won, no lost)
@@ -258,6 +258,16 @@ async function loadData(): Promise<CZData> {
     d.pushable && !closzrThisIds.has(d.id) && !nextMonthIds.has(d.id)
   );
 
+  // M0/M1/M2 — deals assigned by either close date (can appear in multiple)
+  const m2Date = new Date(nmDate.getFullYear(), nmDate.getMonth() + 1, 1);
+  const m2Key = m2Date.toISOString().slice(0, 7);
+  const hasMonth = (d: ForecastDeal, mk: string) =>
+    (d.closeDate && d.closeDate.startsWith(mk)) || (d.claudioCloseDate && d.claudioCloseDate.startsWith(mk));
+  const m0Deals = activeFcDeals.filter(d => hasMonth(d, cm));
+  const m1Deals = activeFcDeals.filter(d => hasMonth(d, nmKey));
+  const m0m1Ids = new Set([...m0Deals, ...m1Deals].map(d => d.id));
+  const m2Deals = activeFcDeals.filter(d => hasMonth(d, m2Key) || (d.pushable && !m0m1Ids.has(d.id)));
+
   const forecast: ForecastData = {
     target: targetTotal,
     hsTotal: Math.round(hsDeals.reduce((s, d) => s + (d.mrr || 0), 0)),
@@ -268,6 +278,7 @@ async function loadData(): Promise<CZData> {
     lostTotal: Math.round(lostDeals.reduce((s, d) => s + (d.mrr || 0), 0)),
     hsDeals, closzrDeals, nextMonthDeals, pushableDeals, closedDeals, lostDeals,
     allDeals: allFcDeals, targets,
+    m0Deals, m1Deals, m2Deals,
   };
 
   // ---- 1:1 ----
@@ -324,7 +335,8 @@ function applyPermissions(data: CZData, profile: UserProfile | null): CZData {
   const scope = profile.tabPermissions?.deals?.scope || "all";
   if (scope === "all" && profile.role === "Admin") return data;
 
-  const teamSet = new Set(teams);
+  const teamSet = new Set<string>();
+  for (const t of teams) for (const et of expandTeam(t)) teamSet.add(et);
   const ownerEmail = profile.email.toLowerCase();
   const matchesSelf = (name: string) => repNameToEmail(name) === ownerEmail;
   const filterRow = (r: DealRow): boolean => {
@@ -356,11 +368,14 @@ function applyPermissions(data: CZData, profile: UserProfile | null): CZData {
       closedDeals: data.forecast.closedDeals.filter(filterByTeam),
       lostDeals: data.forecast.lostDeals.filter(filterByTeam),
       allDeals: data.forecast.allDeals.filter(filterFc),
+      m0Deals: data.forecast.m0Deals.filter(filterFc),
+      m1Deals: data.forecast.m1Deals.filter(filterFc),
+      m2Deals: data.forecast.m2Deals.filter(filterFc),
     },
   };
 }
 
-const EMPTY_DATA: CZData = { STAGE, groups: [], nakiva: null, yukAtlas: null, pipeline: [], pipelineAside: [], forecast: { target: 0, hsTotal: 0, closzrTotal: 0, nextMonthTotal: 0, pushableCount: 0, closedTotal: 0, lostTotal: 0, hsDeals: [], closzrDeals: [], nextMonthDeals: [], pushableDeals: [], closedDeals: [], lostDeals: [], allDeals: [], targets: [] }, oneOnOne: { reps: [], rep: "", activeDeals: 0, pipeline: 0, top10: [], meddicBase: 0, meddic: [], meddicNote: "", weakness: [], tlActions: [], methodologyOpen: 0, methodology: [] }, todos: [], loading: true };
+const EMPTY_DATA: CZData = { STAGE, groups: [], nakiva: null, yukAtlas: null, pipeline: [], pipelineAside: [], forecast: { target: 0, hsTotal: 0, closzrTotal: 0, nextMonthTotal: 0, pushableCount: 0, closedTotal: 0, lostTotal: 0, hsDeals: [], closzrDeals: [], nextMonthDeals: [], pushableDeals: [], closedDeals: [], lostDeals: [], allDeals: [], targets: [], m0Deals: [], m1Deals: [], m2Deals: [] }, oneOnOne: { reps: [], rep: "", activeDeals: 0, pipeline: 0, top10: [], meddicBase: 0, meddic: [], meddicNote: "", weakness: [], tlActions: [], methodologyOpen: 0, methodology: [] }, todos: [], loading: true };
 
 // ---- Provider ----
 export function DataProvider({ children }: { children: ReactNode }) {

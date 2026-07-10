@@ -662,6 +662,8 @@
 .cz-fc-verdict b { font-weight: 800; }
 
 .cz-fc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.cz-fctablecard .cz-pthead, .cz-fctablecard .cz-prow { grid-template-columns: minmax(180px,1.4fr) 90px 80px 60px 130px 130px 110px; gap: 14px; }
+.cz-fctablecard .cz-pc-close { display: flex; align-items: center; }
 .cz-fc-stacked { display: flex; gap: 3px; height: 40px; margin-bottom: 16px; }
 .cz-fc-stack-seg { height: 100%; border-radius: 5px; min-width: 6px; transition: width .4s var(--ease); }
 .cz-fc-legend { display: flex; flex-direction: column; gap: 9px; }

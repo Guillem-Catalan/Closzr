@@ -212,7 +212,7 @@ async function loadData(): Promise<CZData> {
   // Caja 6 — Cerrado: stage in CLOSED_WON_STAGES AND close_date_hs this month
   const closedDeals: ClosedDeal[] = allDeals
     .filter(d => wonSet.has(stageLower(d)) && (d.close_date_hs || "").startsWith(cm))
-    .map(d => ({ id: d.deal_id, deal: d.company_name || d.deal_name_full || "—", stage: "Won", mrr: d.mrr, prob: 100, last: d.close_date_hs || "—", trend: null, closeDateHs: d.close_date_hs || null, closeDateClaudio: d.estimated_close_date || null, owner: d.pae || d.pbd || "—", team: d.team || "", dealAge: d.deal_age_days || null, strengths: d.outcome_summary || null, lessons: [], interactions: null }));
+    .map(d => ({ id: d.deal_id, hsId: d.hs_deal_id || undefined, deal: d.company_name || d.deal_name_full || "—", stage: "Won", mrr: d.mrr, prob: 100, last: d.close_date_hs || "—", trend: null, closeDateHs: d.close_date_hs || null, closeDateClaudio: d.estimated_close_date || null, owner: d.pae || d.pbd || "—", team: d.team || "", dealAge: d.deal_age_days || null, strengths: d.outcome_summary || null, lessons: [], interactions: null }));
   const closedIds = new Set(closedDeals.map(d => d.id));
 
   // Caja 7 — Perdidos: stage in CLOSED_LOST_STAGES AND close_date_hs this month

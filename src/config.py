@@ -259,7 +259,7 @@ DIRECT_SALES_ES = {
             },
         },
         "DS Tania": {
-            "active": False,
+            "active": True,
             "tl": "tania.diaz@factorial.co",
             "tl_name": "Tania Diaz Soto",
             "ae": {

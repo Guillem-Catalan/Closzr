@@ -12,6 +12,8 @@ export type DealRow = {
   prob: number | null;
   last: string;
   trend: number | null;
+  closeDateHs: string | null;
+  closeDateClaudio: string | null;
   owner: string;
   team?: string;
   meetingPaes?: string[];

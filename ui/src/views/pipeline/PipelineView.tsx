@@ -2,9 +2,9 @@
    CLOSZR — PIPELINE (horizontal sales funnel)
    ============================================================ */
 import { useState, useMemo } from "react";
-import { Icon, StageChip, ProbBadge, Trend, TONE } from "../components";
+import { Icon, StageChip, ProbBadge, Chip, TONE } from "../components";
 import { useData } from "../../data/store";
-import { hubspotDealUrl, STAGE_DISPLAY } from "../../display";
+import { STAGE_DISPLAY } from "../../display";
 import { normalize, distinctTeams, distinctOwners, repNameToEmail } from "../../data/filters";
 
 function fmtK(v: number | null | undefined){
@@ -61,12 +61,12 @@ function Funnel({ stages, metric, sel, onSelect }: { stages: any[]; metric: stri
                 )}
               </svg>
               <span className="cz-f2-count num" style={{color:on?"#fff":"var(--ink)"}}>
-                {metric==="value"?fmtK(st.value):st.count.toLocaleString("es-ES")}
+                {metric==="value"?fmtK(st.value):(st.count>=1000?(st.count/1000).toFixed(1)+"K":st.count.toLocaleString("es-ES"))}
               </span>
             </div>
             <div className="cz-f2-meta">
               <span className="cz-f2-label" style={{color:on?t.fg:"var(--ink-2)"}}>{st.label}</span>
-              <span className="cz-f2-sub num">{metric==="value"?st.count.toLocaleString("es-ES")+" deals":fmtK(st.value)}</span>
+              <span className="cz-f2-sub num">{metric==="value"?(st.count>=1000?(st.count/1000).toFixed(1)+"K":st.count)+" deals":fmtK(st.value)}</span>
               {st.stale>0 && <span className="cz-f2-stale num"><i/>{st.stale} parados</span>}
             </div>
           </button>
@@ -96,7 +96,27 @@ function ClickableStage({ stage }: { stage: string }) {
   );
 }
 
+function fmtDate(d: string | null): string {
+  if (!d) return "—";
+  const s = d.slice(0, 10);
+  const [, m, day] = s.split("-");
+  return `${day}/${m}`;
+}
+
+function closeDateTone(hs: string | null, claudio: string | null): string {
+  if (!hs || !claudio) return "var(--ink)";
+  const hm = hs.slice(0, 7);
+  const cm = claudio.slice(0, 7);
+  if (hm === cm) return "var(--green)";
+  const hd = new Date(hm + "-01");
+  const cd = new Date(cm + "-01");
+  const diff = Math.abs((cd.getFullYear() - hd.getFullYear()) * 12 + cd.getMonth() - hd.getMonth());
+  if (diff <= 1) return "var(--amber)";
+  return "var(--red)";
+}
+
 function PipeRow({ row, onOpen }: { row: any; onOpen: (row: any, tab: string) => void }) {
+  const cdTone = closeDateTone(row.closeDateHs, row.closeDateClaudio);
   return (
     <div className={"cz-prow"+(row.stale?" stale":"")} onClick={()=>onOpen(row,"hist")} role="button" tabIndex={0}
       onKeyDown={e=>{if(e.key==="Enter")onOpen(row,"hist");}}>
@@ -105,24 +125,16 @@ function PipeRow({ row, onOpen }: { row: any; onOpen: (row: any, tab: string) =>
         <span className="cz-pc-name">{row.deal}</span>
       </div>
       <div className="cz-pc-stage"><ClickableStage stage={row.stage}/></div>
-      <div className="cz-pc-mrr num">{fmtMRRp(row.mrr)}</div>
-      <div className="cz-pc-prob"><ProbBadge value={row.prob}/></div>
-      <div className="cz-pc-last">{row.stale && <Icon name="clock" size={12} stroke={2} style={{color:"var(--red)",marginRight:4,verticalAlign:"-1px"}}/>}{row.last}</div>
-      <div className="cz-pc-trend"><Trend value={row.trend}/></div>
-      <div className="cz-pc-owner">{row.owner!=="—"?row.owner:<span style={{color:"var(--ink-4)"}}>{"—"}</span>}</div>
-      <div className="cz-pc-signal">
-        <Icon name="sparkle" size={13} stroke={2} style={{color:"var(--indigo)",flex:"none"}}/>
-        <span>{row.signal}</span>
+      <div className="num">{fmtMRRp(row.mrr)}</div>
+      <div><ProbBadge value={row.prob}/></div>
+      <div>{row.stale && <Icon name="clock" size={12} stroke={2} style={{color:"var(--red)",marginRight:4}}/>}{row.last}</div>
+      <div className="cz-pc-close">
+        <span className="num" style={{flex:1,textAlign:"right"}}>{fmtDate(row.closeDateHs)}</span>
+        <span style={{color:"var(--ink-3)",margin:"0 4px",flex:"none"}}>|</span>
+        <span className="num" style={{flex:1,textAlign:"left",color:cdTone}}>{fmtDate(row.closeDateClaudio)}</span>
       </div>
-      {row.hsId && (
-        <a className="cz-pc-hs" href={hubspotDealUrl(row.hsId!)}
-          target="_blank" rel="noopener noreferrer" title="Abrir en HubSpot"
-          onClick={e => e.stopPropagation()}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: "var(--r-sm)", color: "var(--ink-3)", transition: "color .12s" }}>
-          <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor"><path d="M17.63 13.31a3.3 3.3 0 01-1.63.43 3.37 3.37 0 01-3.37-3.37c0-.6.16-1.17.44-1.66l-2.3-2.3a.99.99 0 01-.15-.17 2.48 2.48 0 01-1.52.53V9.3a1.35 1.35 0 110-2.7V4.06A2.06 2.06 0 007.04 2a2.06 2.06 0 00-2.06 2.06v2.53a2.73 2.73 0 00.88 5.31h.05a2.7 2.7 0 001.79-.68l2.38 2.38a3.34 3.34 0 00-.46 1.69A3.37 3.37 0 0013 18.66a3.3 3.3 0 001.86-.57l2.74 2.74a1.1 1.1 0 001.56-1.56zM13 16.92a1.63 1.63 0 110-3.25 1.63 1.63 0 010 3.25z"/></svg>
-        </a>
-      )}
-      <div className="cz-pc-go"><Icon name="arrowRight" size={15} stroke={2}/></div>
+      <div className="cz-pc-owner">{row.owner!=="—"?row.owner:<span style={{color:"var(--ink-4)"}}>{"—"}</span>}</div>
+      <div className="cz-pc-signal"><span>{row.signal}</span></div>
     </div>
   );
 }
@@ -131,14 +143,81 @@ interface PipelineViewProps {
   onOpen: (row: any, tab: string) => void;
 }
 
+const OVERVIEW_STAGES = ["closing", "evaluating", "demo"];
+const STAGE_TONE: Record<string, string> = { closing: "indigo", evaluating: "violet", demo: "teal" };
+
+type HygieneKey = "stale" | "hsOverdue" | "closzrOverdue" | "hs10d" | "closzr10d" | "silent7d";
+const HYGIENE_FILTERS: { key: HygieneKey; label: string }[] = [
+  { key: "stale", label: "Stale" },
+  { key: "hsOverdue", label: "HS overdue" },
+  { key: "closzrOverdue", label: "Closzr overdue" },
+  { key: "hs10d", label: "HS < 10d" },
+  { key: "closzr10d", label: "Closzr < 10d" },
+  { key: "silent7d", label: "+7d silent" },
+];
+
+const _today = () => new Date().toISOString().slice(0, 10);
+const _in10d = () => new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
+
+function hygieneMatch(key: HygieneKey, r: any): boolean {
+  const today = _today();
+  switch (key) {
+    case "stale": return !!r.stale;
+    case "hsOverdue": return !!(r.closeDateHs && r.closeDateHs.slice(0, 10) < today);
+    case "closzrOverdue": return !!(r.closeDateClaudio && r.closeDateClaudio.slice(0, 10) < today);
+    case "hs10d": { const d = r.closeDateHs?.slice(0, 10); return !!(d && d >= today && d <= _in10d()); }
+    case "closzr10d": { const d = r.closeDateClaudio?.slice(0, 10); return !!(d && d >= today && d <= _in10d()); }
+    case "silent7d": return (r._raw?.stale_days ?? 0) >= 7;
+  }
+}
+
+function HygieneBar({ active, onToggle, rows }: { active: Set<HygieneKey>; onToggle: (k: HygieneKey) => void; rows: any[] }) {
+  return (
+    <div className="cz-hygiene">
+      <span className="cz-hygiene-label">Hygiene</span>
+      {HYGIENE_FILTERS.map(f => {
+        const count = rows.filter(r => hygieneMatch(f.key, r)).length;
+        const on = active.has(f.key);
+        return (
+          <button key={f.key} className={"cz-hygiene-pill" + (on ? " on" : "")} onClick={() => onToggle(f.key)}>
+            {f.label}
+            <span className="cz-hygiene-count num">{count}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function StageSectionHeader({ label, count, mrr, tone, active, onClick }: { label: string; count: number; mrr: number; tone: string; active: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{
+      display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 20px",
+      background: active ? `var(--${tone}-tint)` : "var(--card-3)",
+      border: "none", borderBottom: "1px solid var(--line-2)", cursor: "pointer", textAlign: "left",
+    }}>
+      <span style={{ fontWeight: 700, fontSize: 13, color: active ? `var(--${tone})` : "var(--ink-2)" }}>{label}</span>
+      <Chip tone={tone as any} style={{ fontSize: 10 }}>{count} deals</Chip>
+      <span className="num" style={{ fontSize: 12.5, fontWeight: 600, color: `var(--${tone})`, marginLeft: "auto" }}>{fmtK(mrr)}</span>
+      <Icon name="chevDown" size={12} style={{ color: "var(--ink-3)", transform: active ? "none" : "rotate(-90deg)", transition: "transform .18s" }} />
+    </button>
+  );
+}
+
 function PipelineView({ onOpen }: PipelineViewProps) {
   const D = useData();
   const [metric,setMetric] = useState("count");
-  const [sel,setSel] = useState("evaluating");
-  const [staleOnly,setStaleOnly] = useState(false);
+  const [sel,setSel] = useState("");
   const [q,setQ] = useState("");
   const [teamFilter,setTeamFilter] = useState("");
   const [repFilter,setRepFilter] = useState("");
+  const [openSections,setOpenSections] = useState<Record<string,boolean>>({closing:true,evaluating:true,demo:true});
+  const [hygiene,setHygiene] = useState<Set<HygieneKey>>(new Set());
+  const toggleHygiene = (k: HygieneKey) => setHygiene(prev => { const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const applyHygiene = (rows: any[]) => {
+    if (!hygiene.size) return rows;
+    return rows.filter(r => [...hygiene].every(k => hygieneMatch(k, r)));
+  };
 
   // Compute available teams and reps from all deals
   const allDeals = useMemo(() => [...D.pipeline, ...D.pipelineAside].flatMap(s => s.rows), [D.pipeline, D.pipelineAside]);
@@ -176,7 +255,7 @@ function PipelineView({ onOpen }: PipelineViewProps) {
 
   const cur = allStages.find(s=>s.key===sel) || filteredPipeline[0];
   let rows = cur ? [...cur.rows].sort((a,b)=>recency(a)-recency(b)) : [];
-  if (staleOnly) rows = rows.filter(r=>r.stale);
+  rows = applyHygiene(rows);
   if (q.trim()){ const t=q.toLowerCase(); rows = rows.filter(r=>r.deal.toLowerCase().includes(t)||(r.owner||"").toLowerCase().includes(t)||(r.signal||"").toLowerCase().includes(t)); }
 
   return (
@@ -217,12 +296,12 @@ function PipelineView({ onOpen }: PipelineViewProps) {
           </div>
         </div>
 
-        <Funnel stages={filteredPipeline} metric={metric} sel={sel} onSelect={setSel}/>
+        <Funnel stages={filteredPipeline} metric={metric} sel={sel} onSelect={k => setSel(sel === k ? "" : k)}/>
 
         <div className="cz-funnel-aside">
           <span className="cz-aside-label">Fuera del funnel</span>
           {filteredAside.map((st: any)=>(
-            <button key={st.key} className={"cz-aside-chip"+(sel===st.key?" on":"")} onClick={()=>setSel(st.key)}>
+            <button key={st.key} className={"cz-aside-chip"+(sel===st.key?" on":"")} onClick={()=>setSel(sel===st.key?"":st.key)}>
               {st.label} <b className="num">{st.count}</b>
               {st.stale>0 && <span className="cz-aside-stale num">{st.stale} stale</span>}
             </button>
@@ -230,39 +309,75 @@ function PipelineView({ onOpen }: PipelineViewProps) {
         </div>
       </div>
 
-      {/* SELECTED STAGE DEALS */}
-      <div className="cz-stage-deals">
-        <div className="cz-stage-head">
-          <h3 className="display">{cur.label}</h3>
-          <span className="cz-tb-meta num">{cur.count.toLocaleString("es-ES")} deals · {fmtK(cur.value)}</span>
-          <span style={{flex:1}}/>
-          <button className={"cz-stale-toggle"+(staleOnly?" on":"")} onClick={()=>setStaleOnly(s=>!s)}>
-            <Icon name="clock" size={14} stroke={2}/> Solo parados ({cur.stale})
-          </button>
-          <span className="cz-sortby">Ordenado por último contacto</span>
-        </div>
+      {/* DEALS */}
+      {sel ? (
+        <div className="cz-stage-deals">
+          <div className="cz-stage-head">
+            <h3 className="display">{cur.label}</h3>
+            <span className="cz-tb-meta num">{cur.count.toLocaleString("es-ES")} deals · {fmtK(cur.value)}</span>
+          </div>
+          <HygieneBar active={hygiene} onToggle={toggleHygiene} rows={cur.rows}/>
 
-        <div className="cz-ptable">
-          <div className="cz-pthead">
-            <div className="cz-pc-deal">Deal</div>
-            <div className="cz-pc-stage">Stage</div>
-            <div className="cz-pc-mrr">MRR</div>
-            <div className="cz-pc-prob">Prob</div>
-            <div className="cz-pc-last">Last contact</div>
-            <div className="cz-pc-trend">Trend</div>
-            <div className="cz-pc-owner">Owner</div>
-            <div className="cz-pc-signal">Acción ahora</div>
-            <div className="cz-pc-go"></div>
+          <div className="cz-ptable">
+            <div className="cz-pthead">
+              <div>Deal</div>
+              <div>Stage</div>
+              <div>MRR</div>
+              <div>Prob</div>
+              <div>Last contacted</div>
+              <div>HS | Closzr</div>
+              <div>Owner</div>
+              <div>Next Step</div>
+            </div>
+            <div className="cz-prows">
+              {rows.map((r,i)=><PipeRow key={i} row={r} onOpen={onOpen}/>)}
+              {!rows.length && <div className="cz-empty">Sin deals{hygiene.size?" con estos filtros":""} en {cur.label}{q?` para "${q}"`:""}.</div>}
+            </div>
           </div>
-          <div className="cz-prows">
-            {rows.map((r,i)=><PipeRow key={i} row={r} onOpen={onOpen}/>)}
-            {!rows.length && <div className="cz-empty">Sin deals {staleOnly?"parados ":""}en {cur.label}{q?` para "${q}"`:""}.</div>}
-          </div>
-          {cur.count>cur.rows.length && !q && !staleOnly && (
-            <button className="cz-seeall">Ver los {cur.count.toLocaleString("es-ES")} deals de {cur.label} <Icon name="arrowRight" size={14} stroke={2}/></button>
-          )}
         </div>
-      </div>
+      ) : (
+        <div className="cz-stage-deals">
+          <div className="cz-stage-head">
+            <h3 className="display">Overview</h3>
+            <span className="cz-tb-meta num">Closing · Evaluating · Demo</span>
+          </div>
+          <HygieneBar active={hygiene} onToggle={toggleHygiene} rows={OVERVIEW_STAGES.flatMap(k => (allStages.find(s => s.key === k)?.rows || []))}/>
+          <div className="cz-ptable">
+            <div className="cz-pthead">
+              <div>Deal</div>
+              <div>Stage</div>
+              <div>MRR</div>
+              <div>Prob</div>
+              <div>Last contacted</div>
+              <div>HS | Closzr</div>
+              <div>Owner</div>
+              <div>Next Step</div>
+            </div>
+            {OVERVIEW_STAGES.map(stKey => {
+              const st = allStages.find(s => s.key === stKey);
+              if (!st || !st.count) return null;
+              const sectionOpen = openSections[stKey] ?? true;
+              let sRows = applyHygiene([...st.rows].sort((a,b) => recency(a) - recency(b)));
+              if (q.trim()){ const t=q.toLowerCase(); sRows = sRows.filter(r=>r.deal.toLowerCase().includes(t)||(r.owner||"").toLowerCase().includes(t)||(r.signal||"").toLowerCase().includes(t)); }
+              return (
+                <div key={stKey}>
+                  <StageSectionHeader
+                    label={st.label} count={sRows.length} mrr={sRows.reduce((a,r) => a + (r.mrr || 0), 0)}
+                    tone={STAGE_TONE[stKey] || "ink"} active={sectionOpen}
+                    onClick={() => setOpenSections(p => ({...p, [stKey]: !p[stKey]}))}
+                  />
+                  {sectionOpen && (
+                    <div className="cz-prows">
+                      {sRows.map((r,i) => <PipeRow key={i} row={r} onOpen={onOpen}/>)}
+                      {!sRows.length && <div className="cz-empty">Sin deals{hygiene.size?" con estos filtros":""} en {st.label}.</div>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

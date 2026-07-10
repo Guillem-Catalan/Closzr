@@ -781,27 +781,33 @@
 .cz-sortby { font-size: 12px; color: var(--ink-3); }
 
 .cz-ptable { width: 100%; }
-.cz-pthead, .cz-prow { display: grid; grid-template-columns: minmax(180px,1.3fr) 116px 70px 60px 104px 70px 130px minmax(280px,2fr) 34px; align-items: center; gap: 14px; padding: 0 20px; }
-.cz-pthead { height: 40px; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); border-bottom: 1px solid var(--line-2); background: var(--card-2); }
+.cz-pthead, .cz-prow { display: grid; grid-template-columns: minmax(180px,1.4fr) 90px 70px 60px 100px 120px 120px minmax(220px,1.8fr); align-items: center; gap: 12px; padding: 0 20px; }
+.cz-pthead { height: 54px; border-bottom: 2px solid var(--line); background: var(--card-2); }
+.cz-pthead > div { font-size: 13px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--ink-2); text-align: center; display: flex; align-items: center; justify-content: center; }
+.cz-pthead > div:first-child { justify-content: flex-start; }
 .cz-prows { display: flex; flex-direction: column; }
-.cz-prow { min-height: 58px; border-bottom: 1px solid var(--line-2); cursor: pointer; transition: background .12s; }
+.cz-prow { min-height: 52px; border-bottom: 1px solid var(--line-2); cursor: pointer; transition: background .12s; font-size: 13.5px; font-weight: 500; color: var(--ink); }
 .cz-prow:last-child { border-bottom: none; }
 .cz-prow:hover { background: var(--indigo-tint-2); }
 .cz-prow:focus-visible { outline: 2px solid var(--indigo); outline-offset: -2px; }
 .cz-prow.stale { background: linear-gradient(90deg, rgba(216,68,47,.05), transparent 40%); }
 .cz-prow.stale:hover { background: linear-gradient(90deg, rgba(216,68,47,.09), var(--indigo-tint-2) 60%); }
-.cz-pc-deal { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 9px 0; }
+.cz-prow > div { display: flex; align-items: center; justify-content: center; }
+.cz-prow > div:first-child { justify-content: flex-start; }
+.cz-pc-deal { gap: 6px; min-width: 0; padding: 8px 0; }
 .cz-stale-dot { width: 7px; height: 7px; border-radius: 99px; background: var(--red); flex: none; box-shadow: 0 0 0 3px var(--red-tint); }
-.cz-pc-name { font-size: 14px; font-weight: 600; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cz-pc-mrr { font-size: 14px; font-weight: 700; }
-.cz-pc-last { font-size: 13px; color: var(--ink-2); }
-.cz-pc-owner { font-size: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cz-pc-signal { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--indigo-700); font-weight: 500; min-width: 0; }
-.cz-pc-signal span { line-height: 1.4; }
-.cz-pc-go { color: var(--ink-4); display: flex; justify-content: center; }
-.cz-prow:hover .cz-pc-go { color: var(--indigo); }
-.cz-seeall { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 13px; font-size: 13px; font-weight: 700; color: var(--indigo); border-top: 1px solid var(--line-2); background: var(--card-2); transition: background .15s; }
-.cz-seeall:hover { background: var(--indigo-tint-2); }
+.cz-pc-name { line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cz-pc-close { gap: 4px; white-space: nowrap; }
+.cz-pc-owner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; justify-content: flex-start !important; }
+.cz-pc-signal { gap: 0; min-width: 0; color: var(--indigo-700); }
+.cz-pc-signal span { line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+.cz-hygiene { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-bottom: 1px solid var(--line-2); background: var(--card-2); flex-wrap: wrap; }
+.cz-hygiene-label { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); margin-right: 4px; }
+.cz-hygiene-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-pill); cursor: pointer; transition: all .15s; white-space: nowrap; }
+.cz-hygiene-pill:hover { border-color: var(--ink-3); color: var(--ink); }
+.cz-hygiene-pill.on { background: var(--amber-tint); border-color: var(--amber); color: var(--amber-ink); }
+.cz-hygiene-count { font-size: 11px; font-weight: 700; opacity: .7; }
 
 @media (max-width: 1200px) {
   .cz-ptable { overflow-x: auto; }

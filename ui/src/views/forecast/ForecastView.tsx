@@ -195,21 +195,6 @@ function LostRow({ d }: { d: LostDeal }) {
   );
 }
 
-/* ---- Section header ---- */
-function SectionHeader({ label, count, mrr, tone, active, onClick }: { label: string; count: number; mrr: number; tone: string; active: boolean; onClick: () => void }) {
-  return (
-    <button onClick={onClick} style={{
-      display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 20px",
-      background: active ? `var(--${tone}-tint)` : "var(--card-3)",
-      border: "none", borderBottom: "1px solid var(--line-2)", cursor: "pointer", textAlign: "left",
-    }}>
-      <span style={{ fontWeight: 700, fontSize: 13, color: active ? `var(--${tone})` : "var(--ink-2)" }}>{label}</span>
-      <Chip tone={tone as any} style={{ fontSize: 10 }}>{count} deals</Chip>
-      <span className="num" style={{ fontSize: 12.5, fontWeight: 600, color: `var(--${tone})`, marginLeft: "auto" }}>{fmtEur(mrr)}</span>
-      <Icon name="chevDown" size={12} style={{ color: "var(--ink-3)", transform: active ? "none" : "rotate(-90deg)", transition: "transform .18s" }} />
-    </button>
-  );
-}
 
 /* ---- Editable target ---- */
 function EditableTarget({ value, teamFilter, targets, teams, canEdit, fontSize }: { value: number; teamFilter: string; targets: { team: string; month: string; monthly_target: number }[]; teams: string[]; canEdit: boolean; fontSize?: number }) {

@@ -8,6 +8,23 @@
 
 import type { DealRow, ActionItem } from "./store";
 
+// ---- Team hierarchy (parent includes children) ----
+const TEAM_CHILDREN: Record<string, string[]> = {
+  "DS Joan Balaña": ["DS Antoni Grau", "DS Zafra"],
+  "DS Antoni Grau": ["DS Mireia", "DS Roberto", "DS Tania", "DS Luis", "DS Pilar", "DS Caterina"],
+  "DS Mireia": ["DS Rubén", "DS Andrea C"],
+};
+
+export function expandTeam(team: string): Set<string> {
+  const result = new Set<string>();
+  const walk = (t: string) => {
+    result.add(t);
+    for (const child of (TEAM_CHILDREN[t] || [])) walk(child);
+  };
+  walk(team);
+  return result;
+}
+
 // ---- Normalize for accent-insensitive comparison ----
 export function normalize(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -26,9 +43,10 @@ export function distinctTeams(rows: DealRow[]): string[] {
 }
 
 export function distinctOwners(rows: DealRow[], team?: string): string[] {
+  const teamSet = team ? expandTeam(team) : null;
   const set = new Set<string>();
   for (const r of rows) {
-    if (team && r.team !== team) continue;
+    if (teamSet && !teamSet.has(r.team || "")) continue;
     if (r.owner && r.owner !== "—") set.add(r.owner);
   }
   return [...set].sort();
@@ -53,7 +71,7 @@ export function distinctOwnersFromActions(actions: ActionItem[], team?: string):
 
 export function matchesTeam(row: { team?: string }, team: string): boolean {
   if (!team) return true;
-  return row.team === team;
+  return expandTeam(team).has(row.team || "");
 }
 
 export function matchesRep(owner: string, repFilter: string, meetingPaes?: string[]): boolean {

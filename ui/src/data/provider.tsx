@@ -7,7 +7,7 @@
    Structure (funnel, stage tones) from config.generated.json.
    ============================================================ */
 import { useState, useEffect, type ReactNode } from "react";
-import { DataContext, type CZData, type DealRow, type FunnelStage, type ForecastDeal, type ForecastData, type ClosedDeal, type ActionItem } from "./store";
+import { DataContext, type CZData, type DealRow, type FunnelStage, type ForecastDeal, type ForecastData, type ClosedDeal, type ActionItem, type BenchmarkDeal } from "./store";
 import { supabase } from "./supabase";
 import { usePermissions, type UserProfile } from "../permissions";
 import { PIPELINE_FUNNEL, PIPELINE_ASIDE, stageAbbr, shortStage, CLOSED_WON_STAGES, CLOSED_LOST_STAGES, STAGE_TONES } from "../display";
@@ -80,6 +80,12 @@ type RawDealUI = {
   dp_score: number | null;
   i_score: number | null;
   c_score: number | null;
+  m_text: string | null;
+  e_text: string | null;
+  dc_text: string | null;
+  dp_text: string | null;
+  i_text: string | null;
+  c_text: string | null;
   blockers_count: number | null;
   signals_count: number | null;
   next_steps: any[] | null;
@@ -99,6 +105,20 @@ type RawDealUI = {
   deal_age_days: number | null;
   closed_lost_reason: string | null;
   has_meeting_today: boolean | null;
+  full_narrative: string | null;
+  analysis_timeline: any;
+  analysis_what_worked: any;
+  analysis_what_failed: any;
+  analysis_could_have_changed: string | null;
+  analysis_rep_assessment: string | null;
+  analysis_key_people: any;
+  analysis_products_pitched: any;
+  analysis_products_missed: any;
+  analysis_product_assessment: string | null;
+  trajectory: any;
+  interactions: any;
+  lessons: any;
+  key_turning_point: string | null;
 };
 
 type RawTarget = { team: string; month: string; monthly_target: number };
@@ -162,7 +182,7 @@ function toForecastDeal(d: RawDealUI, row: DealRow): ForecastDeal {
   };
 }
 
-const DEAL_UI_COLS = "deal_id,hs_deal_id,company_name,deal_name_full,stage,macro_stage,pae,pbd,team,mrr,close_probability,close_date,close_date_hs,last_contact_label,trend,is_stale,stale_days,score,bucket,action_priority,action_headline,action_headline_short,action_signal,action_type,action_who,action_due_date,action_due_label,howto_body,deal_summary,deal_assessment,m_score,e_score,dc_score,dp_score,i_score,c_score,blockers_count,signals_count,next_steps,forecast_confidence,deal_momentum,estimated_close_date,forecast_reasoning,push_action,forecast_risks,forecast_accelerators,outcome,outcome_summary,employees,forecast_category,deal_age_days,closed_lost_reason,has_meeting_today";
+const DEAL_UI_COLS = "deal_id,hs_deal_id,company_name,deal_name_full,stage,macro_stage,pae,pbd,team,mrr,close_probability,close_date,close_date_hs,last_contact_label,trend,is_stale,stale_days,score,bucket,action_priority,action_headline,action_headline_short,action_signal,action_type,action_who,action_due_date,action_due_label,howto_body,deal_summary,deal_assessment,m_score,e_score,dc_score,dp_score,i_score,c_score,m_text,e_text,dc_text,dp_text,i_text,c_text,blockers_count,signals_count,next_steps,forecast_confidence,deal_momentum,estimated_close_date,forecast_reasoning,push_action,forecast_risks,forecast_accelerators,outcome,outcome_summary,employees,forecast_category,deal_age_days,closed_lost_reason,has_meeting_today,full_narrative,analysis_timeline,analysis_what_worked,analysis_what_failed,analysis_could_have_changed,analysis_rep_assessment,analysis_key_people,analysis_products_pitched,analysis_products_missed,analysis_product_assessment,trajectory,interactions,lessons,key_turning_point";
 
 async function loadData(): Promise<CZData> {
   const [allDeals, targets] = await Promise.all([
@@ -281,6 +301,47 @@ async function loadData(): Promise<CZData> {
     m0Deals, m1Deals, m2Deals,
   };
 
+  // ---- Benchmark (all-time won/lost) ----
+  const parseJsonArr = (v: any): any[] => {
+    if (!v) return [];
+    if (Array.isArray(v)) return v;
+    if (typeof v === "string") { try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch { return []; } }
+    return [];
+  };
+  const parseJsonObj = (v: any): any | null => {
+    if (!v) return null;
+    if (typeof v === "object" && !Array.isArray(v)) return v;
+    if (typeof v === "string") { try { return JSON.parse(v); } catch { return null; } }
+    return null;
+  };
+  const toBenchmark = (d: RawDealUI, outcome: "won" | "lost"): BenchmarkDeal => ({
+    id: d.deal_id, hsId: d.hs_deal_id || undefined,
+    deal: d.company_name || d.deal_name_full || "—",
+    mrr: d.mrr, owner: d.pae || d.pbd || "—", team: d.team || "",
+    closeDate: d.close_date_hs || null, dealAge: d.deal_age_days || null, outcome,
+    meddic: { m: d.m_score || 0, e: d.e_score || 0, dc: d.dc_score || 0, dp: d.dp_score || 0, i: d.i_score || 0, c: d.c_score || 0 },
+    meddicText: { m: d.m_text || null, e: d.e_text || null, dc: d.dc_text || null, dp: d.dp_text || null, i: d.i_text || null, c: d.c_text || null },
+    outcomeSummary: d.outcome_summary || null, dealAssessment: d.deal_assessment || null,
+    lostReason: d.closed_lost_reason || null, employees: d.employees || null,
+    fullNarrative: d.full_narrative || null,
+    timeline: parseJsonArr(d.analysis_timeline),
+    whatWorked: parseJsonArr(d.analysis_what_worked).map((x: any) => typeof x === "string" ? x : x?.text || x?.point || ""),
+    whatFailed: parseJsonArr(d.analysis_what_failed).map((x: any) => typeof x === "string" ? x : x?.text || x?.point || ""),
+    couldHaveChanged: d.analysis_could_have_changed || null,
+    repAssessment: d.analysis_rep_assessment || null,
+    keyPeople: parseJsonArr(d.analysis_key_people),
+    productsPitched: parseJsonArr(d.analysis_products_pitched),
+    productsMissed: parseJsonArr(d.analysis_products_missed),
+    productAssessment: d.analysis_product_assessment || null,
+    trajectory: parseJsonArr(d.trajectory),
+    interactions: parseJsonObj(d.interactions),
+    lessons: parseJsonArr(d.lessons).map((x: any) => typeof x === "string" ? x : x?.text || x?.lesson || ""),
+    keyTurningPoint: d.key_turning_point || null,
+  });
+  const benchWon = allDeals.filter(d => wonSet.has(stageLower(d))).map(d => toBenchmark(d, "won"));
+  const benchLost = allDeals.filter(d => lostSet.has(stageLower(d))).map(d => toBenchmark(d, "lost"));
+  const benchmark = { won: benchWon, lost: benchLost };
+
   // ---- 1:1 ----
   const reps = [...new Set(allRows.map(r => r.owner).filter(o => o !== "—"))].sort();
   const rep = reps[0] || "—";
@@ -324,7 +385,7 @@ async function loadData(): Promise<CZData> {
     ? [{ id: "meetings-today", title: "Meetings hoy", meta: `${meetingRows.length} deals`, tint: "indigo", rows: meetingRows }]
     : [];
 
-  return { STAGE, groups, nakiva: null, yukAtlas: null, pipeline, pipelineAside, forecast, oneOnOne, todos, loading: false };
+  return { STAGE, groups, nakiva: null, yukAtlas: null, pipeline, pipelineAside, forecast, benchmark, oneOnOne, todos, loading: false };
 }
 
 // ---- Permission-based filtering ----
@@ -353,6 +414,7 @@ function applyPermissions(data: CZData, profile: UserProfile | null): CZData {
     pipeline: data.pipeline.map(s => { const rows = s.rows.filter(filterRow); return { ...s, rows, count: rows.length, value: rows.reduce((a, r) => a + (r.mrr || 0), 0), stale: rows.filter(r => r.stale).length }; }),
     pipelineAside: data.pipelineAside.map(s => { const rows = s.rows.filter(filterRow); return { ...s, rows, count: rows.length, value: rows.reduce((a, r) => a + (r.mrr || 0), 0), stale: rows.filter(r => r.stale).length }; }),
     todos: data.todos.filter(a => { if (scope === "self") return matchesSelf(a.dealOwner || ""); return filterByTeam(a); }),
+    benchmark: { won: data.benchmark.won.filter(filterByTeam), lost: data.benchmark.lost.filter(filterByTeam) },
     forecast: {
       ...data.forecast,
       hsTotal: Math.round(data.forecast.hsDeals.filter(filterFc).reduce((s, d) => s + (d.mrr || 0), 0)),
@@ -375,7 +437,7 @@ function applyPermissions(data: CZData, profile: UserProfile | null): CZData {
   };
 }
 
-const EMPTY_DATA: CZData = { STAGE, groups: [], nakiva: null, yukAtlas: null, pipeline: [], pipelineAside: [], forecast: { target: 0, hsTotal: 0, closzrTotal: 0, nextMonthTotal: 0, pushableCount: 0, closedTotal: 0, lostTotal: 0, hsDeals: [], closzrDeals: [], nextMonthDeals: [], pushableDeals: [], closedDeals: [], lostDeals: [], allDeals: [], targets: [], m0Deals: [], m1Deals: [], m2Deals: [] }, oneOnOne: { reps: [], rep: "", activeDeals: 0, pipeline: 0, top10: [], meddicBase: 0, meddic: [], meddicNote: "", weakness: [], tlActions: [], methodologyOpen: 0, methodology: [] }, todos: [], loading: true };
+const EMPTY_DATA: CZData = { STAGE, groups: [], nakiva: null, yukAtlas: null, pipeline: [], pipelineAside: [], forecast: { target: 0, hsTotal: 0, closzrTotal: 0, nextMonthTotal: 0, pushableCount: 0, closedTotal: 0, lostTotal: 0, hsDeals: [], closzrDeals: [], nextMonthDeals: [], pushableDeals: [], closedDeals: [], lostDeals: [], allDeals: [], targets: [], m0Deals: [], m1Deals: [], m2Deals: [] }, benchmark: { won: [], lost: [] }, oneOnOne: { reps: [], rep: "", activeDeals: 0, pipeline: 0, top10: [], meddicBase: 0, meddic: [], meddicNote: "", weakness: [], tlActions: [], methodologyOpen: 0, methodology: [] }, todos: [], loading: true };
 
 // ---- Provider ----
 export function DataProvider({ children }: { children: ReactNode }) {

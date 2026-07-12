@@ -41,10 +41,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: session?.user ?? null,
     loading,
     signIn: async (email, password) => {
+      if (!email.endsWith("@factorial.co")) return { error: "Only @factorial.co emails allowed" };
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       return { error: error?.message ?? null };
     },
     signUp: async (email, password, name) => {
+      if (!email.endsWith("@factorial.co")) return { error: "Only @factorial.co emails allowed" };
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) return { error: error.message };
       if (data.user) {
@@ -58,10 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           visible_teams: [],
           visible_reps: [],
           tab_permissions: {
+            general: { enabled: true, scope: "self" },
             todos: { enabled: true, scope: "self" },
             deals: { enabled: true, scope: "self" },
+            benchmark: { enabled: true, scope: "self" },
+            alerts: { enabled: true, scope: "self" },
             forecast: { enabled: true, scope: "self" },
             oneone: { enabled: false, scope: "self" },
+            uplift: { enabled: true, scope: "self" },
             admin: { enabled: false, scope: "all" },
           },
         }, { onConflict: "id" });

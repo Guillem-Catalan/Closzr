@@ -66,12 +66,12 @@ function getEndOfMonth(today: string): string {
 }
 
 /* ---- Action row (reused for actions + overdue) ---- */
-function ActionRow({ a, onOpen, onToggle, isDone }: {
-  a: ActionItem; onOpen: () => void; onToggle: () => void; isDone: boolean;
+function ActionRow({ a, onOpen, onToggle, isDone, today }: {
+  a: ActionItem; onOpen: () => void; onToggle: () => void; isDone: boolean; today: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const bs = BUCKET_STYLE[a.bucket] || BUCKET_STYLE.pipeline;
-  const isOverdue = !isDone && a.actionDueDate && a.actionDueDate < getSpainToday();
+  const isOverdue = !isDone && a.actionDueDate && a.actionDueDate < today;
 
   return (
     <>
@@ -202,6 +202,9 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
   const [showOverdue, setShowOverdue] = useState(true);
   const [showDone, setShowDone] = useState(false);
+  const TODO_PAGE = 30;
+  const [actionsVisible, setActionsVisible] = useState(TODO_PAGE);
+  const [overdueVisible, setOverdueVisible] = useState(TODO_PAGE);
 
   const today = getSpainToday();
   const repNorm = repFilter ? normalize(repFilter) : "";
@@ -265,6 +268,7 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
 
   // 2. Actions for the period (due_date = today or within range, NOT overdue)
   const todayActions = useMemo(() => {
+    setActionsVisible(TODO_PAGE);
     const max = getMaxDate();
     const min = getMinDate();
     return D.todos
@@ -276,6 +280,7 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
 
   // 3. Overdue (due_date < today, still pending)
   const overdue = useMemo(() => {
+    setOverdueVisible(TODO_PAGE);
     return D.todos
       .filter(a => !doneIds.has(a.id) && a.status === "pending")
       .filter(a => a.actionDueDate && a.actionDueDate < today)
@@ -372,9 +377,18 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
         {todayActions.length > 0 && (
           <>
             <SectionHeader title={timeFilter === "hoy" ? "Acciones de hoy" : timeFilter === "semana" ? "Acciones esta semana" : timeFilter === "next_week" ? "Acciones próxima semana" : "Acciones del mes"} count={todayActions.length} tone="ink" />
-            {todayActions.map(a => (
-              <ActionRow key={a.id} a={a} onOpen={() => handleOpenDeal(a)} onToggle={() => handleToggleDone(a.id)} isDone={false} />
+            {todayActions.slice(0, actionsVisible).map(a => (
+              <ActionRow key={a.id} a={a} onOpen={() => handleOpenDeal(a)} onToggle={() => handleToggleDone(a.id)} isDone={false} today={today} />
             ))}
+            {actionsVisible < todayActions.length && (
+              <button onClick={() => setActionsVisible(c => c + TODO_PAGE)} style={{
+                width: "100%", padding: "10px", border: "none", background: "var(--card-2)",
+                cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--indigo)",
+                borderBottom: "1px solid var(--line-2)",
+              }}>
+                Mostrar más ({todayActions.length - actionsVisible} restantes)
+              </button>
+            )}
           </>
         )}
 
@@ -382,9 +396,18 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
         {overdue.length > 0 && (
           <>
             <SectionHeader title="Atrasadas" count={overdue.length} tone="red" collapsed={!showOverdue} onToggle={() => setShowOverdue(!showOverdue)} />
-            {showOverdue && overdue.map(a => (
-              <ActionRow key={a.id} a={a} onOpen={() => handleOpenDeal(a)} onToggle={() => handleToggleDone(a.id)} isDone={false} />
+            {showOverdue && overdue.slice(0, overdueVisible).map(a => (
+              <ActionRow key={a.id} a={a} onOpen={() => handleOpenDeal(a)} onToggle={() => handleToggleDone(a.id)} isDone={false} today={today} />
             ))}
+            {showOverdue && overdueVisible < overdue.length && (
+              <button onClick={() => setOverdueVisible(c => c + TODO_PAGE)} style={{
+                width: "100%", padding: "10px", border: "none", background: "var(--card-2)",
+                cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--indigo)",
+                borderBottom: "1px solid var(--line-2)",
+              }}>
+                Mostrar más ({overdue.length - overdueVisible} restantes)
+              </button>
+            )}
           </>
         )}
 
@@ -393,7 +416,7 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
           <>
             <SectionHeader title="Hechas" count={doneActions.length} tone="green" collapsed={!showDone} onToggle={() => setShowDone(!showDone)} />
             {showDone && doneActions.map(a => (
-              <ActionRow key={a.id} a={a} onOpen={() => handleOpenDeal(a)} onToggle={() => handleToggleDone(a.id)} isDone={true} />
+              <ActionRow key={a.id} a={a} onOpen={() => handleOpenDeal(a)} onToggle={() => handleToggleDone(a.id)} isDone={true} today={today} />
             ))}
           </>
         )}

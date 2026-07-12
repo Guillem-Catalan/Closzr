@@ -11,6 +11,7 @@ import DealWorkspace from "./views/pipeline/DealWorkspace";
 import ForecastView from "./views/forecast/ForecastView";
 import OneOnOneView from "./views/oneone/OneOnOneView";
 import TodoView from "./views/todo/TodoView";
+import BenchmarkView from "./views/benchmark/BenchmarkView";
 import ComingSoon from "./views/ComingSoon";
 const AdminView = lazy(() => import("./views/admin/AdminView"));
 
@@ -72,7 +73,8 @@ function App() {
           {view === "forecast" && <ForecastView onOpen={handleOpen}/>}
           {view === "oneone" && <OneOnOneView onOpen={handleOpen}/>}
           {view === "admin" && <Suspense fallback={<p style={{color:"var(--ink-3)"}}>Cargando...</p>}><AdminView/></Suspense>}
-          {["general","benchmark","alerts","uplift"].includes(view) && <ComingSoon label={view.charAt(0).toUpperCase() + view.slice(1)}/>}
+          {view === "benchmark" && <BenchmarkView onOpen={handleOpen}/>}
+          {["general","alerts","uplift"].includes(view) && <ComingSoon label={view.charAt(0).toUpperCase() + view.slice(1)}/>}
         </main>
         {detailLoading && (
           <div className="cz-overlay" style={{background:"rgba(28,24,16,.25)"}}>

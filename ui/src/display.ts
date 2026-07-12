@@ -129,8 +129,12 @@ export const ADMIN_SCOPES = [
   { value: "custom", label: "Custom" },
 ];
 export const ALL_TABS = [
-  { key: "todos", label: "TO-DOs" },
-  { key: "deals", label: "Deals" },
+  { key: "general", label: "General" },
+  { key: "todos", label: "To Do's" },
+  { key: "deals", label: "Pipeline" },
+  { key: "benchmark", label: "Benchmark" },
+  { key: "alerts", label: "Alerts" },
   { key: "forecast", label: "Forecast" },
   { key: "oneone", label: "1:1" },
+  { key: "uplift", label: "Uplift" },
 ];

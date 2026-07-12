@@ -72,6 +72,38 @@ export type LostDeal = DealRow & {
   dealAge: number | null;
 };
 
+export type BenchmarkDeal = {
+  id?: string;
+  hsId?: string;
+  deal: string;
+  mrr: number | null;
+  owner: string;
+  team: string;
+  closeDate: string | null;
+  dealAge: number | null;
+  outcome: "won" | "lost";
+  meddic: { m: number; e: number; dc: number; dp: number; i: number; c: number };
+  meddicText: { m: string | null; e: string | null; dc: string | null; dp: string | null; i: string | null; c: string | null };
+  outcomeSummary: string | null;
+  dealAssessment: string | null;
+  lostReason: string | null;
+  employees: string | null;
+  fullNarrative: string | null;
+  timeline: { event: string; date?: string; detail?: string }[];
+  whatWorked: string[];
+  whatFailed: string[];
+  couldHaveChanged: string | null;
+  repAssessment: string | null;
+  keyPeople: { name?: string; role?: string; influence?: string }[];
+  productsPitched: { product?: string; reception?: string }[];
+  productsMissed: { product?: string; reason?: string }[];
+  productAssessment: string | null;
+  trajectory: { date?: string; probability?: number; meddic?: { m: number; e: number; dc: number; dp: number; i: number; c: number } }[];
+  interactions: { total_calls?: number; total_emails?: number; total_notes?: number; modjo_calls?: number; hs_meetings?: number } | null;
+  lessons: string[];
+  keyTurningPoint: string | null;
+};
+
 export type ForecastData = {
   target: number;
   hsTotal: number;
@@ -146,6 +178,7 @@ export type CZData = {
   pipeline: FunnelStage[];
   pipelineAside: FunnelStage[];
   forecast: ForecastData;
+  benchmark: { won: BenchmarkDeal[]; lost: BenchmarkDeal[] };
   oneOnOne: OneOnOneData;
   todos: ActionItem[];
   loading: boolean;

@@ -49,6 +49,8 @@ export const PATHS: Record<string, string> = {
   layers:      "M12 3l9 5-9 5-9-5zM3 13l9 5 9-5",
   check:       "M5 12l5 5L20 7",
   flag:        "M5 21V4m0 0h11l-1.5 4L16 12H5",
+  award:       "M8.21 13.89L7 23l5-3 5 3-1.21-9.12M12 15a7 7 0 100-14 7 7 0 000 14z",
+  xCircle:     "M12 12m-9 0a9 9 0 1018 0 9 9 0 10-18 0M15 9l-6 6M9 9l6 6",
   compass:     "M12 12m-9 0a9 9 0 1018 0 9 9 0 10-18 0M15.5 8.5l-2 5-5 2 2-5z",
   route:       "M6 19a3 3 0 100-6 3 3 0 000 6zM18 11a3 3 0 100-6 3 3 0 000 6zM18 8h-5a4 4 0 00-4 4v4",
   panelLeft:   "M3 3h18v18H3zM9 3v18",

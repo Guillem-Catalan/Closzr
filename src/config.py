@@ -301,7 +301,7 @@ DIRECT_SALES_ES = {
             },
         },
         "DS Caterina": {
-            "active": False,
+            "active": True,
             "tl": "caterina.peraire@factorial.co",
             "tl_name": "Caterina Peraire Lores",
             "ae": {

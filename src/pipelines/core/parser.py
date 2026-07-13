@@ -244,6 +244,7 @@ def update_from_sync(deal_uuid: str):
         "close_date_hs": deal.get(_I["deal_col_close_date"]),
         "forecast_category": deal.get(_I["deal_col_forecast_cat"]) or "",
         "macro_stage": macro,
+        "pipeline_name": deal.get("pipeline_name") or "",
         "is_stale": days > threshold,
         "stale_days": days if days < 999 else None,
         "employees": deal.get("num_employees") or deal.get("num_employees_custom") or "",

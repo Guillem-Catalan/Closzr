@@ -272,7 +272,7 @@ DIRECT_SALES_ES = {
             },
         },
         "DS Luis": {
-            "active": False,
+            "active": True,
             "tl": "l.rodriguez@factorial.co",
             "tl_name": "Luis Rodriguez de Luz",
             "ae": {
@@ -287,7 +287,7 @@ DIRECT_SALES_ES = {
             },
         },
         "DS Pilar": {
-            "active": False,
+            "active": True,
             "tl": "pilar.elizaga@factorial.co",
             "tl_name": "Maria del Pilar Elizaga",
             "ae": {

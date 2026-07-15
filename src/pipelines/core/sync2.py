@@ -32,8 +32,6 @@ _tbl = schema.tbl
 
 DEALS_TABLE       = _tbl("deals")
 DEALS_UPSERT_KEY  = schema.upsert_key("deals")
-MEETINGS_TABLE    = _tbl("meetings")
-MEETINGS_UPSERT   = schema.upsert_key("meetings")
 
 COL_DEAL_ID       = _col("deal_id")
 COL_STAGE         = _col("stage")
@@ -58,8 +56,18 @@ _STAGE_TO_INTERNAL = org.CRM_STAGE_LABEL_TO_INTERNAL
 _STRATEGY = org.CRM_SYNC_STRATEGY
 _TRIGGER = org.CRM_CORE_TRIGGER
 
-SEARCH_URL = "/crm/v3/objects/deals/search"
+SEARCH_URL = org.API_ENDPOINTS["deal_search"]
 HUBSPOT_BASE = org.API_ENDPOINTS["hubspot"]
+
+_OWN = org.CRM_OWNER_RESPONSE_FIELDS
+
+# CRM property names resolved from internal names — never hardcoded
+_HS_STAGE     = org.crm_prop("stage")
+_HS_PIPELINE  = org.crm_prop("pipeline")
+_HS_OWNER     = org.crm_prop("owner_id")
+_HS_CREATOR   = org.crm_prop("creator_id")
+_HS_ALL_IDS   = org.crm_prop("all_owner_ids")
+_HS_IS_CLOSED = org.crm_prop("is_closed")
 
 
 # ── Step 1: Determine what to search ──────────────────────────────────────
@@ -88,7 +96,7 @@ def _search_all(filter_groups: list[dict]) -> set[str]:
     while True:
         body: dict = {
             "filterGroups": filter_groups,
-            "properties": [_F["hs_object_id"]["column"]],
+            "properties": [],
             "limit": 100,
         }
         if after:
@@ -102,13 +110,19 @@ def _search_all(filter_groups: list[dict]) -> set[str]:
     return ids
 
 
-_HS_IS_CLOSED = {"propertyName": "hs_is_closed", "operator": "NEQ", "value": "true"}
+_NOT_CLOSED = {"propertyName": _HS_IS_CLOSED, "operator": "NEQ", "value": "true"}
 
 
 def _mod_filter(since_ms: int | None) -> dict | None:
     if since_ms is None:
         return None
-    return {"propertyName": _TRIGGER["search_property"], "operator": "GTE", "value": str(since_ms)}
+    return {"propertyName": org.crm_prop(_TRIGGER["search_internal"]), "operator": "GTE", "value": str(since_ms)}
+
+
+_ACTIVE_PIPELINE_FILTER = {
+    "propertyName": _HS_PIPELINE, "operator": "IN",
+    "values": org.CRM_ACTIVE_PIPELINE_IDS,
+}
 
 
 def _find_deal_ids(since_ms: int | None) -> set[str]:
@@ -117,13 +131,14 @@ def _find_deal_ids(since_ms: int | None) -> set[str]:
         return set()
     mf = _mod_filter(since_ms)
     ids: set[str] = set()
-    for i in range(0, len(all_oids), 5):
-        batch = all_oids[i:i + 5]
+    for i in range(0, len(all_oids), 4):
+        batch = all_oids[i:i + 4]
         filter_groups = []
         for oid in batch:
             filters = [
-                {"propertyName": "hubspot_owner_id", "operator": "EQ", "value": oid},
-                _HS_IS_CLOSED,
+                {"propertyName": _HS_OWNER, "operator": "EQ", "value": oid},
+                _NOT_CLOSED,
+                _ACTIVE_PIPELINE_FILTER,
             ]
             if mf:
                 filters.append(mf)
@@ -137,14 +152,14 @@ def _find_deal_ids(since_ms: int | None) -> set[str]:
 
 def _fetch_owners() -> dict[str, dict]:
     owners: dict[str, dict] = {}
-    url = "/crm/v3/owners?limit=100"
+    url = f"{org.API_ENDPOINTS['owners']}?limit=100"
     while url:
         data = hubspot.get(url)
         for o in data.get("results", []):
-            first = o.get("firstName") or ""
-            last = o.get("lastName") or ""
-            name = f"{first} {last}".strip() or o.get("email", "")
-            owners[o["id"]] = {"name": name, "email": o.get("email", "")}
+            first = o.get(_OWN["first_name"]) or ""
+            last = o.get(_OWN["last_name"]) or ""
+            name = f"{first} {last}".strip() or o.get(_OWN["email"], "")
+            owners[o[_OWN["id"]]] = {"name": name, "email": o.get(_OWN["email"], "")}
         next_link = data.get("paging", {}).get("next", {}).get("link")
         url = next_link.replace(HUBSPOT_BASE, "") if next_link else ""
     return owners
@@ -155,7 +170,7 @@ def _batch_read_deals(deal_ids: list[str]) -> list[dict]:
     for i in range(0, len(deal_ids), 100):
         batch = deal_ids[i:i + 100]
         data = hubspot.post(
-            "/crm/v3/objects/deals/batch/read",
+            org.API_ENDPOINTS["deal_batch_read"],
             {"inputs": [{"id": did} for did in batch], "properties": org.CRM_ALL_DEAL_PROPS},
         )
         results.extend(data.get("results", []))
@@ -168,7 +183,7 @@ def _fetch_company_associations(deal_ids: list[str]) -> dict[str, str]:
         batch = deal_ids[i:i + 100]
         try:
             data = hubspot.post(
-                "/crm/v4/associations/deals/companies/batch/read",
+                org.API_ENDPOINTS["company_associations"],
                 {"inputs": [{"id": did} for did in batch]},
             )
             if not data:
@@ -189,7 +204,7 @@ def _fetch_partner_associations(deal_ids: list[str]) -> dict[str, str]:
         batch = deal_ids[i:i + 100]
         try:
             data = hubspot.post(
-                f"/crm/v4/associations/deals/{org.CRM_PARTNER_OBJECT_TYPE_ID}/batch/read",
+                org.API_ENDPOINTS["partner_associations"].format(partner_type=org.CRM_PARTNER_OBJECT_TYPE_ID),
                 {"inputs": [{"id": did} for did in batch]},
             )
             if not data:
@@ -215,19 +230,12 @@ def _to_iso(val: str) -> str | None:
     return val
 
 
-# ── Build a set of HS prop names whose type is date/datetime ─────────────
-# FIX bug #1: use field type metadata instead of string matching on prop name.
-
-_DATE_TYPE_COLUMNS = {
-    v["column"]
-    for v in _F.values()
-    if v["column"] in {f["column"] for f in schema.FIELDS.values() if f["type"] in ("date", "datetime")}
-}
+# ── HS props whose schema type is date/datetime ─────────────────────────
 
 _HS_DATE_PROPS = {
     hs_prop
     for hs_prop, info in _F.items()
-    if info["column"] in _DATE_TYPE_COLUMNS
+    if schema.is_date_field(info["internal"])
 }
 
 
@@ -242,47 +250,41 @@ def _resolve_deal(
 ) -> dict | None:
     props = hs_deal.get("properties", {})
 
-    # Pipeline filter — use org.CRM_EXCLUDE_PIPELINE_IDS
-    pipeline_id = props.get("pipeline") or ""
+    pipeline_id = props.get(_HS_PIPELINE) or ""
     if pipeline_id in org.CRM_EXCLUDE_PIPELINE_IDS:
         return None
     pipeline_entry = _PIPELINE_MAP.get(pipeline_id)
     pipeline_name = pipeline_entry["name"] if pipeline_entry else pipeline_id
 
-    # Stage: CRM ID → label → internal name
-    stage_raw = props.get("dealstage") or ""
+    stage_raw = props.get(_HS_STAGE) or ""
     stage_label = _STAGE_MAP.get(stage_raw, stage_raw)
     stage_internal = _STAGE_TO_INTERNAL.get(stage_label)
 
-    # FIX bug #7: use schema.EXCLUDED set instead of lowercase string matching
-    if not allow_closed and stage_internal and stage_internal in schema.EXCLUDED:
+    if stage_internal and stage_internal in schema.EXCLUDED:
         return None
     if not allow_closed and stage_internal and stage_internal in schema.CLOSED:
         return None
 
-    # Map HS properties → Supabase columns
-    # FIX bug #1: use _HS_DATE_PROPS set (field type metadata) instead of string matching
     row = {}
     for hs_prop, info in _F.items():
         val = props.get(hs_prop)
         if val is not None and val != "":
-            row[info["column"]] = _to_iso(val) if hs_prop in _HS_DATE_PROPS else val
+            row[_col(info["internal"])] = _to_iso(val) if hs_prop in _HS_DATE_PROPS else val
 
     # Map stage date properties (all are dates)
     for hs_prop, info in _SD.items():
         val = props.get(hs_prop)
         if val is not None and val != "":
-            row[info["column"]] = _to_iso(val)
+            row[_col(info["internal"])] = _to_iso(val)
 
-    # Override stage with label (human-readable, not raw ID)
-    row[COL_STAGE] = stage_label
+    # Override stage with internal name (schema-compatible)
+    row[COL_STAGE] = stage_internal or stage_label
 
     # Override pipeline_name
     row[COL_PIPELINE] = pipeline_name
 
-    # Resolve PAE/PBD names
-    owner_id = props.get("hubspot_owner_id") or ""
-    creator_id = props.get("created_by") or ""
+    owner_id = props.get(_HS_OWNER) or ""
+    creator_id = props.get(_HS_CREATOR) or ""
     owner_email = get_email_by_owner_id(str(owner_id))
     creator_email = get_email_by_owner_id(str(creator_id))
 
@@ -294,10 +296,8 @@ def _resolve_deal(
     if not row[COL_PBD] and creator_id in owners:
         row[COL_PBD] = owners[creator_id].get("name", "")
 
-    # FIX bug #3: use schema column name instead of hardcoded "hs_all_owner_ids"
     if not row[COL_PBD]:
-        all_ids_col = _col("all_owner_ids")
-        all_ids = (props.get("hs_all_owner_ids") or "").split(";")
+        all_ids = (props.get(_HS_ALL_IDS) or "").split(";")
         for aid in all_ids:
             aid = aid.strip()
             if not aid or aid == owner_id:
@@ -310,12 +310,10 @@ def _resolve_deal(
                 row[COL_PBD] = owners[aid].get("name", "")
                 break
 
-    # Resolve team + partner via partner association or owner email
     deal_id = row.get(COL_DEAL_ID, "")
-    partner_id = partner_map.get(deal_id)
-    row[COL_TEAM] = get_deal_team(partner_id, owner_email)
+    row[COL_TEAM] = get_deal_team(owner_email)
 
-    # FIX bug #4: use COL_PARTNER (schema internal name) instead of hardcoded "partner"
+    partner_id = partner_map.get(deal_id)
     if partner_id and partner_id in _PARTNER_OBJECTS:
         row[COL_PARTNER] = _PARTNER_OBJECTS[partner_id]["display"]
 
@@ -340,7 +338,7 @@ def _detect_stale(rows: list[dict]) -> list[dict]:
     if not rows:
         return rows
 
-    col_activity = _TRIGGER["supabase_column"]
+    col_activity = _col(_TRIGGER["activity_internal"])
     cooldown_cutoff = (datetime.now(timezone.utc) - timedelta(hours=STALE_COOLDOWN_HOURS)).isoformat()
 
     deal_ids = [r[COL_DEAL_ID] for r in rows if r.get(COL_DEAL_ID)]
@@ -404,74 +402,6 @@ def _upsert_deals(rows: list[dict]) -> int:
     return written
 
 
-# FIX bug #9: skip meetings for excluded-pipeline deals
-def _sync_meetings(deal_ids: list[str], resolved_pipeline_ids: dict[str, str]) -> int:
-    if not deal_ids:
-        return 0
-
-    # Only sync meetings for deals NOT in excluded pipelines
-    active_deal_ids = [
-        did for did in deal_ids
-        if resolved_pipeline_ids.get(did) not in org.CRM_EXCLUDE_PIPELINE_IDS
-    ]
-    if not active_deal_ids:
-        return 0
-
-    meeting_rows = []
-    for did in active_deal_ids:
-        try:
-            assoc = hubspot.get(f"/crm/v4/objects/deals/{did}/associations/meetings?limit=100")
-            meeting_ids = [
-                str(a.get("toObjectId", ""))
-                for a in assoc.get("results", [])
-                if a.get("toObjectId")
-            ]
-            if not meeting_ids:
-                continue
-            mdata = hubspot.post(
-                "/crm/v3/objects/meetings/batch/read",
-                {
-                    "inputs": [{"id": mid} for mid in meeting_ids],
-                    "properties": list(org.CRM_TO_SUPABASE_MEETINGS.keys()),
-                },
-            )
-            for m in mdata.get("results", []):
-                mp = m.get("properties", {})
-                row = {
-                    "hs_deal_id": did,
-                    "hs_meeting_id": m["id"],
-                }
-                for hs_prop, col in org.CRM_TO_SUPABASE_MEETINGS.items():
-                    val = mp.get(hs_prop)
-                    if val is not None:
-                        row[col] = val
-                meeting_rows.append(row)
-        except Exception as e:
-            print(f"    Meeting fetch error for deal {did}: {e}")
-
-    if not meeting_rows:
-        return 0
-
-    seen = set()
-    unique = []
-    for r in meeting_rows:
-        mid = r.get(MEETINGS_UPSERT)
-        if mid and mid not in seen:
-            seen.add(mid)
-            unique.append(r)
-
-    written = 0
-    for i in range(0, len(unique), UPSERT_BATCH_SIZE):
-        batch = unique[i:i + UPSERT_BATCH_SIZE]
-        result = (
-            supabase.table(MEETINGS_TABLE)
-            .upsert(batch, on_conflict=MEETINGS_UPSERT)
-            .execute()
-        )
-        written += len(result.data or [])
-    return written
-
-
 # ── Main entry point ─────────────────────────────────────────────────────
 
 def run(full: bool = False) -> dict:
@@ -494,7 +424,7 @@ def run(full: bool = False) -> dict:
     deal_ids = _find_deal_ids(since_ms)
     if not deal_ids:
         print("   No deals found.")
-        return {"synced": 0, "stale": 0, "meetings": 0}
+        return {"synced": 0, "stale": 0, "deal_ids": []}
 
     # Step 3
     deal_id_list = sorted(deal_ids)
@@ -514,12 +444,7 @@ def run(full: bool = False) -> dict:
     print("\n4. Resolving deals ...")
     rows = []
     skipped = 0
-    pipeline_id_map: dict[str, str] = {}
     for hd in hs_deals:
-        props = hd.get("properties", {})
-        hs_deal_id = props.get("hs_object_id") or hd.get("id", "")
-        pipeline_id_map[hs_deal_id] = props.get("pipeline") or ""
-
         row = _resolve_deal(hd, owners, company_map, partner_map)
         if row:
             rows.append(row)

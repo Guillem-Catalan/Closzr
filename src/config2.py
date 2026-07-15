@@ -63,6 +63,7 @@ MIN_PIPELINE_REVIEW_PROBABILITY = 46
 MRR_TOP_DEAL_THRESHOLD = 3000
 
 # ── HubSpot API ──
+HUBSPOT_APP_URL = "https://app.hubspot.com"
 HUBSPOT_MIN_REQUEST_INTERVAL = 0.2
 HUBSPOT_MAX_RETRIES = 5
 HUBSPOT_RETRYABLE_CODES = {401, 429, 500, 502, 503}
@@ -274,6 +275,7 @@ EB_CLASSIFICATIONS = {
 
 CONTEXT_CALL_PATTERN = r"\[call:(\S+)\]"
 CONTEXT_HS_PATTERN = r"\[hs:(\S+)\]"
+MODJO_LINK_PATTERN = r"app\.modjo\.ai/call-details/(\d+)"
 CONTEXT_RPC = "append_deal_context"
 CONTEXT_RPC_PARAMS = {"deal_id": "p_deal_id", "text": "p_text"}
 
@@ -284,13 +286,73 @@ TRANSCRIPT_PENDING_HOURS = 24
 
 DEAL_NAME_EXCLUDE_PATTERNS = ["session"]
 
+RED_FLAGS = frozenset({
+    "BANT_3_MISSING", "NO_ECONOMIC_BUYER", "FORECAST_RED", "PARTNER_LEVERAGE_1",
+})
+
 NO_TAG_STRATEGY = "infer_from_context"
 
-ATLAS_COMPANY_LABELS = {
-    "name": "Nombre", "industry": "Industria",
-    "numberofemployees": "Empleados", "annualrevenue": "Revenue anual",
-    "country": "País", "city": "Ciudad",
-    "website": "Web", "description": "Descripción",
+ATLAS_LABELS = {
+    "es": {
+        "company": {
+            "company_name": "Nombre", "industry": "Industria", "company_size": "Empleados",
+            "annual_revenue": "Revenue anual", "country": "País", "city": "Ciudad",
+            "website": "Web", "description": "Descripción",
+        },
+        "deal_status": {"won": "GANADO", "lost": "PERDIDO/CERRADO", "active": "ACTIVO"},
+        "deal_fields": {"stage": "Stage", "status": "Estado", "amount": "Amount",
+                        "created": "Creado", "close": "Cierre", "forecast": "Forecast", "owner": "Owner",
+                        "lost_reason": "Motivo de pérdida"},
+        "contact_fields": {"title": "Cargo", "email": "Email", "phone": "Teléfono", "deals": "Deals"},
+        "empty": {"company": "(sin información de empresa)", "deals": "(sin deals asociados)",
+                  "contacts": "(sin contactos asociados)", "name": "(sin nombre)"},
+        "headers": {"company": "Empresa", "deals": "Deals", "contacts": "Contactos"},
+    },
+    "it": {
+        "company": {
+            "company_name": "Nome", "industry": "Settore", "company_size": "Dipendenti",
+            "annual_revenue": "Fatturato annuo", "country": "Paese", "city": "Città",
+            "website": "Sito web", "description": "Descrizione",
+        },
+        "deal_status": {"won": "VINTO", "lost": "PERSO/CHIUSO", "active": "ATTIVO"},
+        "deal_fields": {"stage": "Stage", "status": "Stato", "amount": "Amount",
+                        "created": "Creato", "close": "Chiusura", "forecast": "Forecast", "owner": "Owner",
+                        "lost_reason": "Motivo della perdita"},
+        "contact_fields": {"title": "Ruolo", "email": "Email", "phone": "Telefono", "deals": "Deals"},
+        "empty": {"company": "(nessuna informazione sull'azienda)", "deals": "(nessun deal associato)",
+                  "contacts": "(nessun contatto associato)", "name": "(senza nome)"},
+        "headers": {"company": "Azienda", "deals": "Deal", "contacts": "Contatti"},
+    },
+    "de": {
+        "company": {
+            "company_name": "Name", "industry": "Branche", "company_size": "Mitarbeiter",
+            "annual_revenue": "Jahresumsatz", "country": "Land", "city": "Stadt",
+            "website": "Webseite", "description": "Beschreibung",
+        },
+        "deal_status": {"won": "GEWONNEN", "lost": "VERLOREN/GESCHLOSSEN", "active": "AKTIV"},
+        "deal_fields": {"stage": "Stage", "status": "Status", "amount": "Amount",
+                        "created": "Erstellt", "close": "Abschluss", "forecast": "Forecast", "owner": "Owner",
+                        "lost_reason": "Verlustgrund"},
+        "contact_fields": {"title": "Position", "email": "E-Mail", "phone": "Telefon", "deals": "Deals"},
+        "empty": {"company": "(keine Unternehmensinformationen)", "deals": "(keine zugeordneten Deals)",
+                  "contacts": "(keine zugeordneten Kontakte)", "name": "(kein Name)"},
+        "headers": {"company": "Unternehmen", "deals": "Deals", "contacts": "Kontakte"},
+    },
+    "pt": {
+        "company": {
+            "company_name": "Nome", "industry": "Setor", "company_size": "Funcionários",
+            "annual_revenue": "Receita anual", "country": "País", "city": "Cidade",
+            "website": "Site", "description": "Descrição",
+        },
+        "deal_status": {"won": "GANHO", "lost": "PERDIDO/FECHADO", "active": "ATIVO"},
+        "deal_fields": {"stage": "Stage", "status": "Estado", "amount": "Amount",
+                        "created": "Criado", "close": "Fecho", "forecast": "Forecast", "owner": "Owner",
+                        "lost_reason": "Motivo da perda"},
+        "contact_fields": {"title": "Cargo", "email": "Email", "phone": "Telefone", "deals": "Deals"},
+        "empty": {"company": "(sem informação da empresa)", "deals": "(sem deals associados)",
+                  "contacts": "(sem contactos associados)", "name": "(sem nome)"},
+        "headers": {"company": "Empresa", "deals": "Deals", "contacts": "Contactos"},
+    },
 }
 
 
@@ -318,6 +380,7 @@ DAILY = {
     "analysis_prompt":      PROMPTS["deal_analysis"],
     "analysis_max":         500,
     "forecast_refresh_days": 5,
+    "forecast_refresh_cooldown": 3,
 }
 
 WEEKLY = {
@@ -333,9 +396,19 @@ FORECAST = {
     "max_similar_won":     5,
     "max_similar_lost":    5,
     "max_trajectory_snapshots": 15,
-    "max_patterns":        10,
+    "max_patterns_team":   5,
+    "max_patterns_global": 5,
     "max_calibration":     5,
     "max_deal_context_chars": 5000,
+    "activity_decay": {
+        3: 1.0, 7: 0.95, 14: 0.8, 30: 0.6, 999: 0.4,
+    },
+    "momentum_multiplier": {
+        "accelerating": 1.0,
+        "stable": 1.0,
+        "decelerating": 0.85,
+        "stalled": 0.7,
+    },
 }
 
 
@@ -364,6 +437,14 @@ def _collect_ae_emails(team_dict: dict) -> set[str]:
     for sub in team_dict.get("subteams", {}).values():
         emails |= _collect_ae_emails(sub)
     return emails
+
+
+def _flatten_ds_teams(teams: dict) -> list[tuple[str, dict]]:
+    result = []
+    for name, team in teams.items():
+        result.append((name, team))
+        result.extend(_flatten_ds_teams(team.get("subteams", {})))
+    return result
 
 
 for _name, _team in org.PARTNERS_ORGCHART.items():
@@ -395,13 +476,7 @@ for _name, _team in org.PARTNERS_ORGCHART.items():
             _EMAIL_TO_TEAMS.setdefault(_ld_email, []).append(_name)
             ALL_REP_EMAILS.add(_ld_email)
 
-_ds_director_email = org.DIRECT_SALES.get("sales_director", {}).get("email")
-if _ds_director_email:
-    _EMAIL_TO_TEAM[_ds_director_email] = "DS España"
-    _EMAIL_TO_TEAMS.setdefault(_ds_director_email, []).append("DS España")
-    ALL_REP_EMAILS.add(_ds_director_email)
-
-for _name, _ds_team in org.DIRECT_SALES.get("teams", {}).items():
+for _name, _ds_team in _flatten_ds_teams(org.DIRECT_SALES.get("teams", {})):
     direct_emails = set(_ds_team.get("ae", set()))
     if "tl" in _ds_team:
         direct_emails.add(_ds_team["tl"])
@@ -410,13 +485,6 @@ for _name, _ds_team in org.DIRECT_SALES.get("teams", {}).items():
     for email in direct_emails:
         _EMAIL_TO_TEAM[email] = _name
         _EMAIL_TO_TEAMS.setdefault(email, []).append(_name)
-    for _sub_name, _sub_team in _ds_team.get("subteams", {}).items():
-        sub_emails = _collect_ae_emails(_sub_team)
-        ALL_DS_EMAILS |= sub_emails
-        ALL_REP_EMAILS |= sub_emails
-        for email in sub_emails:
-            _EMAIL_TO_TEAM[email] = _sub_name
-            _EMAIL_TO_TEAMS.setdefault(email, []).append(_sub_name)
 
 ALL_XL_EMAILS = org.XL_SALES.get("ae", set()) | org.XL_SALES.get("sdr", set())
 ALL_REP_EMAILS |= ALL_XL_EMAILS
@@ -430,12 +498,9 @@ ACTIVE_TEAMS: set[str] = set()
 for _name, _team in org.PARTNERS_ORGCHART.items():
     if _team.get("active", False):
         ACTIVE_TEAMS.add(_name)
-for _name, _ds_team in org.DIRECT_SALES.get("teams", {}).items():
+for _name, _ds_team in _flatten_ds_teams(org.DIRECT_SALES.get("teams", {})):
     if _ds_team.get("active", False):
         ACTIVE_TEAMS.add(_name)
-    for _sub_name, _sub_team in _ds_team.get("subteams", {}).items():
-        if _sub_team.get("active", False):
-            ACTIVE_TEAMS.add(_sub_name)
 if org.XL_SALES.get("active", False):
     ACTIVE_TEAMS.add("XL")
 
@@ -547,6 +612,26 @@ def get_lang_prompt(team: str, owner_email: str | None = None) -> str:
     return ""
 
 
+def get_lang_code(team: str, owner_email: str | None = None) -> str:
+    """Resolve language code: person override → subteam → team → default."""
+    if owner_email:
+        lang = org.PERSON_LANG_OVERRIDE.get(owner_email)
+        if lang:
+            return lang
+        owner_team = get_subteam(owner_email)
+        if owner_team:
+            pi = org.PARTNER_IDENTITY.get(owner_team, {})
+            if pi.get("lang"):
+                return pi["lang"]
+    pi = org.PARTNER_IDENTITY.get(team, {})
+    if pi.get("lang"):
+        return pi["lang"]
+    for ti in org.TEAM_IDENTITY.values():
+        if ti.get("lang"):
+            return ti["lang"]
+    return org.OUTPUT_LANG_DEFAULT
+
+
 def get_tl_channel(team_name: str) -> str:
     sc = org.SLACK_TEAM_CHANNELS.get(team_name, {})
     return sc.get("tl_channel", org.SLACK_FALLBACK_CHANNEL)
@@ -567,16 +652,9 @@ def get_slack_channel_by_name(name: str) -> str | None:
     return None
 
 
-def get_deal_team(partner_id: str | None, owner_email: str | None) -> str | None:
+def get_deal_team(owner_email: str | None) -> str | None:
     if owner_email:
         teams = _EMAIL_TO_TEAMS.get(owner_email, [])
-        if len(teams) == 1:
-            return teams[0]
-        if len(teams) > 1 and partner_id:
-            partner_team = org.CRM_PARTNER_OBJECTS.get(partner_id, {}).get("team")
-            if partner_team and partner_team in teams:
-                return partner_team
-            return teams[0]
         if teams:
             return teams[0]
     return None
@@ -607,10 +685,13 @@ def get_briefing_prompt_key(stage_category: str) -> str | None:
     return BRIEFING_PROMPT_MAP.get(stage_category)
 
 
-def _find_ds_team(team_name: str) -> dict | None:
-    if team_name in org.DIRECT_SALES.get("teams", {}):
-        return org.DIRECT_SALES["teams"][team_name]
-    for _t in org.DIRECT_SALES.get("teams", {}).values():
-        if team_name in _t.get("subteams", {}):
-            return _t["subteams"][team_name]
+def _find_ds_team(team_name: str, teams: dict | None = None) -> dict | None:
+    if teams is None:
+        teams = org.DIRECT_SALES.get("teams", {})
+    if team_name in teams:
+        return teams[team_name]
+    for t in teams.values():
+        result = _find_ds_team(team_name, t.get("subteams", {}))
+        if result:
+            return result
     return None

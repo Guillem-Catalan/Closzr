@@ -65,7 +65,7 @@ from src.pipelines.core.sync import (
 )
 from src.pipelines.core.atlas import generate as atlas_generate
 from src.pipelines.core.intelligence import run as intelligence_run, _write_pbd_snapshot
-from src.pipelines.core.forecast import run as forecast_run
+from src.pipelines.core.forecast2 import run as forecast_run
 from src.pipelines.core import parser
 
 _I = INTELLIGENCE_CONFIG

@@ -3,3 +3,10 @@
 Deine GESAMTE Antwort muss auf DEUTSCH sein.
 Alle Textfelder (Zusammenfassungen, Bewertungen, Signale, Blocker, nächste Schritte, Aktionen, Begründungen) müssen auf Deutsch verfasst werden.
 Verwende Standard-Vertriebsterminologie auf Deutsch.
+
+## DATUMSANGABEN
+
+Verwende NIEMALS relative Datumsangaben. Schreibe NIEMALS „heute", „gestern", „morgen", „diese Woche", „nächste Woche", „letzte Woche".
+Verwende IMMER Wochentag + absolutes Datum im Format TT/MM.
+Beispiele: „Montag 14/07", „bis Mittwoch 16/07", „Woche ab Montag 07/07".
+Du erhältst das aktuelle Datum im Prompt — nutze es, um absolute Daten zu berechnen.

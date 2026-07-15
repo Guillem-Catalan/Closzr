@@ -262,6 +262,9 @@ CALL_COLS = {
     # ── Identity ──
     "id": "id", "call_id": "call_id", "hs_call_id": "hs_call_id",
 
+    # ── FK ──
+    "deal_id": "deal_id", "hs_deal_id": "hs_deal_id", "crm_id": "crm_id",
+
     # ── Metadata ──
     "fecha": "fecha", "owner_email": "owner_email", "owner_nombre": "owner_nombre",
     "rol": "rol", "tags": "tags", "duracion": "duracion_segundos",
@@ -518,6 +521,164 @@ ANALYSIS_COLS = {
 }
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# 14. STAGE_DATE_FIELDS — stage transition timestamps (entered/exited)
+#
+# Internal name = column name (both are business-level identifiers).
+# When changing CRM, only org.py keys change; these stay the same.
+# ──────────────────────────────────────────────────────────────────────────────
+
+STAGE_DATE_FIELDS = {
+    col_name: {"column": col_name, "type": "datetime", "persist": True}
+    for col_name in [
+        # ── SDR Partner ──
+        "sdr_prequalified_entered", "sdr_prequalified_exited",
+        "sdr_attempting_to_contact_entered", "sdr_attempting_to_contact_exited",
+        "sdr_associating_the_partner_entered", "sdr_associating_the_partner_exited",
+        "sdr_engaged_entered", "sdr_engaged_exited",
+        "sdr_demo_booked_entered", "sdr_demo_booked_exited",
+        "sdr_nurturing_entered", "sdr_nurturing_exited",
+        "sdr_opportunity_lost_entered", "sdr_opportunity_lost_exited",
+        "sdr_to_reschedule_entered", "sdr_to_reschedule_exited",
+
+        # ── Partners Distribution ──
+        "dist_new_deals_entered", "dist_new_deals_exited",
+        "dist_demo_booked_entered", "dist_demo_booked_exited",
+        "dist_product_alignment_entered", "dist_product_alignment_exited",
+        "dist_do_not_use_entered", "dist_do_not_use_exited",
+        "dist_pricing_and_packaging_entered", "dist_pricing_and_packaging_exited",
+        "dist_contracting_entered", "dist_contracting_exited",
+        "dist_closed_pending_payment_entered", "dist_closed_pending_payment_exited",
+        "dist_closed_won_entered", "dist_closed_won_exited",
+        "dist_on_hold_entered", "dist_on_hold_exited",
+        "dist_closed_lost_entered", "dist_closed_lost_exited",
+        "dist_to_reschedule_entered", "dist_to_reschedule_exited",
+        "dist_meddpicc_validation_entered", "dist_meddpicc_validation_exited",
+
+        # ── Sales ──
+        "sales_meeting_booked_entered", "sales_meeting_booked_exited",
+        "sales_discovery_entered", "sales_discovery_exited",
+        "sales_to_reschedule_entered", "sales_to_reschedule_exited",
+        "sales_product_alignment_entered", "sales_product_alignment_exited",
+        "sales_pricing_and_packaging_entered", "sales_pricing_and_packaging_exited",
+        "sales_contracting_entered", "sales_contracting_exited",
+        "sales_closed_pending_payment_entered", "sales_closed_pending_payment_exited",
+        "sales_closed_won_entered", "sales_closed_won_exited",
+        "sales_closed_lost_entered", "sales_closed_lost_exited",
+
+        # ── OB SDR ──
+        "ob_new_entered", "ob_new_exited",
+        "ob_research_outreach_entered", "ob_research_outreach_exited",
+        "ob_connected_not_engaged_entered", "ob_connected_not_engaged_exited",
+        "ob_engaged_entered", "ob_engaged_exited",
+        "ob_meeting_booked_entered", "ob_meeting_booked_exited",
+        "ob_to_reschedule_entered", "ob_to_reschedule_exited",
+        "ob_hot_nurturing_entered", "ob_hot_nurturing_exited",
+        "ob_long_nurturing_entered", "ob_long_nurturing_exited",
+        "ob_opportunity_lost_entered", "ob_opportunity_lost_exited",
+
+        # ── IB SDR ──
+        "ib_new_qualified_entered", "ib_new_qualified_exited",
+        "ib_attempted_contact_entered", "ib_attempted_contact_exited",
+        "ib_engaged_entered", "ib_engaged_exited",
+        "ib_meeting_booked_entered", "ib_meeting_booked_exited",
+        "ib_to_reschedule_entered", "ib_to_reschedule_exited",
+        "ib_nurturing_entered", "ib_nurturing_exited",
+        "ib_opportunity_lost_entered", "ib_opportunity_lost_exited",
+
+        # ── XL Account ──
+        "xl_demo_request_entered", "xl_demo_request_exited",
+        "xl_new_entered", "xl_new_exited",
+        "xl_outreach_entered", "xl_outreach_exited",
+        "xl_engaged_entered", "xl_engaged_exited",
+        "xl_opportunity_lost_entered", "xl_opportunity_lost_exited",
+        "xl_meeting_booked_entered", "xl_meeting_booked_exited",
+        "xl_to_reschedule_entered", "xl_to_reschedule_exited",
+        "xl_discovery_entered", "xl_discovery_exited",
+        "xl_sales_nurturing_entered", "xl_sales_nurturing_exited",
+        "xl_product_alignment_entered", "xl_product_alignment_exited",
+        "xl_pricing_packaging_entered", "xl_pricing_packaging_exited",
+        "xl_contracting_entered", "xl_contracting_exited",
+        "xl_closed_pending_payment_entered", "xl_closed_pending_payment_exited",
+        "xl_closed_won_entered", "xl_closed_won_exited",
+        "xl_closed_lost_entered", "xl_closed_lost_exited",
+
+        # ── XL SDR ──
+        "xlsdr_new_entered", "xlsdr_new_exited",
+        "xlsdr_research_outreach_entered", "xlsdr_research_outreach_exited",
+        "xlsdr_connected_not_engaged_entered", "xlsdr_connected_not_engaged_exited",
+        "xlsdr_engaged_entered", "xlsdr_engaged_exited",
+        "xlsdr_meeting_booked_entered", "xlsdr_meeting_booked_exited",
+        "xlsdr_to_reschedule_entered", "xlsdr_to_reschedule_exited",
+        "xlsdr_hot_nurturing_entered", "xlsdr_hot_nurturing_exited",
+        "xlsdr_long_nurturing_entered", "xlsdr_long_nurturing_exited",
+        "xlsdr_opportunity_lost_entered", "xlsdr_opportunity_lost_exited",
+
+        # ── IT AE ──
+        "itae_demo_request_entered", "itae_demo_request_exited",
+        "itae_new_entered", "itae_new_exited",
+        "itae_outreach_entered", "itae_outreach_exited",
+        "itae_engaged_entered", "itae_engaged_exited",
+        "itae_meeting_booked_entered", "itae_meeting_booked_exited",
+        "itae_to_reschedule_entered", "itae_to_reschedule_exited",
+        "itae_discovery_entered", "itae_discovery_exited",
+        "itae_product_alignment_entered", "itae_product_alignment_exited",
+        "itae_pricing_packaging_entered", "itae_pricing_packaging_exited",
+        "itae_contracting_entered", "itae_contracting_exited",
+        "itae_closed_pending_payment_entered", "itae_closed_pending_payment_exited",
+        "itae_closed_won_entered", "itae_closed_won_exited",
+        "itae_closed_lost_entered", "itae_closed_lost_exited",
+        "itae_opportunity_lost_entered", "itae_opportunity_lost_exited",
+        "itae_sales_nurturing_entered", "itae_sales_nurturing_exited",
+
+        # ── IT SDR ──
+        "itsdr_demo_request_entered", "itsdr_demo_request_exited",
+        "itsdr_new_entered", "itsdr_new_exited",
+        "itsdr_research_outreach_entered", "itsdr_research_outreach_exited",
+        "itsdr_connected_not_engaged_entered", "itsdr_connected_not_engaged_exited",
+        "itsdr_engaged_entered", "itsdr_engaged_exited",
+        "itsdr_meeting_booked_entered", "itsdr_meeting_booked_exited",
+        "itsdr_to_reschedule_entered", "itsdr_to_reschedule_exited",
+        "itsdr_hot_nurturing_entered", "itsdr_hot_nurturing_exited",
+        "itsdr_long_nurturing_entered", "itsdr_long_nurturing_exited",
+        "itsdr_opportunity_lost_entered", "itsdr_opportunity_lost_exited",
+    ]
+}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 15. SNAPSHOT IDENTITY — key/FK columns shared by front_deal_snapshots & pbd_snapshots
+# ──────────────────────────────────────────────────────────────────────────────
+
+SNAPSHOT_IDENTITY_COLS = {
+    "deal_id": "deal_id",
+    "hs_deal_id": "hs_deal_id",
+    "snapshot_date": "snapshot_date",
+}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 16. PRODUCT STATS TABLE COLS — columns of product_stats
+# ──────────────────────────────────────────────────────────────────────────────
+
+PRODUCT_STATS_TABLE_COLS = {
+    "stat_type": "stat_type",
+    "stat_key": "stat_key",
+    "data": "data",
+}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 17. SYSTEM COLUMNS — auto-generated by Supabase, shared across tables
+# ──────────────────────────────────────────────────────────────────────────────
+
+SYSTEM_COLS = {
+    "id": "id",
+    "created_at": "created_at",
+    "updated_at": "updated_at",
+}
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # PART II — DERIVED SETS
 # Auto-computados de STAGES y PIPELINES. Si añades un stage nuevo con
@@ -570,7 +731,10 @@ OWNER_PIPELINES    = frozenset(k for k, v in PIPELINES.items() if v["type"] == "
 
 def col(field: str) -> str:
     """Internal name → Supabase column.  col("mrr") → "amount" """
-    return FIELDS[field]["column"]
+    entry = FIELDS.get(field) or STAGE_DATE_FIELDS.get(field)
+    if not entry:
+        raise KeyError(f"Unknown field: {field}")
+    return entry["column"]
 
 
 def tbl(name: str) -> str:
@@ -617,11 +781,15 @@ def stage_category(stage: str) -> str | None:
 
 
 def field_type(field: str) -> str:
-    return FIELDS[field]["type"]
+    entry = FIELDS.get(field) or STAGE_DATE_FIELDS.get(field)
+    if not entry:
+        raise KeyError(f"Unknown field: {field}")
+    return entry["type"]
 
 
 def is_date_field(field: str) -> bool:
-    return FIELDS.get(field, {}).get("type") in ("date", "datetime")
+    entry = FIELDS.get(field) or STAGE_DATE_FIELDS.get(field)
+    return entry.get("type") in ("date", "datetime") if entry else False
 
 
 def persisted_fields() -> dict[str, dict]:

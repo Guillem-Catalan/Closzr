@@ -57,58 +57,58 @@ from zoneinfo import ZoneInfo
 
 CRM_DEAL_PROPERTIES = {  # ? ALL keys are HubSpot property names
     # ── Deal identity ──
-    "hs_object_id":                          {"label": "Record ID",                      "column": "deal_id"},
-    "dealname":                              {"label": "Deal Name",                      "column": "deal_name"},
-    "amount":                                {"label": "Amount (MRR)",                   "column": "amount"},
-    "dealstage":                             {"label": "Deal Stage",                     "column": "deal_stage"},
-    "pipeline":                              {"label": "Pipeline",                       "column": "pipeline_name"},
-    "closedate":                             {"label": "Close Date",                     "column": "close_date"},
-    "createdate":                            {"label": "Create Date",                    "column": "createdate"},
-    "hs_lastmodifieddate":                   {"label": "Last Modified Date",             "column": "last_hs_modified"},
+    "hs_object_id":                          {"label": "Record ID",                      "internal": "deal_id",              "column": "deal_id"},
+    "dealname":                              {"label": "Deal Name",                      "internal": "deal_name",            "column": "deal_name"},
+    "amount":                                {"label": "Amount (MRR)",                   "internal": "mrr",                  "column": "amount"},
+    "dealstage":                             {"label": "Deal Stage",                     "internal": "stage",                "column": "deal_stage"},
+    "pipeline":                              {"label": "Pipeline",                       "internal": "pipeline",             "column": "pipeline_name"},
+    "closedate":                             {"label": "Close Date",                     "internal": "close_date",           "column": "close_date"},
+    "createdate":                            {"label": "Create Date",                    "internal": "create_date",          "column": "createdate"},
+    "hs_lastmodifieddate":                   {"label": "Last Modified Date",             "internal": "last_modified",        "column": "last_hs_modified"},
 
     # ── Owner / team ──
-    "hubspot_owner_id":                      {"label": "Deal owner",                     "column": "hs_owner_id"},
-    "created_by":                            {"label": "Deal created by",                "column": "hs_created_by"},
-    "hs_all_owner_ids":                      {"label": "All owner IDs",                  "column": "hs_all_owner_ids"},
-    "current_hubspot_team__string_":         {"label": "Current HubSpot team (string)",  "column": "hs_team_string"},  # &
-    "hubspot_team_id":                       {"label": "HubSpot team",                   "column": "hs_team_id"},
+    "hubspot_owner_id":                      {"label": "Deal owner",                     "internal": "owner_id",             "column": "hs_owner_id"},
+    "created_by":                            {"label": "Deal created by",                "internal": "creator_id",           "column": "hs_created_by"},
+    "hs_all_owner_ids":                      {"label": "All owner IDs",                  "internal": "all_owner_ids",        "column": "hs_all_owner_ids"},
+    "current_hubspot_team__string_":         {"label": "Current HubSpot team (string)",  "internal": "team_string",          "column": "hs_team_string"},  # &
+    "hubspot_team_id":                       {"label": "HubSpot team",                   "internal": "team_id",              "column": "hs_team_id"},
 
     # ── Provenance ──
-    "partner_name":                          {"label": "Partner name",                   "column": "partner_name"},  # &
-    "marketing_lead_form_campaign_on_deal":  {"label": "Marketing campaign on deal",     "column": "hs_campaign"},  # &
-    "hs_analytics_source":                   {"label": "Original Traffic Source",         "column": "hs_source"},
+    "partner_name":                          {"label": "Partner name",                   "internal": "partner_name_input",   "column": "partner_name"},  # &
+    "marketing_lead_form_campaign_on_deal":  {"label": "Marketing campaign on deal",     "internal": "campaign",             "column": "hs_campaign"},  # &
+    "hs_analytics_source":                   {"label": "Original Traffic Source",         "internal": "source",               "column": "hs_source"},
 
     # ── Forecast ──
-    "hs_manual_forecast_category":           {"label": "Forecast category",              "column": "forecast_category"},
-    "hs_forecast_probability":               {"label": "Forecast probability",           "column": "rep_probability"},
-    "hs_deal_stage_probability":             {"label": "Deal probability",               "column": "stage_probability_hs"},
+    "hs_manual_forecast_category":           {"label": "Forecast category",              "internal": "forecast_category",    "column": "forecast_category"},
+    "hs_forecast_probability":               {"label": "Forecast probability",           "internal": "rep_probability",      "column": "rep_probability"},
+    "hs_deal_stage_probability":             {"label": "Deal probability",               "internal": "stage_probability_hs", "column": "stage_probability_hs"},
 
     # ── Activity ──
-    "notes_last_contacted":                  {"label": "Last Contacted",                 "column": "last_contacted_hs"},
-    "notes_last_updated":                    {"label": "Last Activity Date",             "column": "last_activity_hs"},
-    "num_associated_contacts":               {"label": "Number of Associated Contacts",  "column": "contact_count"},
-    "num_contacted_notes":                   {"label": "Number of times contacted",      "column": "num_times_contacted"},
-    "num_notes":                             {"label": "Number of Sales Activities",     "column": "num_sales_activities"},
-    "hs_next_step":                          {"label": "Next step",                      "column": "rep_next_step"},
-    "hs_latest_meeting_activity":            {"label": "Latest meeting activity",        "column": "last_meeting_hs"},
+    "notes_last_contacted":                  {"label": "Last Contacted",                 "internal": "last_contacted",       "column": "last_contacted_hs"},
+    "notes_last_updated":                    {"label": "Last Activity Date",             "internal": "last_activity",        "column": "last_activity_hs"},
+    "num_associated_contacts":               {"label": "Number of Associated Contacts",  "internal": "contact_count",        "column": "contact_count"},
+    "num_contacted_notes":                   {"label": "Number of times contacted",      "internal": "times_contacted",      "column": "num_times_contacted"},
+    "num_notes":                             {"label": "Number of Sales Activities",     "internal": "sales_activities",     "column": "num_sales_activities"},
+    "hs_next_step":                          {"label": "Next step",                      "internal": "rep_next_step",        "column": "rep_next_step"},
+    "hs_latest_meeting_activity":            {"label": "Latest meeting activity",        "internal": "last_meeting",         "column": "last_meeting_hs"},
 
     # ── Meetings ──
-    "first_meeting_at":                      {"label": "First meeting at",               "column": "first_meeting_at"},  # &
-    "hs_next_meeting_start_time":            {"label": "Next Meeting Start Time",        "column": "hs_next_meeting_start_time"},
+    "first_meeting_at":                      {"label": "First meeting at",               "internal": "first_meeting_at",     "column": "first_meeting_at"},  # &
+    "hs_next_meeting_start_time":            {"label": "Next Meeting Start Time",        "internal": "next_meeting",         "column": "hs_next_meeting_start_time"},
 
     # ── Close status ──
-    "closed_lost_reason":                    {"label": "Primary Closed Lost Reason",     "column": "closed_lost_reason"},
-    "hs_is_closed_won":                      {"label": "Is Closed Won",                  "column": "is_closed_won"},
-    "hs_is_closed":                          {"label": "Is Deal Closed?",                "column": "is_closed"},
-    "closed_lost_stage_date":                {"label": "Closed lost stage date",         "column": "closed_lost_date"},  # &
-    "sqo_date":                              {"label": "SQO date partners",              "column": "sqo_date"},  # &
+    "closed_lost_reason":                    {"label": "Primary Closed Lost Reason",     "internal": "closed_lost_reason",   "column": "closed_lost_reason"},
+    "hs_is_closed_won":                      {"label": "Is Closed Won",                  "internal": "is_closed_won",        "column": "is_closed_won"},
+    "hs_is_closed":                          {"label": "Is Deal Closed?",                "internal": "is_closed",            "column": "is_closed"},
+    "closed_lost_stage_date":                {"label": "Closed lost stage date",         "internal": "closed_lost_date",     "column": "closed_lost_date"},  # &
+    "sqo_date":                              {"label": "SQO date partners",              "internal": "sqo_date",             "column": "sqo_date"},  # &
 
     # ── Company size ──
-    "revised_number_of_emloyeess":           {"label": "Revised number of employees",    "column": "num_employees"},
-    "numero_de_empleados":                   {"label": "Número de Empleados",            "column": "num_employees_custom"},  # &
+    "revised_number_of_emloyeess":           {"label": "Revised number of employees",    "internal": "num_employees",        "column": "num_employees"},
+    "numero_de_empleados":                   {"label": "Número de Empleados",            "internal": "num_employees_custom", "column": "num_employees_custom"},  # &
 
     # ── Champion ──
-    "champion_name":                         {"label": "Champion name",                  "column": "champion"},  # &
+    "champion_name":                         {"label": "Champion name",                  "internal": "champion",             "column": "champion"},  # &
 }
 
 
@@ -312,210 +312,210 @@ CRM_PIPELINE_MAP = {  # & ALL entries — pipeline IDs are account-specific
 
 CRM_STAGE_DATE_PROPERTIES = {  # & ALL entries — stage IDs are account-specific
     # ── SDR Partner Opportunities Pipeline (684767384) ──
-    "hs_v2_date_entered_1002830265": {"label": 'Date entered "Pre-qualified"',             "column": "sdr_prequalified_entered"},
-    "hs_v2_date_exited_1002830265":  {"label": 'Date exited "Pre-qualified"',              "column": "sdr_prequalified_exited"},
-    "hs_v2_date_entered_1002830336": {"label": 'Date entered "Attempting to contact"',     "column": "sdr_attempting_to_contact_entered"},
-    "hs_v2_date_exited_1002830336":  {"label": 'Date exited "Attempting to contact"',      "column": "sdr_attempting_to_contact_exited"},
-    "hs_v2_date_entered_1002830337": {"label": 'Date entered "Associating the partner"',   "column": "sdr_associating_the_partner_entered"},
-    "hs_v2_date_exited_1002830337":  {"label": 'Date exited "Associating the partner"',    "column": "sdr_associating_the_partner_exited"},
-    "hs_v2_date_entered_1002830338": {"label": 'Date entered "Engaged"',                   "column": "sdr_engaged_entered"},
-    "hs_v2_date_exited_1002830338":  {"label": 'Date exited "Engaged"',                    "column": "sdr_engaged_exited"},
-    "hs_v2_date_entered_1002830339": {"label": 'Date entered "Demo Booked"',               "column": "sdr_demo_booked_entered"},
-    "hs_v2_date_exited_1002830339":  {"label": 'Date exited "Demo Booked"',                "column": "sdr_demo_booked_exited"},
-    "hs_v2_date_entered_1002830340": {"label": 'Date entered "Nurturing"',                 "column": "sdr_nurturing_entered"},
-    "hs_v2_date_exited_1002830340":  {"label": 'Date exited "Nurturing"',                  "column": "sdr_nurturing_exited"},
-    "hs_v2_date_entered_1002830341": {"label": 'Date entered "Opportunity lost"',          "column": "sdr_opportunity_lost_entered"},
-    "hs_v2_date_exited_1002830341":  {"label": 'Date exited "Opportunity lost"',           "column": "sdr_opportunity_lost_exited"},
-    "hs_v2_date_entered_1002829480": {"label": 'Date entered "To reschedule"',             "column": "sdr_to_reschedule_entered"},
-    "hs_v2_date_exited_1002829480":  {"label": 'Date exited "To reschedule"',              "column": "sdr_to_reschedule_exited"},
+    "hs_v2_date_entered_1002830265": {"label": 'Date entered "Pre-qualified"',             "internal": "sdr_prequalified_entered", "column": "sdr_prequalified_entered"},
+    "hs_v2_date_exited_1002830265":  {"label": 'Date exited "Pre-qualified"',              "internal": "sdr_prequalified_exited", "column": "sdr_prequalified_exited"},
+    "hs_v2_date_entered_1002830336": {"label": 'Date entered "Attempting to contact"',     "internal": "sdr_attempting_to_contact_entered", "column": "sdr_attempting_to_contact_entered"},
+    "hs_v2_date_exited_1002830336":  {"label": 'Date exited "Attempting to contact"',      "internal": "sdr_attempting_to_contact_exited", "column": "sdr_attempting_to_contact_exited"},
+    "hs_v2_date_entered_1002830337": {"label": 'Date entered "Associating the partner"',   "internal": "sdr_associating_the_partner_entered", "column": "sdr_associating_the_partner_entered"},
+    "hs_v2_date_exited_1002830337":  {"label": 'Date exited "Associating the partner"',    "internal": "sdr_associating_the_partner_exited", "column": "sdr_associating_the_partner_exited"},
+    "hs_v2_date_entered_1002830338": {"label": 'Date entered "Engaged"',                   "internal": "sdr_engaged_entered", "column": "sdr_engaged_entered"},
+    "hs_v2_date_exited_1002830338":  {"label": 'Date exited "Engaged"',                    "internal": "sdr_engaged_exited", "column": "sdr_engaged_exited"},
+    "hs_v2_date_entered_1002830339": {"label": 'Date entered "Demo Booked"',               "internal": "sdr_demo_booked_entered", "column": "sdr_demo_booked_entered"},
+    "hs_v2_date_exited_1002830339":  {"label": 'Date exited "Demo Booked"',                "internal": "sdr_demo_booked_exited", "column": "sdr_demo_booked_exited"},
+    "hs_v2_date_entered_1002830340": {"label": 'Date entered "Nurturing"',                 "internal": "sdr_nurturing_entered", "column": "sdr_nurturing_entered"},
+    "hs_v2_date_exited_1002830340":  {"label": 'Date exited "Nurturing"',                  "internal": "sdr_nurturing_exited", "column": "sdr_nurturing_exited"},
+    "hs_v2_date_entered_1002830341": {"label": 'Date entered "Opportunity lost"',          "internal": "sdr_opportunity_lost_entered", "column": "sdr_opportunity_lost_entered"},
+    "hs_v2_date_exited_1002830341":  {"label": 'Date exited "Opportunity lost"',           "internal": "sdr_opportunity_lost_exited", "column": "sdr_opportunity_lost_exited"},
+    "hs_v2_date_entered_1002829480": {"label": 'Date entered "To reschedule"',             "internal": "sdr_to_reschedule_entered", "column": "sdr_to_reschedule_entered"},
+    "hs_v2_date_exited_1002829480":  {"label": 'Date exited "To reschedule"',              "internal": "sdr_to_reschedule_exited", "column": "sdr_to_reschedule_exited"},
 
     # ── Partners Distribution Pipeline (11834984) ──
-    "hs_v2_date_entered_35070729":   {"label": 'Date entered "New Deals"',                 "column": "dist_new_deals_entered"},
-    "hs_v2_date_exited_35070729":    {"label": 'Date exited "New Deals"',                  "column": "dist_new_deals_exited"},
-    "hs_v2_date_entered_35070730":   {"label": 'Date entered "Demo Booked"',               "column": "dist_demo_booked_entered"},
-    "hs_v2_date_exited_35070730":    {"label": 'Date exited "Demo Booked"',                "column": "dist_demo_booked_exited"},
-    "hs_v2_date_entered_35070731":   {"label": 'Date entered "Product Alignment"',         "column": "dist_product_alignment_entered"},
-    "hs_v2_date_exited_35070731":    {"label": 'Date exited "Product Alignment"',          "column": "dist_product_alignment_exited"},
-    "hs_v2_date_entered_35070732":   {"label": 'Entered (unused stage)',                   "column": "dist_do_not_use_entered"},
-    "hs_v2_date_exited_35070732":    {"label": 'Exited (unused stage)',                    "column": "dist_do_not_use_exited"},
-    "hs_v2_date_entered_35118878":   {"label": 'Date entered "Economical Alignment"',      "column": "dist_pricing_and_packaging_entered"},
-    "hs_v2_date_exited_35118878":    {"label": 'Date exited "Economical Alignment"',       "column": "dist_pricing_and_packaging_exited"},
-    "hs_v2_date_entered_35118879":   {"label": 'Date entered "Contract Sent"',             "column": "dist_contracting_entered"},
-    "hs_v2_date_exited_35118879":    {"label": 'Date exited "Contract Sent"',              "column": "dist_contracting_exited"},
-    "hs_v2_date_entered_104503991":  {"label": 'Date entered "Closed - pending finance"',  "column": "dist_closed_pending_payment_entered"},
-    "hs_v2_date_exited_104503991":   {"label": 'Date exited "Closed - pending finance"',   "column": "dist_closed_pending_payment_exited"},
-    "hs_v2_date_entered_35118880":   {"label": 'Date entered "Closed Won"',                "column": "dist_closed_won_entered"},
-    "hs_v2_date_exited_35118880":    {"label": 'Date exited "Closed Won"',                 "column": "dist_closed_won_exited"},
-    "hs_v2_date_entered_1008401982": {"label": 'Date entered "On Hold"',                   "column": "dist_on_hold_entered"},
-    "hs_v2_date_exited_1008401982":  {"label": 'Date exited "On Hold"',                    "column": "dist_on_hold_exited"},
-    "hs_v2_date_entered_35119283":   {"label": 'Date entered "Closed Lost"',               "column": "dist_closed_lost_entered"},
-    "hs_v2_date_exited_35119283":    {"label": 'Date exited "Closed Lost"',                "column": "dist_closed_lost_exited"},
-    "hs_v2_date_entered_4977567965": {"label": 'Date entered "To reschedule"',             "column": "dist_to_reschedule_entered"},
-    "hs_v2_date_exited_4977567965":  {"label": 'Date exited "To reschedule"',              "column": "dist_to_reschedule_exited"},
-    "hs_v2_date_entered_5366023400": {"label": 'Date entered "MEDDPICC Validation"',       "column": "dist_meddpicc_validation_entered"},
-    "hs_v2_date_exited_5366023400":  {"label": 'Date exited "MEDDPICC Validation"',        "column": "dist_meddpicc_validation_exited"},
+    "hs_v2_date_entered_35070729":   {"label": 'Date entered "New Deals"',                 "internal": "dist_new_deals_entered", "column": "dist_new_deals_entered"},
+    "hs_v2_date_exited_35070729":    {"label": 'Date exited "New Deals"',                  "internal": "dist_new_deals_exited", "column": "dist_new_deals_exited"},
+    "hs_v2_date_entered_35070730":   {"label": 'Date entered "Demo Booked"',               "internal": "dist_demo_booked_entered", "column": "dist_demo_booked_entered"},
+    "hs_v2_date_exited_35070730":    {"label": 'Date exited "Demo Booked"',                "internal": "dist_demo_booked_exited", "column": "dist_demo_booked_exited"},
+    "hs_v2_date_entered_35070731":   {"label": 'Date entered "Product Alignment"',         "internal": "dist_product_alignment_entered", "column": "dist_product_alignment_entered"},
+    "hs_v2_date_exited_35070731":    {"label": 'Date exited "Product Alignment"',          "internal": "dist_product_alignment_exited", "column": "dist_product_alignment_exited"},
+    "hs_v2_date_entered_35070732":   {"label": 'Entered (unused stage)',                   "internal": "dist_do_not_use_entered", "column": "dist_do_not_use_entered"},
+    "hs_v2_date_exited_35070732":    {"label": 'Exited (unused stage)',                    "internal": "dist_do_not_use_exited", "column": "dist_do_not_use_exited"},
+    "hs_v2_date_entered_35118878":   {"label": 'Date entered "Economical Alignment"',      "internal": "dist_pricing_and_packaging_entered", "column": "dist_pricing_and_packaging_entered"},
+    "hs_v2_date_exited_35118878":    {"label": 'Date exited "Economical Alignment"',       "internal": "dist_pricing_and_packaging_exited", "column": "dist_pricing_and_packaging_exited"},
+    "hs_v2_date_entered_35118879":   {"label": 'Date entered "Contract Sent"',             "internal": "dist_contracting_entered", "column": "dist_contracting_entered"},
+    "hs_v2_date_exited_35118879":    {"label": 'Date exited "Contract Sent"',              "internal": "dist_contracting_exited", "column": "dist_contracting_exited"},
+    "hs_v2_date_entered_104503991":  {"label": 'Date entered "Closed - pending finance"',  "internal": "dist_closed_pending_payment_entered", "column": "dist_closed_pending_payment_entered"},
+    "hs_v2_date_exited_104503991":   {"label": 'Date exited "Closed - pending finance"',   "internal": "dist_closed_pending_payment_exited", "column": "dist_closed_pending_payment_exited"},
+    "hs_v2_date_entered_35118880":   {"label": 'Date entered "Closed Won"',                "internal": "dist_closed_won_entered", "column": "dist_closed_won_entered"},
+    "hs_v2_date_exited_35118880":    {"label": 'Date exited "Closed Won"',                 "internal": "dist_closed_won_exited", "column": "dist_closed_won_exited"},
+    "hs_v2_date_entered_1008401982": {"label": 'Date entered "On Hold"',                   "internal": "dist_on_hold_entered", "column": "dist_on_hold_entered"},
+    "hs_v2_date_exited_1008401982":  {"label": 'Date exited "On Hold"',                    "internal": "dist_on_hold_exited", "column": "dist_on_hold_exited"},
+    "hs_v2_date_entered_35119283":   {"label": 'Date entered "Closed Lost"',               "internal": "dist_closed_lost_entered", "column": "dist_closed_lost_entered"},
+    "hs_v2_date_exited_35119283":    {"label": 'Date exited "Closed Lost"',                "internal": "dist_closed_lost_exited", "column": "dist_closed_lost_exited"},
+    "hs_v2_date_entered_4977567965": {"label": 'Date entered "To reschedule"',             "internal": "dist_to_reschedule_entered", "column": "dist_to_reschedule_entered"},
+    "hs_v2_date_exited_4977567965":  {"label": 'Date exited "To reschedule"',              "internal": "dist_to_reschedule_exited", "column": "dist_to_reschedule_exited"},
+    "hs_v2_date_entered_5366023400": {"label": 'Date entered "MEDDPICC Validation"',       "internal": "dist_meddpicc_validation_entered", "column": "dist_meddpicc_validation_entered"},
+    "hs_v2_date_exited_5366023400":  {"label": 'Date exited "MEDDPICC Validation"',        "internal": "dist_meddpicc_validation_exited", "column": "dist_meddpicc_validation_exited"},
 
     # ── Sales Pipeline ("default") ──
-    "hs_v2_date_entered_96e820da_7bc1_4ea3_81a2_bc533ed26934_2127198906": {"label": 'Date entered "Meeting Booked"',     "column": "sales_meeting_booked_entered"},
-    "hs_v2_date_exited_96e820da_7bc1_4ea3_81a2_bc533ed26934_2127198906":  {"label": 'Date exited "Meeting Booked"',      "column": "sales_meeting_booked_exited"},
-    "hs_v2_date_entered_49b7ad85_a23e_426c_9b3b_d44607d1c3af_2009251351": {"label": 'Date entered "Discovery"',          "column": "sales_discovery_entered"},
-    "hs_v2_date_exited_49b7ad85_a23e_426c_9b3b_d44607d1c3af_2009251351":  {"label": 'Date exited "Discovery"',           "column": "sales_discovery_exited"},
-    "hs_v2_date_entered_f26b487d_e715_49c8_add3_9fa86aef79da_127692047":  {"label": 'Date entered "To reschedule"',      "column": "sales_to_reschedule_entered"},
-    "hs_v2_date_exited_f26b487d_e715_49c8_add3_9fa86aef79da_127692047":   {"label": 'Date exited "To reschedule"',       "column": "sales_to_reschedule_exited"},
-    "hs_v2_date_entered_appointmentscheduled": {"label": 'Date entered "Product Alignment"',    "column": "sales_product_alignment_entered"},
-    "hs_v2_date_exited_appointmentscheduled":  {"label": 'Date exited "Product Alignment"',     "column": "sales_product_alignment_exited"},
-    "hs_v2_date_entered_qualifiedtobuy":       {"label": 'Date entered "Pricing & Packaging"',  "column": "sales_pricing_and_packaging_entered"},
-    "hs_v2_date_exited_qualifiedtobuy":        {"label": 'Date exited "Pricing & Packaging"',   "column": "sales_pricing_and_packaging_exited"},
-    "hs_v2_date_entered_15738025":   {"label": 'Date entered "Contracting"',               "column": "sales_contracting_entered"},
-    "hs_v2_date_exited_15738025":    {"label": 'Date exited "Contracting"',                "column": "sales_contracting_exited"},
-    "hs_v2_date_entered_51389338":   {"label": 'Date entered "Closed - pending finance"',  "column": "sales_closed_pending_payment_entered"},
-    "hs_v2_date_exited_51389338":    {"label": 'Date exited "Closed - pending finance"',   "column": "sales_closed_pending_payment_exited"},
-    "hs_v2_date_entered_closedwon":  {"label": 'Date entered "Closed won"',                "column": "sales_closed_won_entered"},
-    "hs_v2_date_exited_closedwon":   {"label": 'Date exited "Closed won"',                 "column": "sales_closed_won_exited"},
-    "hs_v2_date_entered_closedlost": {"label": 'Date entered "Closed lost"',               "column": "sales_closed_lost_entered"},
-    "hs_v2_date_exited_closedlost":  {"label": 'Date exited "Closed lost"',                "column": "sales_closed_lost_exited"},
+    "hs_v2_date_entered_96e820da_7bc1_4ea3_81a2_bc533ed26934_2127198906": {"label": 'Date entered "Meeting Booked"',     "internal": "sales_meeting_booked_entered", "column": "sales_meeting_booked_entered"},
+    "hs_v2_date_exited_96e820da_7bc1_4ea3_81a2_bc533ed26934_2127198906":  {"label": 'Date exited "Meeting Booked"',      "internal": "sales_meeting_booked_exited", "column": "sales_meeting_booked_exited"},
+    "hs_v2_date_entered_49b7ad85_a23e_426c_9b3b_d44607d1c3af_2009251351": {"label": 'Date entered "Discovery"',          "internal": "sales_discovery_entered", "column": "sales_discovery_entered"},
+    "hs_v2_date_exited_49b7ad85_a23e_426c_9b3b_d44607d1c3af_2009251351":  {"label": 'Date exited "Discovery"',           "internal": "sales_discovery_exited", "column": "sales_discovery_exited"},
+    "hs_v2_date_entered_f26b487d_e715_49c8_add3_9fa86aef79da_127692047":  {"label": 'Date entered "To reschedule"',      "internal": "sales_to_reschedule_entered", "column": "sales_to_reschedule_entered"},
+    "hs_v2_date_exited_f26b487d_e715_49c8_add3_9fa86aef79da_127692047":   {"label": 'Date exited "To reschedule"',       "internal": "sales_to_reschedule_exited", "column": "sales_to_reschedule_exited"},
+    "hs_v2_date_entered_appointmentscheduled": {"label": 'Date entered "Product Alignment"',    "internal": "sales_product_alignment_entered", "column": "sales_product_alignment_entered"},
+    "hs_v2_date_exited_appointmentscheduled":  {"label": 'Date exited "Product Alignment"',     "internal": "sales_product_alignment_exited", "column": "sales_product_alignment_exited"},
+    "hs_v2_date_entered_qualifiedtobuy":       {"label": 'Date entered "Pricing & Packaging"',  "internal": "sales_pricing_and_packaging_entered", "column": "sales_pricing_and_packaging_entered"},
+    "hs_v2_date_exited_qualifiedtobuy":        {"label": 'Date exited "Pricing & Packaging"',   "internal": "sales_pricing_and_packaging_exited", "column": "sales_pricing_and_packaging_exited"},
+    "hs_v2_date_entered_15738025":   {"label": 'Date entered "Contracting"',               "internal": "sales_contracting_entered", "column": "sales_contracting_entered"},
+    "hs_v2_date_exited_15738025":    {"label": 'Date exited "Contracting"',                "internal": "sales_contracting_exited", "column": "sales_contracting_exited"},
+    "hs_v2_date_entered_51389338":   {"label": 'Date entered "Closed - pending finance"',  "internal": "sales_closed_pending_payment_entered", "column": "sales_closed_pending_payment_entered"},
+    "hs_v2_date_exited_51389338":    {"label": 'Date exited "Closed - pending finance"',   "internal": "sales_closed_pending_payment_exited", "column": "sales_closed_pending_payment_exited"},
+    "hs_v2_date_entered_closedwon":  {"label": 'Date entered "Closed won"',                "internal": "sales_closed_won_entered", "column": "sales_closed_won_entered"},
+    "hs_v2_date_exited_closedwon":   {"label": 'Date exited "Closed won"',                 "internal": "sales_closed_won_exited", "column": "sales_closed_won_exited"},
+    "hs_v2_date_entered_closedlost": {"label": 'Date entered "Closed lost"',               "internal": "sales_closed_lost_entered", "column": "sales_closed_lost_entered"},
+    "hs_v2_date_exited_closedlost":  {"label": 'Date exited "Closed lost"',                "internal": "sales_closed_lost_exited", "column": "sales_closed_lost_exited"},
 
     # ── OB SDR Pipeline (9048177) ──
-    "hs_v2_date_entered_25761461": {"label": 'Date entered "New"',                     "column": "ob_new_entered"},
-    "hs_v2_date_exited_25761461":  {"label": 'Date exited "New"',                      "column": "ob_new_exited"},
-    "hs_v2_date_entered_25761462": {"label": 'Date entered "Research & Outreach"',     "column": "ob_research_outreach_entered"},
-    "hs_v2_date_exited_25761462":  {"label": 'Date exited "Research & Outreach"',      "column": "ob_research_outreach_exited"},
-    "hs_v2_date_entered_25761463": {"label": 'Date entered "Connected - Not Engaged"', "column": "ob_connected_not_engaged_entered"},
-    "hs_v2_date_exited_25761463":  {"label": 'Date exited "Connected - Not Engaged"',  "column": "ob_connected_not_engaged_exited"},
-    "hs_v2_date_entered_26471690": {"label": 'Date entered "Engaged"',                 "column": "ob_engaged_entered"},
-    "hs_v2_date_exited_26471690":  {"label": 'Date exited "Engaged"',                  "column": "ob_engaged_exited"},
-    "hs_v2_date_entered_25761464": {"label": 'Date entered "Meeting Booked"',          "column": "ob_meeting_booked_entered"},
-    "hs_v2_date_exited_25761464":  {"label": 'Date exited "Meeting Booked"',           "column": "ob_meeting_booked_exited"},
-    "hs_v2_date_entered_25761536": {"label": 'Date entered "To Reschedule"',           "column": "ob_to_reschedule_entered"},
-    "hs_v2_date_exited_25761536":  {"label": 'Date exited "To Reschedule"',            "column": "ob_to_reschedule_exited"},
-    "hs_v2_date_entered_27564328": {"label": 'Date entered "Hot Nurturing"',           "column": "ob_hot_nurturing_entered"},
-    "hs_v2_date_exited_27564328":  {"label": 'Date exited "Hot Nurturing"',            "column": "ob_hot_nurturing_exited"},
-    "hs_v2_date_entered_25761465": {"label": 'Date entered "Long Nurturing"',          "column": "ob_long_nurturing_entered"},
-    "hs_v2_date_exited_25761465":  {"label": 'Date exited "Long Nurturing"',           "column": "ob_long_nurturing_exited"},
-    "hs_v2_date_entered_25761537": {"label": 'Date entered "Opportunity lost"',        "column": "ob_opportunity_lost_entered"},
-    "hs_v2_date_exited_25761537":  {"label": 'Date exited "Opportunity lost"',         "column": "ob_opportunity_lost_exited"},
+    "hs_v2_date_entered_25761461": {"label": 'Date entered "New"',                     "internal": "ob_new_entered", "column": "ob_new_entered"},
+    "hs_v2_date_exited_25761461":  {"label": 'Date exited "New"',                      "internal": "ob_new_exited", "column": "ob_new_exited"},
+    "hs_v2_date_entered_25761462": {"label": 'Date entered "Research & Outreach"',     "internal": "ob_research_outreach_entered", "column": "ob_research_outreach_entered"},
+    "hs_v2_date_exited_25761462":  {"label": 'Date exited "Research & Outreach"',      "internal": "ob_research_outreach_exited", "column": "ob_research_outreach_exited"},
+    "hs_v2_date_entered_25761463": {"label": 'Date entered "Connected - Not Engaged"', "internal": "ob_connected_not_engaged_entered", "column": "ob_connected_not_engaged_entered"},
+    "hs_v2_date_exited_25761463":  {"label": 'Date exited "Connected - Not Engaged"',  "internal": "ob_connected_not_engaged_exited", "column": "ob_connected_not_engaged_exited"},
+    "hs_v2_date_entered_26471690": {"label": 'Date entered "Engaged"',                 "internal": "ob_engaged_entered", "column": "ob_engaged_entered"},
+    "hs_v2_date_exited_26471690":  {"label": 'Date exited "Engaged"',                  "internal": "ob_engaged_exited", "column": "ob_engaged_exited"},
+    "hs_v2_date_entered_25761464": {"label": 'Date entered "Meeting Booked"',          "internal": "ob_meeting_booked_entered", "column": "ob_meeting_booked_entered"},
+    "hs_v2_date_exited_25761464":  {"label": 'Date exited "Meeting Booked"',           "internal": "ob_meeting_booked_exited", "column": "ob_meeting_booked_exited"},
+    "hs_v2_date_entered_25761536": {"label": 'Date entered "To Reschedule"',           "internal": "ob_to_reschedule_entered", "column": "ob_to_reschedule_entered"},
+    "hs_v2_date_exited_25761536":  {"label": 'Date exited "To Reschedule"',            "internal": "ob_to_reschedule_exited", "column": "ob_to_reschedule_exited"},
+    "hs_v2_date_entered_27564328": {"label": 'Date entered "Hot Nurturing"',           "internal": "ob_hot_nurturing_entered", "column": "ob_hot_nurturing_entered"},
+    "hs_v2_date_exited_27564328":  {"label": 'Date exited "Hot Nurturing"',            "internal": "ob_hot_nurturing_exited", "column": "ob_hot_nurturing_exited"},
+    "hs_v2_date_entered_25761465": {"label": 'Date entered "Long Nurturing"',          "internal": "ob_long_nurturing_entered", "column": "ob_long_nurturing_entered"},
+    "hs_v2_date_exited_25761465":  {"label": 'Date exited "Long Nurturing"',           "internal": "ob_long_nurturing_exited", "column": "ob_long_nurturing_exited"},
+    "hs_v2_date_entered_25761537": {"label": 'Date entered "Opportunity lost"',        "internal": "ob_opportunity_lost_entered", "column": "ob_opportunity_lost_entered"},
+    "hs_v2_date_exited_25761537":  {"label": 'Date exited "Opportunity lost"',         "internal": "ob_opportunity_lost_exited", "column": "ob_opportunity_lost_exited"},
 
     # ── IB SDR Pipeline (831558698) ──
-    "hs_v2_date_entered_1232383505": {"label": 'Date entered "New Qualified"',         "column": "ib_new_qualified_entered"},
-    "hs_v2_date_exited_1232383505":  {"label": 'Date exited "New Qualified"',          "column": "ib_new_qualified_exited"},
-    "hs_v2_date_entered_1232383506": {"label": 'Date entered "Attempted to contact"',  "column": "ib_attempted_contact_entered"},
-    "hs_v2_date_exited_1232383506":  {"label": 'Date exited "Attempted to contact"',   "column": "ib_attempted_contact_exited"},
-    "hs_v2_date_entered_1232383507": {"label": 'Date entered "Engaged"',               "column": "ib_engaged_entered"},
-    "hs_v2_date_exited_1232383507":  {"label": 'Date exited "Engaged"',                "column": "ib_engaged_exited"},
-    "hs_v2_date_entered_1232383508": {"label": 'Date entered "Meeting Booked"',        "column": "ib_meeting_booked_entered"},
-    "hs_v2_date_exited_1232383508":  {"label": 'Date exited "Meeting Booked"',         "column": "ib_meeting_booked_exited"},
-    "hs_v2_date_entered_1232383509": {"label": 'Date entered "To Reschedule"',         "column": "ib_to_reschedule_entered"},
-    "hs_v2_date_exited_1232383509":  {"label": 'Date exited "To Reschedule"',          "column": "ib_to_reschedule_exited"},
-    "hs_v2_date_entered_1232383510": {"label": 'Date entered "Nurturing"',             "column": "ib_nurturing_entered"},
-    "hs_v2_date_exited_1232383510":  {"label": 'Date exited "Nurturing"',              "column": "ib_nurturing_exited"},
-    "hs_v2_date_entered_1232383511": {"label": 'Date entered "Opportunity Lost"',      "column": "ib_opportunity_lost_entered"},
-    "hs_v2_date_exited_1232383511":  {"label": 'Date exited "Opportunity Lost"',       "column": "ib_opportunity_lost_exited"},
+    "hs_v2_date_entered_1232383505": {"label": 'Date entered "New Qualified"',         "internal": "ib_new_qualified_entered", "column": "ib_new_qualified_entered"},
+    "hs_v2_date_exited_1232383505":  {"label": 'Date exited "New Qualified"',          "internal": "ib_new_qualified_exited", "column": "ib_new_qualified_exited"},
+    "hs_v2_date_entered_1232383506": {"label": 'Date entered "Attempted to contact"',  "internal": "ib_attempted_contact_entered", "column": "ib_attempted_contact_entered"},
+    "hs_v2_date_exited_1232383506":  {"label": 'Date exited "Attempted to contact"',   "internal": "ib_attempted_contact_exited", "column": "ib_attempted_contact_exited"},
+    "hs_v2_date_entered_1232383507": {"label": 'Date entered "Engaged"',               "internal": "ib_engaged_entered", "column": "ib_engaged_entered"},
+    "hs_v2_date_exited_1232383507":  {"label": 'Date exited "Engaged"',                "internal": "ib_engaged_exited", "column": "ib_engaged_exited"},
+    "hs_v2_date_entered_1232383508": {"label": 'Date entered "Meeting Booked"',        "internal": "ib_meeting_booked_entered", "column": "ib_meeting_booked_entered"},
+    "hs_v2_date_exited_1232383508":  {"label": 'Date exited "Meeting Booked"',         "internal": "ib_meeting_booked_exited", "column": "ib_meeting_booked_exited"},
+    "hs_v2_date_entered_1232383509": {"label": 'Date entered "To Reschedule"',         "internal": "ib_to_reschedule_entered", "column": "ib_to_reschedule_entered"},
+    "hs_v2_date_exited_1232383509":  {"label": 'Date exited "To Reschedule"',          "internal": "ib_to_reschedule_exited", "column": "ib_to_reschedule_exited"},
+    "hs_v2_date_entered_1232383510": {"label": 'Date entered "Nurturing"',             "internal": "ib_nurturing_entered", "column": "ib_nurturing_entered"},
+    "hs_v2_date_exited_1232383510":  {"label": 'Date exited "Nurturing"',              "internal": "ib_nurturing_exited", "column": "ib_nurturing_exited"},
+    "hs_v2_date_entered_1232383511": {"label": 'Date entered "Opportunity Lost"',      "internal": "ib_opportunity_lost_entered", "column": "ib_opportunity_lost_entered"},
+    "hs_v2_date_exited_1232383511":  {"label": 'Date exited "Opportunity Lost"',       "internal": "ib_opportunity_lost_exited", "column": "ib_opportunity_lost_exited"},
 
     # ── XL Account Pipeline (685413816) ──
-    "hs_v2_date_entered_1115587680": {"label": 'Date entered "Demo request"',          "column": "xl_demo_request_entered"},
-    "hs_v2_date_exited_1115587680":  {"label": 'Date exited "Demo request"',           "column": "xl_demo_request_exited"},
-    "hs_v2_date_entered_1003800944": {"label": 'Date entered "New"',                   "column": "xl_new_entered"},
-    "hs_v2_date_exited_1003800944":  {"label": 'Date exited "New"',                    "column": "xl_new_exited"},
-    "hs_v2_date_entered_1003800946": {"label": 'Date entered "Outreach"',              "column": "xl_outreach_entered"},
-    "hs_v2_date_exited_1003800946":  {"label": 'Date exited "Outreach"',               "column": "xl_outreach_exited"},
-    "hs_v2_date_entered_1003800947": {"label": 'Date entered "Engaged"',               "column": "xl_engaged_entered"},
-    "hs_v2_date_exited_1003800947":  {"label": 'Date exited "Engaged"',                "column": "xl_engaged_exited"},
-    "hs_v2_date_entered_4899425492": {"label": 'Date entered "Opportunity Lost"',      "column": "xl_opportunity_lost_entered"},
-    "hs_v2_date_exited_4899425492":  {"label": 'Date exited "Opportunity Lost"',       "column": "xl_opportunity_lost_exited"},
-    "hs_v2_date_entered_1226596617": {"label": 'Date entered "Meeting Booked"',        "column": "xl_meeting_booked_entered"},
-    "hs_v2_date_exited_1226596617":  {"label": 'Date exited "Meeting Booked"',         "column": "xl_meeting_booked_exited"},
-    "hs_v2_date_entered_4899362020": {"label": 'Date entered "To Reschedule"',         "column": "xl_to_reschedule_entered"},
-    "hs_v2_date_exited_4899362020":  {"label": 'Date exited "To Reschedule"',          "column": "xl_to_reschedule_exited"},
-    "hs_v2_date_entered_1003685894": {"label": 'Date entered "Discovery"',             "column": "xl_discovery_entered"},
-    "hs_v2_date_exited_1003685894":  {"label": 'Date exited "Discovery"',              "column": "xl_discovery_exited"},
-    "hs_v2_date_entered_4897330392": {"label": 'Date entered "Sales Nurturing"',       "column": "xl_sales_nurturing_entered"},
-    "hs_v2_date_exited_4897330392":  {"label": 'Date exited "Sales Nurturing"',        "column": "xl_sales_nurturing_exited"},
-    "hs_v2_date_entered_1003685895": {"label": 'Date entered "Product Alignment"',     "column": "xl_product_alignment_entered"},
-    "hs_v2_date_exited_1003685895":  {"label": 'Date exited "Product Alignment"',      "column": "xl_product_alignment_exited"},
-    "hs_v2_date_entered_1003685896": {"label": 'Date entered "Pricing & Packaging"',   "column": "xl_pricing_packaging_entered"},
-    "hs_v2_date_exited_1003685896":  {"label": 'Date exited "Pricing & Packaging"',    "column": "xl_pricing_packaging_exited"},
-    "hs_v2_date_entered_1003685897": {"label": 'Date entered "Contracting"',           "column": "xl_contracting_entered"},
-    "hs_v2_date_exited_1003685897":  {"label": 'Date exited "Contracting"',            "column": "xl_contracting_exited"},
-    "hs_v2_date_entered_1003800948": {"label": 'Date entered "Closed Pending Payment"', "column": "xl_closed_pending_payment_entered"},
-    "hs_v2_date_exited_1003800948":  {"label": 'Date exited "Closed Pending Payment"',  "column": "xl_closed_pending_payment_exited"},
-    "hs_v2_date_entered_1003800949": {"label": 'Date entered "Closed Won"',            "column": "xl_closed_won_entered"},
-    "hs_v2_date_exited_1003800949":  {"label": 'Date exited "Closed Won"',             "column": "xl_closed_won_exited"},
-    "hs_v2_date_entered_1003800950": {"label": 'Date entered "Closed Lost"',           "column": "xl_closed_lost_entered"},
-    "hs_v2_date_exited_1003800950":  {"label": 'Date exited "Closed Lost"',            "column": "xl_closed_lost_exited"},
+    "hs_v2_date_entered_1115587680": {"label": 'Date entered "Demo request"',          "internal": "xl_demo_request_entered", "column": "xl_demo_request_entered"},
+    "hs_v2_date_exited_1115587680":  {"label": 'Date exited "Demo request"',           "internal": "xl_demo_request_exited", "column": "xl_demo_request_exited"},
+    "hs_v2_date_entered_1003800944": {"label": 'Date entered "New"',                   "internal": "xl_new_entered", "column": "xl_new_entered"},
+    "hs_v2_date_exited_1003800944":  {"label": 'Date exited "New"',                    "internal": "xl_new_exited", "column": "xl_new_exited"},
+    "hs_v2_date_entered_1003800946": {"label": 'Date entered "Outreach"',              "internal": "xl_outreach_entered", "column": "xl_outreach_entered"},
+    "hs_v2_date_exited_1003800946":  {"label": 'Date exited "Outreach"',               "internal": "xl_outreach_exited", "column": "xl_outreach_exited"},
+    "hs_v2_date_entered_1003800947": {"label": 'Date entered "Engaged"',               "internal": "xl_engaged_entered", "column": "xl_engaged_entered"},
+    "hs_v2_date_exited_1003800947":  {"label": 'Date exited "Engaged"',                "internal": "xl_engaged_exited", "column": "xl_engaged_exited"},
+    "hs_v2_date_entered_4899425492": {"label": 'Date entered "Opportunity Lost"',      "internal": "xl_opportunity_lost_entered", "column": "xl_opportunity_lost_entered"},
+    "hs_v2_date_exited_4899425492":  {"label": 'Date exited "Opportunity Lost"',       "internal": "xl_opportunity_lost_exited", "column": "xl_opportunity_lost_exited"},
+    "hs_v2_date_entered_1226596617": {"label": 'Date entered "Meeting Booked"',        "internal": "xl_meeting_booked_entered", "column": "xl_meeting_booked_entered"},
+    "hs_v2_date_exited_1226596617":  {"label": 'Date exited "Meeting Booked"',         "internal": "xl_meeting_booked_exited", "column": "xl_meeting_booked_exited"},
+    "hs_v2_date_entered_4899362020": {"label": 'Date entered "To Reschedule"',         "internal": "xl_to_reschedule_entered", "column": "xl_to_reschedule_entered"},
+    "hs_v2_date_exited_4899362020":  {"label": 'Date exited "To Reschedule"',          "internal": "xl_to_reschedule_exited", "column": "xl_to_reschedule_exited"},
+    "hs_v2_date_entered_1003685894": {"label": 'Date entered "Discovery"',             "internal": "xl_discovery_entered", "column": "xl_discovery_entered"},
+    "hs_v2_date_exited_1003685894":  {"label": 'Date exited "Discovery"',              "internal": "xl_discovery_exited", "column": "xl_discovery_exited"},
+    "hs_v2_date_entered_4897330392": {"label": 'Date entered "Sales Nurturing"',       "internal": "xl_sales_nurturing_entered", "column": "xl_sales_nurturing_entered"},
+    "hs_v2_date_exited_4897330392":  {"label": 'Date exited "Sales Nurturing"',        "internal": "xl_sales_nurturing_exited", "column": "xl_sales_nurturing_exited"},
+    "hs_v2_date_entered_1003685895": {"label": 'Date entered "Product Alignment"',     "internal": "xl_product_alignment_entered", "column": "xl_product_alignment_entered"},
+    "hs_v2_date_exited_1003685895":  {"label": 'Date exited "Product Alignment"',      "internal": "xl_product_alignment_exited", "column": "xl_product_alignment_exited"},
+    "hs_v2_date_entered_1003685896": {"label": 'Date entered "Pricing & Packaging"',   "internal": "xl_pricing_packaging_entered", "column": "xl_pricing_packaging_entered"},
+    "hs_v2_date_exited_1003685896":  {"label": 'Date exited "Pricing & Packaging"',    "internal": "xl_pricing_packaging_exited", "column": "xl_pricing_packaging_exited"},
+    "hs_v2_date_entered_1003685897": {"label": 'Date entered "Contracting"',           "internal": "xl_contracting_entered", "column": "xl_contracting_entered"},
+    "hs_v2_date_exited_1003685897":  {"label": 'Date exited "Contracting"',            "internal": "xl_contracting_exited", "column": "xl_contracting_exited"},
+    "hs_v2_date_entered_1003800948": {"label": 'Date entered "Closed Pending Payment"', "internal": "xl_closed_pending_payment_entered", "column": "xl_closed_pending_payment_entered"},
+    "hs_v2_date_exited_1003800948":  {"label": 'Date exited "Closed Pending Payment"',  "internal": "xl_closed_pending_payment_exited", "column": "xl_closed_pending_payment_exited"},
+    "hs_v2_date_entered_1003800949": {"label": 'Date entered "Closed Won"',            "internal": "xl_closed_won_entered", "column": "xl_closed_won_entered"},
+    "hs_v2_date_exited_1003800949":  {"label": 'Date exited "Closed Won"',             "internal": "xl_closed_won_exited", "column": "xl_closed_won_exited"},
+    "hs_v2_date_entered_1003800950": {"label": 'Date entered "Closed Lost"',           "internal": "xl_closed_lost_entered", "column": "xl_closed_lost_entered"},
+    "hs_v2_date_exited_1003800950":  {"label": 'Date exited "Closed Lost"',            "internal": "xl_closed_lost_exited", "column": "xl_closed_lost_exited"},
 
     # ── XL SDR Pipeline (3576083668) ──
-    "hs_v2_date_entered_4899425498": {"label": 'Date entered "New"',                   "column": "xlsdr_new_entered"},
-    "hs_v2_date_exited_4899425498":  {"label": 'Date exited "New"',                    "column": "xlsdr_new_exited"},
-    "hs_v2_date_entered_4899425499": {"label": 'Date entered "Research & Outreach"',   "column": "xlsdr_research_outreach_entered"},
-    "hs_v2_date_exited_4899425499":  {"label": 'Date exited "Research & Outreach"',    "column": "xlsdr_research_outreach_exited"},
-    "hs_v2_date_entered_4899425500": {"label": 'Date entered "Connected - Not Engaged"', "column": "xlsdr_connected_not_engaged_entered"},
-    "hs_v2_date_exited_4899425500":  {"label": 'Date exited "Connected - Not Engaged"',  "column": "xlsdr_connected_not_engaged_exited"},
-    "hs_v2_date_entered_4899425501": {"label": 'Date entered "Engaged"',               "column": "xlsdr_engaged_entered"},
-    "hs_v2_date_exited_4899425501":  {"label": 'Date exited "Engaged"',                "column": "xlsdr_engaged_exited"},
-    "hs_v2_date_entered_4899425502": {"label": 'Date entered "Meeting Booked"',        "column": "xlsdr_meeting_booked_entered"},
-    "hs_v2_date_exited_4899425502":  {"label": 'Date exited "Meeting Booked"',         "column": "xlsdr_meeting_booked_exited"},
-    "hs_v2_date_entered_4899425503": {"label": 'Date entered "To reschedule"',         "column": "xlsdr_to_reschedule_entered"},
-    "hs_v2_date_exited_4899425503":  {"label": 'Date exited "To reschedule"',          "column": "xlsdr_to_reschedule_exited"},
-    "hs_v2_date_entered_4899425504": {"label": 'Date entered "Hot Nurturing"',         "column": "xlsdr_hot_nurturing_entered"},
-    "hs_v2_date_exited_4899425504":  {"label": 'Date exited "Hot Nurturing"',          "column": "xlsdr_hot_nurturing_exited"},
-    "hs_v2_date_entered_4899425505": {"label": 'Date entered "Long Nurturing"',        "column": "xlsdr_long_nurturing_entered"},
-    "hs_v2_date_exited_4899425505":  {"label": 'Date exited "Long Nurturing"',         "column": "xlsdr_long_nurturing_exited"},
-    "hs_v2_date_entered_4899425506": {"label": 'Date entered "Opportunity Lost"',      "column": "xlsdr_opportunity_lost_entered"},
-    "hs_v2_date_exited_4899425506":  {"label": 'Date exited "Opportunity Lost"',       "column": "xlsdr_opportunity_lost_exited"},
+    "hs_v2_date_entered_4899425498": {"label": 'Date entered "New"',                   "internal": "xlsdr_new_entered", "column": "xlsdr_new_entered"},
+    "hs_v2_date_exited_4899425498":  {"label": 'Date exited "New"',                    "internal": "xlsdr_new_exited", "column": "xlsdr_new_exited"},
+    "hs_v2_date_entered_4899425499": {"label": 'Date entered "Research & Outreach"',   "internal": "xlsdr_research_outreach_entered", "column": "xlsdr_research_outreach_entered"},
+    "hs_v2_date_exited_4899425499":  {"label": 'Date exited "Research & Outreach"',    "internal": "xlsdr_research_outreach_exited", "column": "xlsdr_research_outreach_exited"},
+    "hs_v2_date_entered_4899425500": {"label": 'Date entered "Connected - Not Engaged"', "internal": "xlsdr_connected_not_engaged_entered", "column": "xlsdr_connected_not_engaged_entered"},
+    "hs_v2_date_exited_4899425500":  {"label": 'Date exited "Connected - Not Engaged"',  "internal": "xlsdr_connected_not_engaged_exited", "column": "xlsdr_connected_not_engaged_exited"},
+    "hs_v2_date_entered_4899425501": {"label": 'Date entered "Engaged"',               "internal": "xlsdr_engaged_entered", "column": "xlsdr_engaged_entered"},
+    "hs_v2_date_exited_4899425501":  {"label": 'Date exited "Engaged"',                "internal": "xlsdr_engaged_exited", "column": "xlsdr_engaged_exited"},
+    "hs_v2_date_entered_4899425502": {"label": 'Date entered "Meeting Booked"',        "internal": "xlsdr_meeting_booked_entered", "column": "xlsdr_meeting_booked_entered"},
+    "hs_v2_date_exited_4899425502":  {"label": 'Date exited "Meeting Booked"',         "internal": "xlsdr_meeting_booked_exited", "column": "xlsdr_meeting_booked_exited"},
+    "hs_v2_date_entered_4899425503": {"label": 'Date entered "To reschedule"',         "internal": "xlsdr_to_reschedule_entered", "column": "xlsdr_to_reschedule_entered"},
+    "hs_v2_date_exited_4899425503":  {"label": 'Date exited "To reschedule"',          "internal": "xlsdr_to_reschedule_exited", "column": "xlsdr_to_reschedule_exited"},
+    "hs_v2_date_entered_4899425504": {"label": 'Date entered "Hot Nurturing"',         "internal": "xlsdr_hot_nurturing_entered", "column": "xlsdr_hot_nurturing_entered"},
+    "hs_v2_date_exited_4899425504":  {"label": 'Date exited "Hot Nurturing"',          "internal": "xlsdr_hot_nurturing_exited", "column": "xlsdr_hot_nurturing_exited"},
+    "hs_v2_date_entered_4899425505": {"label": 'Date entered "Long Nurturing"',        "internal": "xlsdr_long_nurturing_entered", "column": "xlsdr_long_nurturing_entered"},
+    "hs_v2_date_exited_4899425505":  {"label": 'Date exited "Long Nurturing"',         "internal": "xlsdr_long_nurturing_exited", "column": "xlsdr_long_nurturing_exited"},
+    "hs_v2_date_entered_4899425506": {"label": 'Date entered "Opportunity Lost"',      "internal": "xlsdr_opportunity_lost_entered", "column": "xlsdr_opportunity_lost_entered"},
+    "hs_v2_date_exited_4899425506":  {"label": 'Date exited "Opportunity Lost"',       "internal": "xlsdr_opportunity_lost_exited", "column": "xlsdr_opportunity_lost_exited"},
 
     # ── IT AE Pipeline (824790797) ──
-    "hs_v2_date_entered_1220339227": {"label": 'Date entered "Demo request"',          "column": "itae_demo_request_entered"},
-    "hs_v2_date_exited_1220339227":  {"label": 'Date exited "Demo request"',           "column": "itae_demo_request_exited"},
-    "hs_v2_date_entered_1220339228": {"label": 'Date entered "New"',                   "column": "itae_new_entered"},
-    "hs_v2_date_exited_1220339228":  {"label": 'Date exited "New"',                    "column": "itae_new_exited"},
-    "hs_v2_date_entered_1220339229": {"label": 'Date entered "Outreach"',              "column": "itae_outreach_entered"},
-    "hs_v2_date_exited_1220339229":  {"label": 'Date exited "Outreach"',               "column": "itae_outreach_exited"},
-    "hs_v2_date_entered_1220339230": {"label": 'Date entered "Engaged"',               "column": "itae_engaged_entered"},
-    "hs_v2_date_exited_1220339230":  {"label": 'Date exited "Engaged"',                "column": "itae_engaged_exited"},
-    "hs_v2_date_entered_5043758307": {"label": 'Date entered "Meeting Booked"',        "column": "itae_meeting_booked_entered"},
-    "hs_v2_date_exited_5043758307":  {"label": 'Date exited "Meeting Booked"',         "column": "itae_meeting_booked_exited"},
-    "hs_v2_date_entered_5043750115": {"label": 'Date entered "To Reschedule"',         "column": "itae_to_reschedule_entered"},
-    "hs_v2_date_exited_5043750115":  {"label": 'Date exited "To Reschedule"',          "column": "itae_to_reschedule_exited"},
-    "hs_v2_date_entered_1220339231": {"label": 'Date entered "Discovery"',             "column": "itae_discovery_entered"},
-    "hs_v2_date_exited_1220339231":  {"label": 'Date exited "Discovery"',              "column": "itae_discovery_exited"},
-    "hs_v2_date_entered_1220339232": {"label": 'Date entered "Product Alignment"',     "column": "itae_product_alignment_entered"},
-    "hs_v2_date_exited_1220339232":  {"label": 'Date exited "Product Alignment"',      "column": "itae_product_alignment_exited"},
-    "hs_v2_date_entered_1220339233": {"label": 'Date entered "Pricing & Packaging"',   "column": "itae_pricing_packaging_entered"},
-    "hs_v2_date_exited_1220339233":  {"label": 'Date exited "Pricing & Packaging"',    "column": "itae_pricing_packaging_exited"},
-    "hs_v2_date_entered_1220382581": {"label": 'Date entered "Contracting"',           "column": "itae_contracting_entered"},
-    "hs_v2_date_exited_1220382581":  {"label": 'Date exited "Contracting"',            "column": "itae_contracting_exited"},
-    "hs_v2_date_entered_1220382582": {"label": 'Date entered "Closed Pending Payment"', "column": "itae_closed_pending_payment_entered"},
-    "hs_v2_date_exited_1220382582":  {"label": 'Date exited "Closed Pending Payment"',  "column": "itae_closed_pending_payment_exited"},
-    "hs_v2_date_entered_1220382583": {"label": 'Date entered "Closed Won"',            "column": "itae_closed_won_entered"},
-    "hs_v2_date_exited_1220382583":  {"label": 'Date exited "Closed Won"',             "column": "itae_closed_won_exited"},
-    "hs_v2_date_entered_1220382584": {"label": 'Date entered "Closed Lost"',           "column": "itae_closed_lost_entered"},
-    "hs_v2_date_exited_1220382584":  {"label": 'Date exited "Closed Lost"',            "column": "itae_closed_lost_exited"},
-    "hs_v2_date_entered_5043748053": {"label": 'Date entered "Opportunity Lost"',      "column": "itae_opportunity_lost_entered"},
-    "hs_v2_date_exited_5043748053":  {"label": 'Date exited "Opportunity Lost"',       "column": "itae_opportunity_lost_exited"},
-    "hs_v2_date_entered_5043748049": {"label": 'Date entered "Sales Nurturing"',       "column": "itae_sales_nurturing_entered"},
-    "hs_v2_date_exited_5043748049":  {"label": 'Date exited "Sales Nurturing"',        "column": "itae_sales_nurturing_exited"},
+    "hs_v2_date_entered_1220339227": {"label": 'Date entered "Demo request"',          "internal": "itae_demo_request_entered", "column": "itae_demo_request_entered"},
+    "hs_v2_date_exited_1220339227":  {"label": 'Date exited "Demo request"',           "internal": "itae_demo_request_exited", "column": "itae_demo_request_exited"},
+    "hs_v2_date_entered_1220339228": {"label": 'Date entered "New"',                   "internal": "itae_new_entered", "column": "itae_new_entered"},
+    "hs_v2_date_exited_1220339228":  {"label": 'Date exited "New"',                    "internal": "itae_new_exited", "column": "itae_new_exited"},
+    "hs_v2_date_entered_1220339229": {"label": 'Date entered "Outreach"',              "internal": "itae_outreach_entered", "column": "itae_outreach_entered"},
+    "hs_v2_date_exited_1220339229":  {"label": 'Date exited "Outreach"',               "internal": "itae_outreach_exited", "column": "itae_outreach_exited"},
+    "hs_v2_date_entered_1220339230": {"label": 'Date entered "Engaged"',               "internal": "itae_engaged_entered", "column": "itae_engaged_entered"},
+    "hs_v2_date_exited_1220339230":  {"label": 'Date exited "Engaged"',                "internal": "itae_engaged_exited", "column": "itae_engaged_exited"},
+    "hs_v2_date_entered_5043758307": {"label": 'Date entered "Meeting Booked"',        "internal": "itae_meeting_booked_entered", "column": "itae_meeting_booked_entered"},
+    "hs_v2_date_exited_5043758307":  {"label": 'Date exited "Meeting Booked"',         "internal": "itae_meeting_booked_exited", "column": "itae_meeting_booked_exited"},
+    "hs_v2_date_entered_5043750115": {"label": 'Date entered "To Reschedule"',         "internal": "itae_to_reschedule_entered", "column": "itae_to_reschedule_entered"},
+    "hs_v2_date_exited_5043750115":  {"label": 'Date exited "To Reschedule"',          "internal": "itae_to_reschedule_exited", "column": "itae_to_reschedule_exited"},
+    "hs_v2_date_entered_1220339231": {"label": 'Date entered "Discovery"',             "internal": "itae_discovery_entered", "column": "itae_discovery_entered"},
+    "hs_v2_date_exited_1220339231":  {"label": 'Date exited "Discovery"',              "internal": "itae_discovery_exited", "column": "itae_discovery_exited"},
+    "hs_v2_date_entered_1220339232": {"label": 'Date entered "Product Alignment"',     "internal": "itae_product_alignment_entered", "column": "itae_product_alignment_entered"},
+    "hs_v2_date_exited_1220339232":  {"label": 'Date exited "Product Alignment"',      "internal": "itae_product_alignment_exited", "column": "itae_product_alignment_exited"},
+    "hs_v2_date_entered_1220339233": {"label": 'Date entered "Pricing & Packaging"',   "internal": "itae_pricing_packaging_entered", "column": "itae_pricing_packaging_entered"},
+    "hs_v2_date_exited_1220339233":  {"label": 'Date exited "Pricing & Packaging"',    "internal": "itae_pricing_packaging_exited", "column": "itae_pricing_packaging_exited"},
+    "hs_v2_date_entered_1220382581": {"label": 'Date entered "Contracting"',           "internal": "itae_contracting_entered", "column": "itae_contracting_entered"},
+    "hs_v2_date_exited_1220382581":  {"label": 'Date exited "Contracting"',            "internal": "itae_contracting_exited", "column": "itae_contracting_exited"},
+    "hs_v2_date_entered_1220382582": {"label": 'Date entered "Closed Pending Payment"', "internal": "itae_closed_pending_payment_entered", "column": "itae_closed_pending_payment_entered"},
+    "hs_v2_date_exited_1220382582":  {"label": 'Date exited "Closed Pending Payment"',  "internal": "itae_closed_pending_payment_exited", "column": "itae_closed_pending_payment_exited"},
+    "hs_v2_date_entered_1220382583": {"label": 'Date entered "Closed Won"',            "internal": "itae_closed_won_entered", "column": "itae_closed_won_entered"},
+    "hs_v2_date_exited_1220382583":  {"label": 'Date exited "Closed Won"',             "internal": "itae_closed_won_exited", "column": "itae_closed_won_exited"},
+    "hs_v2_date_entered_1220382584": {"label": 'Date entered "Closed Lost"',           "internal": "itae_closed_lost_entered", "column": "itae_closed_lost_entered"},
+    "hs_v2_date_exited_1220382584":  {"label": 'Date exited "Closed Lost"',            "internal": "itae_closed_lost_exited", "column": "itae_closed_lost_exited"},
+    "hs_v2_date_entered_5043748053": {"label": 'Date entered "Opportunity Lost"',      "internal": "itae_opportunity_lost_entered", "column": "itae_opportunity_lost_entered"},
+    "hs_v2_date_exited_5043748053":  {"label": 'Date exited "Opportunity Lost"',       "internal": "itae_opportunity_lost_exited", "column": "itae_opportunity_lost_exited"},
+    "hs_v2_date_entered_5043748049": {"label": 'Date entered "Sales Nurturing"',       "internal": "itae_sales_nurturing_entered", "column": "itae_sales_nurturing_entered"},
+    "hs_v2_date_exited_5043748049":  {"label": 'Date exited "Sales Nurturing"',        "internal": "itae_sales_nurturing_exited", "column": "itae_sales_nurturing_exited"},
 
     # ── IT SDR Pipeline (3612610753) ──
-    "hs_v2_date_entered_5467457780": {"label": 'Date entered "Demo Request"',          "column": "itsdr_demo_request_entered"},
-    "hs_v2_date_exited_5467457780":  {"label": 'Date exited "Demo Request"',           "column": "itsdr_demo_request_exited"},
-    "hs_v2_date_entered_4969938161": {"label": 'Date entered "New"',                   "column": "itsdr_new_entered"},
-    "hs_v2_date_exited_4969938161":  {"label": 'Date exited "New"',                    "column": "itsdr_new_exited"},
-    "hs_v2_date_entered_4969938162": {"label": 'Date entered "Research & Outreach"',   "column": "itsdr_research_outreach_entered"},
-    "hs_v2_date_exited_4969938162":  {"label": 'Date exited "Research & Outreach"',    "column": "itsdr_research_outreach_exited"},
-    "hs_v2_date_entered_4969938163": {"label": 'Date entered "Connected - Not Engaged"', "column": "itsdr_connected_not_engaged_entered"},
-    "hs_v2_date_exited_4969938163":  {"label": 'Date exited "Connected - Not Engaged"',  "column": "itsdr_connected_not_engaged_exited"},
-    "hs_v2_date_entered_4969938164": {"label": 'Date entered "Engaged"',               "column": "itsdr_engaged_entered"},
-    "hs_v2_date_exited_4969938164":  {"label": 'Date exited "Engaged"',                "column": "itsdr_engaged_exited"},
-    "hs_v2_date_entered_4969938165": {"label": 'Date entered "Meeting Booked"',        "column": "itsdr_meeting_booked_entered"},
-    "hs_v2_date_exited_4969938165":  {"label": 'Date exited "Meeting Booked"',         "column": "itsdr_meeting_booked_exited"},
-    "hs_v2_date_entered_4969938166": {"label": 'Date entered "To reschedule"',         "column": "itsdr_to_reschedule_entered"},
-    "hs_v2_date_exited_4969938166":  {"label": 'Date exited "To reschedule"',          "column": "itsdr_to_reschedule_exited"},
-    "hs_v2_date_entered_4969938167": {"label": 'Date entered "Hot Nurturing"',         "column": "itsdr_hot_nurturing_entered"},
-    "hs_v2_date_exited_4969938167":  {"label": 'Date exited "Hot Nurturing"',          "column": "itsdr_hot_nurturing_exited"},
-    "hs_v2_date_entered_4969938168": {"label": 'Date entered "Long Nurturing"',        "column": "itsdr_long_nurturing_entered"},
-    "hs_v2_date_exited_4969938168":  {"label": 'Date exited "Long Nurturing"',         "column": "itsdr_long_nurturing_exited"},
-    "hs_v2_date_entered_4969938169": {"label": 'Date entered "Opportunity Lost"',      "column": "itsdr_opportunity_lost_entered"},
-    "hs_v2_date_exited_4969938169":  {"label": 'Date exited "Opportunity Lost"',       "column": "itsdr_opportunity_lost_exited"},
+    "hs_v2_date_entered_5467457780": {"label": 'Date entered "Demo Request"',          "internal": "itsdr_demo_request_entered", "column": "itsdr_demo_request_entered"},
+    "hs_v2_date_exited_5467457780":  {"label": 'Date exited "Demo Request"',           "internal": "itsdr_demo_request_exited", "column": "itsdr_demo_request_exited"},
+    "hs_v2_date_entered_4969938161": {"label": 'Date entered "New"',                   "internal": "itsdr_new_entered", "column": "itsdr_new_entered"},
+    "hs_v2_date_exited_4969938161":  {"label": 'Date exited "New"',                    "internal": "itsdr_new_exited", "column": "itsdr_new_exited"},
+    "hs_v2_date_entered_4969938162": {"label": 'Date entered "Research & Outreach"',   "internal": "itsdr_research_outreach_entered", "column": "itsdr_research_outreach_entered"},
+    "hs_v2_date_exited_4969938162":  {"label": 'Date exited "Research & Outreach"',    "internal": "itsdr_research_outreach_exited", "column": "itsdr_research_outreach_exited"},
+    "hs_v2_date_entered_4969938163": {"label": 'Date entered "Connected - Not Engaged"', "internal": "itsdr_connected_not_engaged_entered", "column": "itsdr_connected_not_engaged_entered"},
+    "hs_v2_date_exited_4969938163":  {"label": 'Date exited "Connected - Not Engaged"',  "internal": "itsdr_connected_not_engaged_exited", "column": "itsdr_connected_not_engaged_exited"},
+    "hs_v2_date_entered_4969938164": {"label": 'Date entered "Engaged"',               "internal": "itsdr_engaged_entered", "column": "itsdr_engaged_entered"},
+    "hs_v2_date_exited_4969938164":  {"label": 'Date exited "Engaged"',                "internal": "itsdr_engaged_exited", "column": "itsdr_engaged_exited"},
+    "hs_v2_date_entered_4969938165": {"label": 'Date entered "Meeting Booked"',        "internal": "itsdr_meeting_booked_entered", "column": "itsdr_meeting_booked_entered"},
+    "hs_v2_date_exited_4969938165":  {"label": 'Date exited "Meeting Booked"',         "internal": "itsdr_meeting_booked_exited", "column": "itsdr_meeting_booked_exited"},
+    "hs_v2_date_entered_4969938166": {"label": 'Date entered "To reschedule"',         "internal": "itsdr_to_reschedule_entered", "column": "itsdr_to_reschedule_entered"},
+    "hs_v2_date_exited_4969938166":  {"label": 'Date exited "To reschedule"',          "internal": "itsdr_to_reschedule_exited", "column": "itsdr_to_reschedule_exited"},
+    "hs_v2_date_entered_4969938167": {"label": 'Date entered "Hot Nurturing"',         "internal": "itsdr_hot_nurturing_entered", "column": "itsdr_hot_nurturing_entered"},
+    "hs_v2_date_exited_4969938167":  {"label": 'Date exited "Hot Nurturing"',          "internal": "itsdr_hot_nurturing_exited", "column": "itsdr_hot_nurturing_exited"},
+    "hs_v2_date_entered_4969938168": {"label": 'Date entered "Long Nurturing"',        "internal": "itsdr_long_nurturing_entered", "column": "itsdr_long_nurturing_entered"},
+    "hs_v2_date_exited_4969938168":  {"label": 'Date exited "Long Nurturing"',         "internal": "itsdr_long_nurturing_exited", "column": "itsdr_long_nurturing_exited"},
+    "hs_v2_date_entered_4969938169": {"label": 'Date entered "Opportunity Lost"',      "internal": "itsdr_opportunity_lost_entered", "column": "itsdr_opportunity_lost_entered"},
+    "hs_v2_date_exited_4969938169":  {"label": 'Date exited "Opportunity Lost"',       "internal": "itsdr_opportunity_lost_exited", "column": "itsdr_opportunity_lost_exited"},
 }
 
 
@@ -587,6 +587,23 @@ CRM_MEETING_CONTEXT_PROPERTIES = {  # ? HubSpot meeting properties
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# 6b. CRM ENGAGEMENT ENUMS
+#
+# WHAT: Enum values returned by HubSpot for engagement properties.
+# WHERE: Response values in hs_email_direction, hs_meeting_outcome.
+# HOW: Compare raw CRM value against these maps.
+# WHY: Convert CRM enum → internal name (e.g. "INCOMING_EMAIL" → "inbound").
+# ──────────────────────────────────────────────────────────────────────────────
+
+CRM_EMAIL_DIRECTIONS = {  # ? HubSpot enum → internal name
+    "INCOMING_EMAIL": "inbound",
+    "OUTGOING_EMAIL": "outbound",
+}
+
+CRM_MEETING_PROCESSABLE_OUTCOMES = frozenset({"COMPLETED", "NO_SHOW"})  # ? HubSpot enum values
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # 7. CRM_COMPANY_PROPERTIES
 #
 # WHAT: Company properties fetched for Atlas (company dossier).
@@ -598,16 +615,16 @@ CRM_MEETING_CONTEXT_PROPERTIES = {  # ? HubSpot meeting properties
 # ──────────────────────────────────────────────────────────────────────────────
 
 CRM_COMPANY_PROPERTIES = {  # ? HubSpot company properties
-    "name":                 {"label": "Company Name",           "column": "company_name"},
-    "industry":             {"label": "Industry",               "column": "industry"},
-    "numberofemployees":    {"label": "Number of employees",    "column": "company_size"},
-    "country":              {"label": "Country",                "column": "country"},
-    "website":              {"label": "Website",                "column": "website"},
-    "description":          {"label": "Description",            "column": "description"},
-    "city":                 {"label": "City",                   "column": "city"},
-    "state":                {"label": "State/Province",         "column": "state"},
-    "annualrevenue":        {"label": "Annual revenue",         "column": "annual_revenue"},
-    "domain":               {"label": "Domain (for sibling company search)", "column": "domain"},
+    "name":                 {"label": "Company Name",           "internal": "company_name",   "column": "company_name"},
+    "industry":             {"label": "Industry",               "internal": "industry",       "column": "industry"},
+    "numberofemployees":    {"label": "Number of employees",    "internal": "company_size",   "column": "company_size"},
+    "country":              {"label": "Country",                "internal": "country",        "column": "country"},
+    "website":              {"label": "Website",                "internal": "website",        "column": "website"},
+    "description":          {"label": "Description",            "internal": "description",    "column": "description"},
+    "city":                 {"label": "City",                   "internal": "city",           "column": "city"},
+    "state":                {"label": "State/Province",         "internal": "state",          "column": "state"},
+    "annualrevenue":        {"label": "Annual revenue",         "internal": "annual_revenue", "column": "annual_revenue"},
+    "domain":               {"label": "Domain (for sibling company search)", "internal": "domain", "column": "domain"},
 }
 
 
@@ -620,7 +637,13 @@ CRM_COMPANY_PROPERTIES = {  # ? HubSpot company properties
 # WHY: Build contacts_map for Claude — who are the key people on the deal.
 # ──────────────────────────────────────────────────────────────────────────────
 
-CRM_CONTACT_PROPERTIES = ["firstname", "lastname", "email", "jobtitle", "phone"]  # ? HubSpot contact properties
+CRM_CONTACT_PROPERTIES = {  # ? HubSpot contact properties
+    "firstname":    {"label": "First Name",  "internal": "firstname"},
+    "lastname":     {"label": "Last Name",   "internal": "lastname"},
+    "email":        {"label": "Email",       "internal": "email"},
+    "jobtitle":     {"label": "Job Title",   "internal": "jobtitle"},
+    "phone":        {"label": "Phone",       "internal": "phone"},
+}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -661,6 +684,7 @@ CRM_ASSOCIATIONS = {  # ? HubSpot association API
     "deal_to_notes":      {"from": "deals",     "to": "notes",      "usage": "Context builder — notes on this deal"},
     "deal_to_meetings":   {"from": "deals",     "to": "meetings",   "usage": "Context + meeting sync — meetings on this deal"},
     "deal_to_calls":      {"from": "deals",     "to": "calls",      "usage": "Context builder — HubSpot calls (not Modjo) on this deal"},
+    "deal_to_contacts":   {"from": "deals",     "to": "contacts",   "usage": "Atlas — which contacts participated in each deal"},
     "company_to_deals":   {"from": "companies", "to": "deals",      "usage": "Atlas — all deals for a company (siblings)"},
     "company_to_contacts":{"from": "companies", "to": "contacts",   "usage": "Atlas — all contacts at a company"},
     "meeting_to_deals":   {"from": "meetings",  "to": "deals",      "usage": "Meeting sync — resolve which deal a meeting belongs to"},
@@ -727,6 +751,7 @@ CRM_OWNER_MAP = {  # & ALL entries — owner IDs and emails
     "ariadna.isla@factorial.co": {"id": "100419730", "name": "Ariadna Isla Domínguez"},
     "arnau.palos@factorial.co": {"id": "500008456", "name": "Arnau Palos Figueras"},
     "beatriz.bravo@factorial.co": {"id": "34637457", "name": "Beatriz Bravo"},
+    "belen.lombardia@factorial.co": {"id": "554650133", "name": "Belén Lombardía"},
     "blanca.orti@factorial.co": {"id": "343529996", "name": "Blanca Orti Morillo"},
     "carlos.acosta@factorial.co": {"id": "77159731", "name": "Carlos Acosta"},
     "carlos.sanchez@factorial.co": {"id": "2078231828", "name": "Carlos Sanchez"},
@@ -739,6 +764,7 @@ CRM_OWNER_MAP = {  # & ALL entries — owner IDs and emails
     "cristina.tarres@factorial.co": {"id": "85923618", "name": "Cristina Tarrés"},
     "daniela.hernandez@factorial.co": {"id": "83250329", "name": "Daniela Hernandez"},
     "daniela.orozco@factorial.co": {"id": "578909258", "name": "Daniela Orozco Parra"},
+    "daniel.terrasa@factorial.co": {"id": "558202936", "name": "Daniel Terrasa"},
     "david.clemente@factorial.co": {"id": "77408863", "name": "David Clemente"},
     "david.donaire@factorial.co": {"id": "76655118", "name": "David Donaire"},
     "david.soler@factorial.co": {"id": "32687506", "name": "David Soler"},
@@ -818,6 +844,7 @@ CRM_OWNER_MAP = {  # & ALL entries — owner IDs and emails
     "tatiana.baltatescu@factorial.co": {"id": "33868827", "name": "Tatiana Baltatescu"},
     "teresa.santamaria@factorial.co": {"id": "390628148", "name": "Teresa Santamaria"},
     "xavier.fortuny@factorial.co": {"id": "76824216", "name": "Xavier Fortuny"},
+    "yolanda.tello@factorial.co": {"id": "33372303", "name": "Yolanda Tello"},
 }
 
 CRM_ACCOUNT_ID = "4960096"  # &
@@ -840,9 +867,8 @@ CRM_SYNC_STRATEGY = {  # & pipeline IDs are account-specific
 }
 
 CRM_CORE_TRIGGER = {  # & pipeline IDs are account-specific
-    "search_property": "hs_lastmodifieddate",
-    "activity_property": "notes_last_updated",
-    "supabase_column": "last_activity_hs",
+    "search_internal": "last_modified",
+    "activity_internal": "last_activity",
 }
 
 
@@ -1264,30 +1290,11 @@ SLACK_EB_ALERT_EMOJI = {  # & ALL entries — emoji per team
 # ──────────────────────────────────────────────────────────────────────────────
 
 PARTNERS_ORGCHART = {  # & ALL entries — people, teams, emails
-    "Santander": {
-        "active": True,
-        "leadership": {
-            "director": {"email": "joan.balana@factorial.co", "name": "Joan Balaña", "role": "Partner Sales Director", "scope": ["Santander", "Telefonica"]},
-            "tl_pae": {"email": "roberto.moran@factorial.co", "name": "Roberto Morán", "role": "Partner Sales Manager"},
-            "tl_pbd": {"email": "carlos.acosta@factorial.co", "name": "Carlos Acosta", "role": "Partner Business Developer Manager", "scope": ["Santander", "Telefonica"]},
-        },
-        "pbd": {
-            "carlos.acosta@factorial.co", "ines.rivera@factorial.co", "marta.ruiz@factorial.co",
-            "paula.gil@factorial.co", "david.soler@factorial.co", "lucia.garana@factorial.co",
-            "ignacio.otero@factorial.co", "nicolas.gonzalez@factorial.co",
-        },
-        "pae": {
-            "joan.balana@factorial.co", "roberto.moran@factorial.co", "eduardo.zafra@factorial.co",
-            "xavier.fortuny@factorial.co", "jose.donis@factorial.co", "pol.bartolome@factorial.co",
-            "beatriz.bravo@factorial.co", "joan.lorenzo@factorial.co",
-        },
-    },
     "Telefonica": {
         "active": True,
         "leadership": {
-            "director": {"email": "joan.balana@factorial.co", "name": "Joan Balaña", "role": "Partner Sales Director", "scope": ["Santander", "Telefonica"]},
             "tl_pae": {"email": "carlos.sanchez@factorial.co", "name": "Carlos Sanchez", "role": "PAE Team Leader Telefónica"},
-            "tl_pbd": {"email": "carlos.acosta@factorial.co", "name": "Carlos Acosta", "role": "Partner Business Developer Manager", "scope": ["Santander", "Telefonica"]},
+            "tl_pbd": {"email": "carlos.acosta@factorial.co", "name": "Carlos Acosta", "role": "Partner Business Developer Manager"},
         },
         "pbd": {
             "carlos.acosta@factorial.co", "angel.hernandez@factorial.co",
@@ -1295,7 +1302,7 @@ PARTNERS_ORGCHART = {  # & ALL entries — people, teams, emails
             "alejandro.soto@factorial.co",
         },
         "pae": {
-            "joan.balana@factorial.co", "carlos.sanchez@factorial.co",
+            "carlos.sanchez@factorial.co",
             "david.clemente@factorial.co", "nerea.urien@factorial.co",
             "alejandro.soto@factorial.co",
         },
@@ -1347,60 +1354,82 @@ PARTNERS_ORGCHART = {  # & ALL entries — people, teams, emails
         "pae": {
             "diana.bernal@factorial.co", "ernesto.blanco@factorial.co",
             "cristian.ramos@factorial.co", "daniela.orozco@factorial.co",
-            "diego.hernandez@factorial.co", "xavier.fortuny@factorial.co",
+            "diego.hernandez@factorial.co",
             "eduardo.mahr@factorial.co", "fabiola.villalobos@factorial.co",
         },
     },
 }
 
 DIRECT_SALES = {  # & ALL entries — people, teams, emails
-    "sales_director": {"email": "antoni.grau@factorial.co", "name": "Antoni Grau Zorita"},
     "teams": {
-        "DS Mireia": {
-            "active": False,
-            "tl": "mireia.bach@factorial.co", "tl_name": "Mireia Bach Ruiz",
+        "DS Joan Balaña": {
+            "active": True,
+            "tl": "joan.balana@factorial.co", "tl_name": "Joan Balaña",
             "subteams": {
-                "DS Rubén": {
-                    "active": False,
-                    "tl": "ruben.mariscal@factorial.co", "tl_name": "Rubén Mariscal",
-                    "ae": {"blanca.orti@factorial.co", "arnau.palos@factorial.co", "nil.oleaga@factorial.co",
-                           "iban.cordobes@factorial.co", "camila.aldana@factorial.co", "miquel.criado@factorial.co",
-                           "tatiana.baltatescu@factorial.co"},
+                "DS Antoni Grau": {
+                    "active": True,
+                    "tl": "antoni.grau@factorial.co", "tl_name": "Antoni Grau Zorita",
+                    "subteams": {
+                        "DS Mireia": {
+                            "active": True,
+                            "tl": "mireia.bach@factorial.co", "tl_name": "Mireia Bach Ruiz",
+                            "subteams": {
+                                "DS Rubén": {
+                                    "active": True,
+                                    "tl": "ruben.mariscal@factorial.co", "tl_name": "Rubén Mariscal",
+                                    "ae": {"blanca.orti@factorial.co", "arnau.palos@factorial.co", "nil.oleaga@factorial.co",
+                                           "iban.cordobes@factorial.co", "camila.aldana@factorial.co", "miquel.criado@factorial.co",
+                                           "tatiana.baltatescu@factorial.co"},
+                                },
+                                "DS Andrea C": {
+                                    "active": True,
+                                    "tl": "andrea.castanar@factorial.co", "tl_name": "Andrea Castañar Esteban",
+                                    "ae": {"m.gracia@factorial.co", "gerard.tarradas@factorial.co", "nuria.gisbert@factorial.co",
+                                           "abel.exposito@factorial.co", "denis.peramos@factorial.co"},
+                                },
+                            },
+                            "ae": {"josep.fora@factorial.co", "andreu.aloguin@factorial.co"},
+                        },
+                        "DS Roberto": {
+                            "active": True,
+                            "tl": "roberto.moran@factorial.co", "tl_name": "Roberto Morán",
+                            "ae": {"xavier.fortuny@factorial.co", "jose.donis@factorial.co", "pol.bartolome@factorial.co",
+                                   "beatriz.bravo@factorial.co", "joan.lorenzo@factorial.co"},
+                        },
+                        "DS Tania": {
+                            "active": True,
+                            "tl": "tania.diaz@factorial.co", "tl_name": "Tania Diaz Soto",
+                            "ae": {"alejandro.moreno@factorial.co", "carlota.alvarez@factorial.co", "edgar.ybarguengoitia@factorial.co",
+                                   "guillermo.ferrer@factorial.co", "sabri.blaybel@factorial.co", "sonia.jimenez@factorial.co"},
+                        },
+                        "DS Luis": {
+                            "active": True,
+                            "tl": "l.rodriguez@factorial.co", "tl_name": "Luis Rodriguez de Luz",
+                            "ae": {"jordi.reina@factorial.co", "daniela.hernandez@factorial.co", "iker.gordo@factorial.co",
+                                   "irene.orra@factorial.co", "maria.reina@factorial.co", "nuria.delacerda@factorial.co",
+                                   "amadeo.cuellar@factorial.co", "alvaro.figuerola@factorial.co"},
+                        },
+                        "DS Pilar": {
+                            "active": True,
+                            "tl": "pilar.elizaga@factorial.co", "tl_name": "Maria del Pilar Elizaga",
+                            "ae": {"alejandra.denobregas@factorial.co", "andrea.alonso@factorial.co", "cristina.tarres@factorial.co",
+                                   "david.donaire@factorial.co", "julia.flaque@factorial.co", "lucia.detorres@factorial.co",
+                                   "manuel.conesa@factorial.co"},
+                        },
+                        "DS Caterina": {
+                            "active": True,
+                            "tl": "caterina.peraire@factorial.co", "tl_name": "Caterina Peraire Lores",
+                            "ae": {"alberto.toboso@factorial.co", "ignacio.catasus@factorial.co",
+                                   "jordi.miravet@factorial.co", "teresa.santamaria@factorial.co"},
+                        },
+                    },
                 },
-                "DS Andrea C": {
-                    "active": False,
-                    "tl": "andrea.castanar@factorial.co", "tl_name": "Andrea Castañar Esteban",
-                    "ae": {"m.gracia@factorial.co", "gerard.tarradas@factorial.co", "nuria.gisbert@factorial.co",
-                           "abel.exposito@factorial.co", "denis.peramos@factorial.co"},
+                "DS Zafra": {
+                    "active": True,
+                    "tl": "eduardo.zafra@factorial.co", "tl_name": "Eduardo Zafra",
+                    "ae": {"daniel.terrasa@factorial.co", "belen.lombardia@factorial.co", "yolanda.tello@factorial.co"},
                 },
             },
-            "ae": {"josep.fora@factorial.co", "andreu.aloguin@factorial.co"},
-        },
-        "DS Tania": {
-            "active": False,
-            "tl": "tania.diaz@factorial.co", "tl_name": "Tania Diaz Soto",
-            "ae": {"alejandro.moreno@factorial.co", "carlota.alvarez@factorial.co", "edgar.ybarguengoitia@factorial.co",
-                   "guillermo.ferrer@factorial.co", "sabri.blaybel@factorial.co", "sonia.jimenez@factorial.co"},
-        },
-        "DS Luis": {
-            "active": False,
-            "tl": "l.rodriguez@factorial.co", "tl_name": "Luis Rodriguez de Luz",
-            "ae": {"jordi.reina@factorial.co", "daniela.hernandez@factorial.co", "iker.gordo@factorial.co",
-                   "irene.orra@factorial.co", "maria.reina@factorial.co", "nuria.delacerda@factorial.co",
-                   "amadeo.cuellar@factorial.co", "alvaro.figuerola@factorial.co"},
-        },
-        "DS Pilar": {
-            "active": False,
-            "tl": "pilar.elizaga@factorial.co", "tl_name": "Maria del Pilar Elizaga",
-            "ae": {"alejandra.denobregas@factorial.co", "andrea.alonso@factorial.co", "cristina.tarres@factorial.co",
-                   "david.donaire@factorial.co", "julia.flaque@factorial.co", "lucia.detorres@factorial.co",
-                   "manuel.conesa@factorial.co"},
-        },
-        "DS Caterina": {
-            "active": False,
-            "tl": "caterina.peraire@factorial.co", "tl_name": "Caterina Peraire Lores",
-            "ae": {"alberto.toboso@factorial.co", "ignacio.catasus@factorial.co",
-                   "jordi.miravet@factorial.co", "teresa.santamaria@factorial.co"},
         },
     },
 }
@@ -1553,6 +1582,25 @@ API_ENDPOINTS = {
     "google_calendar_scope": "https://www.googleapis.com/auth/calendar.readonly",
     "azure_api_version": "2024-10-01",
     "azure_auth_header": "api-key",
+
+    # CRM API paths (HubSpot-specific)
+    "deal_search":              "/crm/v3/objects/deals/search",
+    "deal_batch_read":          "/crm/v3/objects/deals/batch/read",
+    "owners":                   "/crm/v3/owners",
+    "company_associations":     "/crm/v4/associations/deals/companies/batch/read",
+    "partner_associations":     "/crm/v4/associations/deals/{partner_type}/batch/read",
+    "company_read":             "/crm/v3/objects/companies/{company_id}",
+    "company_search":           "/crm/v3/objects/companies/search",
+    "association_read":         "/crm/v4/objects/{from_type}/{object_id}/associations/{to_type}",
+    "batch_read":               "/crm/v3/objects/{object_type}/batch/read",
+}
+
+
+CRM_OWNER_RESPONSE_FIELDS = {  # ? HubSpot owner API response field names
+    "id":         "id",
+    "first_name": "firstName",
+    "last_name":  "lastName",
+    "email":      "email",
 }
 
 ENV_VARS = {
@@ -1581,6 +1629,14 @@ CRM_ALL_MEETING_SYNC_PROPS = list(CRM_MEETING_SYNC_PROPERTIES.keys())
 CRM_TO_SUPABASE = {k: v["column"] for k, v in CRM_DEAL_PROPERTIES.items()}
 CRM_TO_SUPABASE.update({k: v["column"] for k, v in CRM_STAGE_DATE_PROPERTIES.items()})
 CRM_TO_SUPABASE_MEETINGS = {k: v["column"] for k, v in CRM_MEETING_SYNC_PROPERTIES.items()}
+
+# internal name → CRM property name (reverse of CRM_DEAL_PROPERTIES)
+CRM_INTERNAL_TO_PROP = {v["internal"]: k for k, v in CRM_DEAL_PROPERTIES.items()}
+
+
+def crm_prop(internal_name: str) -> str:
+    """Internal name → CRM property name.  crm_prop("stage") → "dealstage" """
+    return CRM_INTERNAL_TO_PROP[internal_name]
 
 ALL_AUDIT_TAGS = CALL_TAGS_PBD | CALL_TAGS_PAE | CALL_TAGS_DIRECT_SALES
 ALL_KNOWN_TAGS = ALL_AUDIT_TAGS | CALL_TAGS_PARTNER_MGMT | CALL_TAGS_SKIP | CALL_TAGS_METADATA

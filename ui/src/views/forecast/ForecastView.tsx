@@ -4,11 +4,11 @@
    Deal rows unified with Pipeline style
    ============================================================ */
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Icon, Chip, ProbBadge, fmtMRR } from "../components";
+import { Icon, Chip, ProbBadge, fmtMRR, MultiSelectTeam } from "../components";
 import { useData } from "../../data/store";
 import type { ForecastDeal, ClosedDeal, LostDeal } from "../../data/store";
 import { hubspotDealUrl, ADMIN_ROLES } from "../../display";
-import { normalize, distinctTeams, distinctOwners, expandTeam } from "../../data/filters";
+import { normalize, distinctTeams, distinctOwners, distinctPipelines, expandTeam, expandTeams } from "../../data/filters";
 import { usePermissions } from "../../permissions";
 import { supabase } from "../../data/supabase";
 
@@ -282,7 +282,8 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
   const F = D.forecast;
   const { profile } = usePermissions();
   const [panel, setPanel] = useState<Panel>("m0");
-  const [teamFilter, setTeamFilter] = useState("");
+  const [pipelineFilters, setPipelineFilters] = useState<Set<string>>(new Set());
+  const [teamFilters, setTeamFilters] = useState<Set<string>>(new Set());
   const [repFilter, setRepFilter] = useState("");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -300,33 +301,34 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
   }, [openMenu]);
 
   const canEditTarget = profile ? MANAGEMENT_ROLES.has(profile.role) : false;
+  const pipelines = useMemo(() => distinctPipelines(F.allDeals), [F.allDeals]);
   const teams = useMemo(() => distinctTeams(F.allDeals), [F.allDeals]);
-  const reps = useMemo(() => distinctOwners(F.allDeals, teamFilter || undefined), [F.allDeals, teamFilter]);
+  const reps = useMemo(() => distinctOwners(F.allDeals, teamFilters.size === 1 ? [...teamFilters][0] : undefined), [F.allDeals, teamFilters]);
   const repNorm = repFilter ? normalize(repFilter) : "";
 
-  const teamExpanded = useMemo(() => teamFilter ? expandTeam(teamFilter) : null, [teamFilter]);
-  const applyFilters = <T extends { team?: string; owner: string; deal: string }>(deals: T[]): T[] => {
+  const teamExpanded = useMemo(() => expandTeams(teamFilters), [teamFilters]);
+  const applyFilters = <T extends { team?: string; pipeline?: string; owner: string; deal: string }>(deals: T[]): T[] => {
     let out = deals;
+    if (pipelineFilters.size) out = out.filter(d => pipelineFilters.has((d as any).pipeline || ""));
     if (teamExpanded) out = out.filter(d => teamExpanded.has(d.team || ""));
     if (repFilter) out = out.filter(d => { const on = normalize(d.owner || ""); return on === repNorm || on.startsWith(repNorm + " "); });
     if (search.trim()) { const q = search.toLowerCase(); out = out.filter(d => d.deal.toLowerCase().includes(q) || (d.owner || "").toLowerCase().includes(q)); }
     return out;
   };
 
-  const fm0 = useMemo(() => applyFilters(F.m0Deals), [F.m0Deals, teamFilter, repFilter, search]);
-  const fm1 = useMemo(() => applyFilters(F.m1Deals), [F.m1Deals, teamFilter, repFilter, search]);
-  const fm2 = useMemo(() => applyFilters(F.m2Deals), [F.m2Deals, teamFilter, repFilter, search]);
-  const fClosed = useMemo(() => applyFilters(F.closedDeals), [F.closedDeals, teamFilter, repFilter, search]);
-  const fLost = useMemo(() => applyFilters(F.lostDeals), [F.lostDeals, teamFilter, repFilter, search]);
+  const fm0 = useMemo(() => applyFilters(F.m0Deals), [F.m0Deals, pipelineFilters, teamExpanded, repFilter, search]);
+  const fm1 = useMemo(() => applyFilters(F.m1Deals), [F.m1Deals, pipelineFilters, teamExpanded, repFilter, search]);
+  const fm2 = useMemo(() => applyFilters(F.m2Deals), [F.m2Deals, pipelineFilters, teamExpanded, repFilter, search]);
+  const fClosed = useMemo(() => applyFilters(F.closedDeals), [F.closedDeals, pipelineFilters, teamExpanded, repFilter, search]);
+  const fLost = useMemo(() => applyFilters(F.lostDeals), [F.lostDeals, pipelineFilters, teamExpanded, repFilter, search]);
 
   const cm = new Date().toISOString().slice(0, 7);
+  const singleTeamFilter = teamFilters.size === 1 ? [...teamFilters][0] : "";
   const target = useMemo(() => {
-    if (!teamFilter) return F.target;
-    const row = F.targets.find(t => t.team === teamFilter && t.month === cm);
-    if (row && row.monthly_target > 0) return row.monthly_target;
-    const exp = expandTeam(teamFilter);
+    if (teamFilters.size === 0) return F.target;
+    const exp = expandTeams(teamFilters)!;
     return F.targets.filter(t => exp.has(t.team) && t.month === cm).reduce((s, t) => s + (t.monthly_target || 0), 0);
-  }, [F.target, F.targets, teamFilter, cm]);
+  }, [F.target, F.targets, teamFilters, cm]);
 
   const nmKey = (() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 7); })();
   const m2Key = (() => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 7); })();
@@ -357,20 +359,16 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
   const m2Split = countSplit(fm2, d => ({ hs: d.closeDate ? d.closeDate >= m2Key : false, cz: d.claudioCloseDate ? d.claudioCloseDate >= m2Key : false }));
 
   const targetM1 = useMemo(() => {
-    if (!teamFilter) return F.targets.filter(t => t.month === nmKey).reduce((s, t) => s + (t.monthly_target || 0), 0);
-    const row = F.targets.find(t => t.team === teamFilter && t.month === nmKey);
-    if (row && row.monthly_target > 0) return row.monthly_target;
-    const exp = expandTeam(teamFilter);
+    if (teamFilters.size === 0) return F.targets.filter(t => t.month === nmKey).reduce((s, t) => s + (t.monthly_target || 0), 0);
+    const exp = expandTeams(teamFilters)!;
     return F.targets.filter(t => exp.has(t.team) && t.month === nmKey).reduce((s, t) => s + (t.monthly_target || 0), 0);
-  }, [F.targets, teamFilter, nmKey]);
+  }, [F.targets, teamFilters, nmKey]);
 
   const targetM2 = useMemo(() => {
-    if (!teamFilter) return F.targets.filter(t => t.month === m2Key).reduce((s, t) => s + (t.monthly_target || 0), 0);
-    const row = F.targets.find(t => t.team === teamFilter && t.month === m2Key);
-    if (row && row.monthly_target > 0) return row.monthly_target;
-    const exp = expandTeam(teamFilter);
+    if (teamFilters.size === 0) return F.targets.filter(t => t.month === m2Key).reduce((s, t) => s + (t.monthly_target || 0), 0);
+    const exp = expandTeams(teamFilters)!;
     return F.targets.filter(t => exp.has(t.team) && t.month === m2Key).reduce((s, t) => s + (t.monthly_target || 0), 0);
-  }, [F.targets, teamFilter, m2Key]);
+  }, [F.targets, teamFilters, m2Key]);
 
   const pct = (v: number, t: number) => t > 0 ? Math.round(v / t * 100) : 0;
   const pctTone = (p: number) => p >= 70 ? "var(--green)" : p >= 30 ? "var(--amber)" : "var(--red)";
@@ -485,10 +483,8 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
       <div className="cz-toolbar" style={{ marginBottom: 4 }}>
         <div className="cz-tb-title"><h2 className="display">Forecast</h2></div>
         <div style={{ flex: 1 }} />
-        <select className="cz-native-select" value={teamFilter} onChange={e => { setTeamFilter(e.target.value); setRepFilter(""); }}>
-          <option value="">All Teams</option>
-          {teams.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
+        <MultiSelectTeam teams={pipelines} selected={pipelineFilters} onChange={v => { setPipelineFilters(v); setTeamFilters(new Set()); setRepFilter(""); }} allLabel="All Pipelines" />
+        <MultiSelectTeam teams={teams} selected={teamFilters} onChange={v => { setTeamFilters(v); setRepFilter(""); }} />
         <select className="cz-native-select" value={repFilter} onChange={e => setRepFilter(e.target.value)}>
           <option value="">All PAEs/PBDs</option>
           {reps.map((r: string) => <option key={r} value={r}>{r}</option>)}
@@ -507,7 +503,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
           <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 6 }}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
               <span style={{ fontSize: 10, color: "var(--indigo)", fontWeight: 800, textTransform: "uppercase", letterSpacing: ".04em" }}>M0</span>
-              <EditableTarget value={target} teamFilter={teamFilter} targets={F.targets} teams={teams} canEdit={canEditTarget} fontSize={20} />
+              <EditableTarget value={target} teamFilter={singleTeamFilter} targets={F.targets} teams={teams} canEdit={canEditTarget && teamFilters.size <= 1} fontSize={20} />
             </div>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
               <span style={{ fontSize: 10, color: "var(--ink-3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em" }}>M1</span>

@@ -2,10 +2,10 @@
    CLOSZR — PIPELINE (horizontal sales funnel)
    ============================================================ */
 import { useState, useMemo } from "react";
-import { Icon, StageChip, ProbBadge, Chip, TONE } from "../components";
+import { Icon, StageChip, ProbBadge, Chip, TONE, MultiSelectTeam } from "../components";
 import { useData } from "../../data/store";
 import { STAGE_DISPLAY } from "../../display";
-import { normalize, distinctTeams, distinctOwners, repNameToEmail } from "../../data/filters";
+import { normalize, distinctTeams, distinctOwners, distinctPipelines, expandTeams, repNameToEmail } from "../../data/filters";
 
 function fmtK(v: number | null | undefined){
   if (v==null) return "—";
@@ -209,7 +209,8 @@ function PipelineView({ onOpen }: PipelineViewProps) {
   const [metric,setMetric] = useState("count");
   const [sel,setSel] = useState("");
   const [q,setQ] = useState("");
-  const [teamFilter,setTeamFilter] = useState("");
+  const [pipelineFilters,setPipelineFilters] = useState<Set<string>>(new Set());
+  const [teamFilters,setTeamFilters] = useState<Set<string>>(new Set());
   const [repFilter,setRepFilter] = useState("");
   const [openSections,setOpenSections] = useState<Record<string,boolean>>({closing:true,evaluating:true,demo:true});
   const [hygiene,setHygiene] = useState<Set<HygieneKey>>(new Set());
@@ -221,14 +222,17 @@ function PipelineView({ onOpen }: PipelineViewProps) {
 
   // Compute available teams and reps from all deals
   const allDeals = useMemo(() => [...D.pipeline, ...D.pipelineAside].flatMap(s => s.rows), [D.pipeline, D.pipelineAside]);
+  const pipelines = useMemo(() => distinctPipelines(allDeals), [allDeals]);
   const teams = useMemo(() => distinctTeams(allDeals), [allDeals]);
-  const reps = useMemo(() => distinctOwners(allDeals, teamFilter || undefined), [allDeals, teamFilter]);
+  const teamExpandedSet = useMemo(() => expandTeams(teamFilters), [teamFilters]);
+  const reps = useMemo(() => distinctOwners(allDeals, teamFilters.size === 1 ? [...teamFilters][0] : undefined), [allDeals, teamFilters]);
 
-  // Filter stages by team/rep
+  // Filter stages by pipeline/team/rep
   const repEmail = repFilter ? repNameToEmail(repFilter) : "";
   const repNorm = repFilter ? normalize(repFilter) : "";
   const filterRow = (r: any) => {
-    if (teamFilter && r.team !== teamFilter) return false;
+    if (pipelineFilters.size && !pipelineFilters.has(r.pipeline || "")) return false;
+    if (teamExpandedSet && !teamExpandedSet.has(r.team || "")) return false;
     if (repFilter) {
       const ownerNorm = normalize(r.owner || "");
       const isOwner = ownerNorm === repNorm || ownerNorm.startsWith(repNorm + " ");
@@ -241,12 +245,12 @@ function PipelineView({ onOpen }: PipelineViewProps) {
   const filteredPipeline = useMemo(() => D.pipeline.map(s => {
     const rows = s.rows.filter(filterRow);
     return { ...s, rows, count: rows.length, value: rows.reduce((a: number, r: any) => a + (r.mrr || 0), 0), stale: rows.filter((r: any) => r.stale).length };
-  }), [D.pipeline, teamFilter, repFilter]);
+  }), [D.pipeline, pipelineFilters, teamExpandedSet, repFilter]);
 
   const filteredAside = useMemo(() => D.pipelineAside.map(s => {
     const rows = s.rows.filter(filterRow);
     return { ...s, rows, count: rows.length, value: rows.reduce((a: number, r: any) => a + (r.mrr || 0), 0), stale: rows.filter((r: any) => r.stale).length };
-  }), [D.pipelineAside, teamFilter, repFilter]);
+  }), [D.pipelineAside, pipelineFilters, teamExpandedSet, repFilter]);
 
   const allStages = [...filteredPipeline, ...filteredAside];
   const totalDeals = allStages.reduce((a,s)=>a+s.count,0);
@@ -272,10 +276,8 @@ function PipelineView({ onOpen }: PipelineViewProps) {
           <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar en este stage…"/>
         </label>
         <div className="cz-filters">
-          <select className="cz-native-select" value={teamFilter} onChange={e=>{setTeamFilter(e.target.value);setRepFilter("");}}>
-            <option value="">All Teams</option>
-            {teams.map((t: string)=><option key={t} value={t}>{t}</option>)}
-          </select>
+          <MultiSelectTeam teams={pipelines} selected={pipelineFilters} onChange={v=>{setPipelineFilters(v);setTeamFilters(new Set());setRepFilter("");}} allLabel="All Pipelines" />
+          <MultiSelectTeam teams={teams} selected={teamFilters} onChange={v=>{setTeamFilters(v);setRepFilter("");}} />
           <select className="cz-native-select" value={repFilter} onChange={e=>setRepFilter(e.target.value)}>
             <option value="">All PAEs/PBDs</option>
             {reps.map((r: string)=><option key={r} value={r}>{r}</option>)}

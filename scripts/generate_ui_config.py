@@ -36,6 +36,8 @@ from src.config import (
     STAGE_LOST,
     # Parser config (macro_stage_map, stale_thresholds)
     PARSER_CONFIG,
+    # Pipeline stages
+    PIPELINE_STAGES,
 )
 
 
@@ -229,6 +231,7 @@ def main():
         "owner_names": build_owner_names(),
         "known_users": build_known_users(),
         "managers": sorted(MANAGER_EMAILS),
+        "pipeline_stages": PIPELINE_STAGES,
     }
 
     out_path = ROOT / "ui" / "src" / "config.generated.json"

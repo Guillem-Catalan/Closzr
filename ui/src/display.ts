@@ -75,6 +75,9 @@ export const STALE_DEFAULT = CFG.stale_default;
 export const CLOSED_WON_STAGES: string[] = CFG.stages.categories.won;
 export const CLOSED_LOST_STAGES: string[] = CFG.stages.categories.lost;
 
+// ---- Pipeline → valid open stages (from config.py PIPELINE_STAGES) ----
+export const PIPELINE_STAGES: Record<string, string[]> = CFG.pipeline_stages;
+
 // ---- Momentum / Confidence (pure UI display) ----
 export const MOMENTUM_DISPLAY: Record<string, { icon: string; color: string }> = {
   accelerating: { icon: "▲", color: "var(--green)" },

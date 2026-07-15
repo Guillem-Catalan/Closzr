@@ -3,12 +3,12 @@
    4 sections: Meetings · Actions today · Overdue · Done
    ============================================================ */
 import { useState, useMemo } from "react";
-import { Icon, Chip, StageChip, fmtMRR } from "../components";
+import { Icon, Chip, StageChip, fmtMRR, MultiSelectTeam } from "../components";
 import { useData } from "../../data/store";
 import type { ActionItem, DealRow } from "../../data/store";
 import { supabase } from "../../data/supabase";
 import { hubspotDealUrl, BUCKET_STYLE, ACTION_TYPE_ICON } from "../../display";
-import { distinctTeams, distinctOwnersFromActions, normalize, repNameToEmail } from "../../data/filters";
+import { distinctTeams, distinctOwnersFromActions, distinctPipelines, normalize, repNameToEmail, expandTeams } from "../../data/filters";
 
 type TimeFilter = "hoy" | "semana" | "next_week" | "mes";
 
@@ -196,7 +196,8 @@ function SectionHeader({ title, count, tone, collapsed, onToggle }: {
 export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) => void }) {
   const D = useData();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("hoy");
-  const [teamFilter, setTeamFilter] = useState("");
+  const [pipelineFilters, setPipelineFilters] = useState<Set<string>>(new Set());
+  const [teamFilters, setTeamFilters] = useState<Set<string>>(new Set());
   const [repFilter, setRepFilter] = useState("");
   const [search, setSearch] = useState("");
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
@@ -211,12 +212,18 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
   const repEmail = repFilter ? repNameToEmail(repFilter) : "";
 
   const allMeetingRows = useMemo(() => D.groups.flatMap(g => g.rows), [D.groups]);
+  const pipelines = useMemo(() => {
+    const fromDeals = distinctPipelines(allMeetingRows);
+    const fromActions = D.todos.map(a => a.pipeline).filter(Boolean) as string[];
+    return [...new Set([...fromDeals, ...fromActions])].sort();
+  }, [allMeetingRows, D.todos]);
   const teams = useMemo(() => {
     const fromDeals = distinctTeams(allMeetingRows);
     const fromActions = D.todos.map(a => a.team).filter(Boolean);
     return [...new Set([...fromDeals, ...fromActions])].sort();
   }, [allMeetingRows, D.todos]);
-  const reps = useMemo(() => distinctOwnersFromActions(D.todos, teamFilter || undefined), [D.todos, teamFilter]);
+  const teamExpandedSet = useMemo(() => expandTeams(teamFilters), [teamFilters]);
+  const reps = useMemo(() => distinctOwnersFromActions(D.todos, teamFilters.size === 1 ? [...teamFilters][0] : undefined), [D.todos, teamFilters]);
 
   // Filter helper for rep matching
   const matchesRep = (owner: string, who?: string) => {
@@ -227,8 +234,9 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
     return false;
   };
 
-  const matchesFilters = (a: { dealName?: string; deal?: string; dealOwner?: string; owner?: string; actionHeadline?: string; team?: string; actionWho?: string }) => {
-    if (teamFilter && a.team !== teamFilter) return false;
+  const matchesFilters = (a: { dealName?: string; deal?: string; dealOwner?: string; owner?: string; actionHeadline?: string; team?: string; pipeline?: string; actionWho?: string }) => {
+    if (pipelineFilters.size && !pipelineFilters.has(a.pipeline || "")) return false;
+    if (teamExpandedSet && !teamExpandedSet.has(a.team || "")) return false;
     if (repFilter && !matchesRep(a.dealOwner || a.owner || "", a.actionWho)) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -245,14 +253,14 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
     if (timeFilter !== "hoy") return [];
     const allMeetingRows = D.groups.flatMap(g => g.rows);
     return allMeetingRows.filter(r => {
-      if (!matchesFilters({ deal: r.deal, owner: r.owner, team: r.team })) return false;
+      if (!matchesFilters({ deal: r.deal, owner: r.owner, team: r.team, pipeline: r.pipeline })) return false;
       if (repFilter && r.meetingPaes && !r.meetingPaes.includes(repEmail)) {
         const on = normalize(r.owner || "");
         if (on !== repNorm && !on.startsWith(repNorm + " ")) return false;
       }
       return true;
     }).sort((a, b) => (a.hora || "zz").localeCompare(b.hora || "zz"));
-  }, [D.groups, timeFilter, teamFilter, repFilter, search]);
+  }, [D.groups, timeFilter, pipelineFilters, teamExpandedSet, repFilter, search]);
 
   // Time range for current filter
   const getMaxDate = () => {
@@ -276,7 +284,7 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
       .filter(a => a.actionDueDate && a.actionDueDate >= today && a.actionDueDate <= max && a.actionDueDate > min)
       .filter(a => matchesFilters(a))
       .sort((a, b) => a.actionPriority - b.actionPriority || (b.dealMrr || 0) - (a.dealMrr || 0));
-  }, [D.todos, doneIds, timeFilter, teamFilter, repFilter, search, today]);
+  }, [D.todos, doneIds, timeFilter, pipelineFilters, teamExpandedSet, repFilter, search, today]);
 
   // 3. Overdue (due_date < today, still pending)
   const overdue = useMemo(() => {
@@ -286,7 +294,7 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
       .filter(a => a.actionDueDate && a.actionDueDate < today)
       .filter(a => matchesFilters(a))
       .sort((a, b) => (b.actionDueDate || "").localeCompare(a.actionDueDate || "") || (b.dealMrr || 0) - (a.dealMrr || 0));
-  }, [D.todos, doneIds, teamFilter, repFilter, search, today]);
+  }, [D.todos, doneIds, pipelineFilters, teamExpandedSet, repFilter, search, today]);
 
   // 4. Done (marked in this session)
   const doneActions = useMemo(() => {
@@ -326,10 +334,8 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
           ))}
         </div>
         <div style={{ flex: 1 }} />
-        <select className="cz-native-select" value={teamFilter} onChange={e => { setTeamFilter(e.target.value); setRepFilter(""); }}>
-          <option value="">All Teams</option>
-          {teams.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
+        <MultiSelectTeam teams={pipelines} selected={pipelineFilters} onChange={v => { setPipelineFilters(v); setTeamFilters(new Set()); setRepFilter(""); }} allLabel="All Pipelines" />
+        <MultiSelectTeam teams={teams} selected={teamFilters} onChange={v => { setTeamFilters(v); setRepFilter(""); }} />
         <select className="cz-native-select" value={repFilter} onChange={e => setRepFilter(e.target.value)}>
           <option value="">All PAEs</option>
           {reps.map((r: string) => <option key={r} value={r}>{r}</option>)}

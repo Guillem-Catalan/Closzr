@@ -820,6 +820,53 @@ STAGE_LOST = frozenset({
     "Opportunity lost", "Opportunity Lost", "Opportunity Lost ",
 })
 
+# --- Pipeline → Stages (open stages only, ordered by progression) ---
+
+PIPELINE_STAGES = {
+    "Partners Distribution": [
+        "New Deals", "Demo Booked", "To reschedule", "On Hold",
+        "Factorial Project Alignment started", "MEDDPICC Criteria Validation Started",
+        "Economical Alignment Started", "Contract Sent",
+    ],
+    "SDR Partner Opportunities Pipeline": [
+        "Pre-qualified", "Attempting to contact", "Associating the partner",
+        "Engaged", "Demo Booked", "Nurturing", "To reschedule",
+    ],
+    "Sales Pipeline": [
+        "Meeting Booked", "To reschedule", "Discovery",
+        "Product Alignment", "Pricing & Packaging", "Contracting",
+    ],
+    "OB SDR Pipeline": [
+        "New", "Research & Outreach", "Connected - Not Engaged",
+        "Engaged", "Meeting Booked", "To Reschedule",
+        "Hot Nurturing", "Long Nurturing",
+    ],
+    "IB SDR Pipeline": [
+        "New Qualified Opportunity", "Attempted to contact",
+        "Engaged", "Meeting Booked", "To Reschedule", "Nurturing",
+    ],
+    "XL Account Pipeline": [
+        "New", "Outreach", "Engaged", "Demo request from Prospect",
+        "Meeting Booked", "To Reschedule", "Sales Nurturing",
+        "Discovery", "Product Alignment", "Pricing & Packaging", "Contracting",
+    ],
+    "XL SDR Pipeline": [
+        "New", "Research & Outreach", "Connected - Not Engaged",
+        "Engaged", "Meeting Booked", "To reschedule",
+        "Hot Nurturing", "Long Nurturing",
+    ],
+    "IT AE Pipeline": [
+        "New", "Outreach", "Engaged", "Demo request from Prospect",
+        "Meeting Booked", "To Reschedule", "Sales Nurturing",
+        "Discovery", "Product Alignment", "Pricing & Packaging", "Contracting",
+    ],
+    "IT SDR Pipeline": [
+        "New", "Research & Outreach", "Connected - Not Engaged",
+        "Engaged", "Demo Request from Prospect", "Meeting Booked",
+        "To reschedule", "Hot Nurturing", "Long Nurturing",
+    ],
+}
+
 # --- Sets compuestos (uniones de categorias) ---
 
 # Todos los stages activos que procesamos en el CORE

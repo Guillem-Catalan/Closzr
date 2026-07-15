@@ -7,7 +7,8 @@ import { Icon, Avatar, TONE, fmtMRR } from "../components";
 import { useData } from "../../data/store";
 import type { BenchmarkDeal } from "../../data/store";
 import { hubspotDealUrl } from "../../display";
-import { normalize, expandTeam } from "../../data/filters";
+import { normalize, expandTeams, distinctPipelines } from "../../data/filters";
+import { MultiSelectTeam } from "../components";
 
 function fmtEur(v: number | null | undefined): string {
   if (v == null || v === 0) return "—";
@@ -482,7 +483,8 @@ export default function BenchmarkView({ onOpen }: { onOpen: (row: any, tab?: str
 
   const [outcomeFilter, setOutcomeFilter] = useState<"all" | "won" | "lost">("all");
   const [monthFilter, setMonthFilter] = useState("");
-  const [teamFilter, setTeamFilter] = useState("");
+  const [pipelineFilters, setPipelineFilters] = useState<Set<string>>(new Set());
+  const [teamFilters, setTeamFilters] = useState<Set<string>>(new Set());
   const [repFilter, setRepFilter] = useState("");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -499,9 +501,10 @@ export default function BenchmarkView({ onOpen }: { onOpen: (row: any, tab?: str
     return [...s].sort().reverse();
   }, [allDeals]);
 
+  const pipelines = useMemo(() => distinctPipelines(allDeals), [allDeals]);
   const teams = useMemo(() => { const s = new Set<string>(); for (const d of allDeals) if (d.team) s.add(d.team); return [...s].sort(); }, [allDeals]);
-  const reps = useMemo(() => { const ts = teamFilter ? expandTeam(teamFilter) : null; const s = new Set<string>(); for (const d of allDeals) { if (ts && !ts.has(d.team)) continue; if (d.owner && d.owner !== "—") s.add(d.owner); } return [...s].sort(); }, [allDeals, teamFilter]);
-  const teamExpanded = useMemo(() => teamFilter ? expandTeam(teamFilter) : null, [teamFilter]);
+  const teamExpanded = useMemo(() => expandTeams(teamFilters), [teamFilters]);
+  const reps = useMemo(() => { const s = new Set<string>(); for (const d of allDeals) { if (teamExpanded && !teamExpanded.has(d.team)) continue; if (d.owner && d.owner !== "—") s.add(d.owner); } return [...s].sort(); }, [allDeals, teamExpanded]);
   const repNorm = repFilter ? normalize(repFilter) : "";
 
   const fmtMonth = (m: string) => { const [y, mm] = m.split("-"); return `${MONTH_LABELS[parseInt(mm, 10) - 1]} ${y}`; };
@@ -509,13 +512,14 @@ export default function BenchmarkView({ onOpen }: { onOpen: (row: any, tab?: str
   const filtered = useMemo(() => {
     setVisibleCount(PAGE_SIZE);
     let out = allDeals;
+    if (pipelineFilters.size) out = out.filter(d => pipelineFilters.has(d.pipeline || ""));
     if (monthFilter) out = out.filter(d => d.closeDate && d.closeDate.startsWith(monthFilter));
     if (outcomeFilter !== "all") out = out.filter(d => d.outcome === outcomeFilter);
     if (teamExpanded) out = out.filter(d => teamExpanded.has(d.team));
     if (repFilter) out = out.filter(d => { const on = normalize(d.owner); return on === repNorm || on.startsWith(repNorm + " "); });
     if (search.trim()) { const q = search.toLowerCase(); out = out.filter(d => d.deal.toLowerCase().includes(q) || d.owner.toLowerCase().includes(q)); }
     return out;
-  }, [allDeals, monthFilter, outcomeFilter, teamExpanded, repFilter, repNorm, search]);
+  }, [allDeals, pipelineFilters, monthFilter, outcomeFilter, teamExpanded, repFilter, repNorm, search]);
 
   const sorted = useMemo(() => {
     const arr = [...filtered];
@@ -537,12 +541,13 @@ export default function BenchmarkView({ onOpen }: { onOpen: (row: any, tab?: str
   // Stats from base-filtered deals (month/team/rep/search) — NOT affected by outcome filter
   const baseFiltered = useMemo(() => {
     let out = allDeals;
+    if (pipelineFilters.size) out = out.filter(d => pipelineFilters.has(d.pipeline || ""));
     if (monthFilter) out = out.filter(d => d.closeDate && d.closeDate.startsWith(monthFilter));
     if (teamExpanded) out = out.filter(d => teamExpanded.has(d.team));
     if (repFilter) out = out.filter(d => { const on = normalize(d.owner); return on === repNorm || on.startsWith(repNorm + " "); });
     if (search.trim()) { const q = search.toLowerCase(); out = out.filter(d => d.deal.toLowerCase().includes(q) || d.owner.toLowerCase().includes(q)); }
     return out;
-  }, [allDeals, monthFilter, teamExpanded, repFilter, repNorm, search]);
+  }, [allDeals, pipelineFilters, monthFilter, teamExpanded, repFilter, repNorm, search]);
   const allWon = baseFiltered.filter(d => d.outcome === "won");
   const allLost = baseFiltered.filter(d => d.outcome === "lost");
   const winRate = allWon.length + allLost.length > 0 ? Math.round(allWon.length / (allWon.length + allLost.length) * 100) : 0;
@@ -569,10 +574,8 @@ export default function BenchmarkView({ onOpen }: { onOpen: (row: any, tab?: str
           <option value="">All Months</option>
           {availableMonths.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
         </select>
-        <select className="cz-native-select" value={teamFilter} onChange={e => { setTeamFilter(e.target.value); setRepFilter(""); }}>
-          <option value="">All Teams</option>
-          {teams.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
+        <MultiSelectTeam teams={pipelines} selected={pipelineFilters} onChange={v => { setPipelineFilters(v); setTeamFilters(new Set()); setRepFilter(""); }} allLabel="All Pipelines" />
+        <MultiSelectTeam teams={teams} selected={teamFilters} onChange={v => { setTeamFilters(v); setRepFilter(""); }} />
         <select className="cz-native-select" value={repFilter} onChange={e => setRepFilter(e.target.value)}>
           <option value="">All Reps</option>
           {reps.map(r => <option key={r} value={r}>{r}</option>)}

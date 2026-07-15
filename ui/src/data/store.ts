@@ -23,6 +23,7 @@ export type DealRow = {
   stale?: boolean;
   signal?: string;
   score?: number;
+  pipeline?: string;
 };
 
 export type Group = {
@@ -102,6 +103,7 @@ export type BenchmarkDeal = {
   interactions: { total_calls?: number; total_emails?: number; total_notes?: number; modjo_calls?: number; hs_meetings?: number } | null;
   lessons: string[];
   keyTurningPoint: string | null;
+  pipeline?: string;
 };
 
 export type ForecastData = {
@@ -168,6 +170,7 @@ export type ActionItem = {
   followUps: { order: number; type: string; who: string; text: string; when: string; due?: string }[];
   status: string;
   team: string;
+  pipeline?: string;
 };
 
 export type CZData = {

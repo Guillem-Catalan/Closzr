@@ -1,7 +1,7 @@
 /* ============================================================
    CLOSZR — shared primitives
    ============================================================ */
-import { type CSSProperties } from "react";
+import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { useData } from "../data/store";
 
 /* ---------- tone -> css vars ---------- */
@@ -298,4 +298,70 @@ export function fmtMRR(v: number | null | undefined): string {
   if (v == null) return "—";
   if (v >= 1000) return "€" + (v / 1000).toFixed(1) + "K";
   return "€" + Math.round(v);
+}
+
+/* ---------- MultiSelectTeam dropdown ---------- */
+interface MultiSelectTeamProps {
+  teams: string[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+  allLabel?: string;
+}
+
+export function MultiSelectTeam({ teams, selected, onChange, allLabel = "All Teams" }: MultiSelectTeamProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const label = selected.size === 0 ? allLabel
+    : selected.size === 1 ? [...selected][0]
+    : `${selected.size} teams`;
+
+  const toggle = (t: string) => {
+    const next = new Set(selected);
+    if (next.has(t)) next.delete(t); else next.add(t);
+    onChange(next);
+  };
+
+  const optStyle: CSSProperties = { padding: "7px 14px", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button className="cz-native-select" onClick={() => setOpen(!open)}
+        style={{ display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+        {label}
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "100%", left: 0, marginTop: 4,
+          background: "var(--card)", border: "1px solid var(--line)",
+          borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,.12)",
+          zIndex: 30, minWidth: 180, padding: "4px 0", maxHeight: 360, overflowY: "auto",
+        }}>
+          <div style={{ ...optStyle, fontWeight: selected.size === 0 ? 600 : 400 }}
+            onMouseEnter={e => (e.currentTarget.style.background = "var(--paper-2)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+            onClick={() => onChange(new Set())}>
+            <span style={{ width: 16, textAlign: "center", color: "var(--indigo)", fontWeight: 700 }}>{selected.size === 0 ? "✓" : ""}</span>
+            {allLabel}
+          </div>
+          {teams.map(t => (
+            <div key={t} style={{ ...optStyle, fontWeight: selected.has(t) ? 600 : 400 }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--paper-2)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              onClick={() => toggle(t)}>
+              <span style={{ width: 16, textAlign: "center", color: "var(--indigo)", fontWeight: 700 }}>{selected.has(t) ? "✓" : ""}</span>
+              {t}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

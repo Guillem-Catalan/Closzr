@@ -2,9 +2,9 @@
    CLOSZR — Deals table (Hoy)
    ============================================================ */
 import { useState, useMemo } from "react";
-import { Icon, StageChip, ProbBadge, Trend, Chip, fmtMRR } from "../components";
+import { Icon, StageChip, ProbBadge, Trend, Chip, fmtMRR, MultiSelectTeam } from "../components";
 import { useData } from "../../data/store";
-import { distinctTeams, distinctOwners, matchesTeam, matchesRep, matchesSearch } from "../../data/filters";
+import { distinctTeams, distinctOwners, distinctPipelines, expandTeams, matchesRep, matchesSearch } from "../../data/filters";
 
 function RowJump({ onOpen }: { onOpen: (tab: string) => void }) {
   return (
@@ -64,23 +64,27 @@ interface DealsTableProps {
 function DealsTable({ onOpen, view, setView }: DealsTableProps) {
   const D = useData();
   const [q,setQ] = useState("");
-  const [teamFilter,setTeamFilter] = useState("");
+  const [pipelineFilters,setPipelineFilters] = useState<Set<string>>(new Set());
+  const [teamFilters,setTeamFilters] = useState<Set<string>>(new Set());
   const [repFilter,setRepFilter] = useState("");
 
   const allRows = useMemo(() => D.groups.flatMap(g => g.rows), [D.groups]);
+  const pipelines = useMemo(() => distinctPipelines(allRows), [allRows]);
   const teams = useMemo(() => distinctTeams(allRows), [allRows]);
-  const reps = useMemo(() => distinctOwners(allRows, teamFilter || undefined), [allRows, teamFilter]);
+  const teamExpandedSet = useMemo(() => expandTeams(teamFilters), [teamFilters]);
+  const reps = useMemo(() => distinctOwners(allRows, teamFilters.size === 1 ? [...teamFilters][0] : undefined), [allRows, teamFilters]);
 
   const groups = useMemo(()=>{
     let gs = D.groups.map(g => {
       let rows = g.rows;
-      if (teamFilter) rows = rows.filter(r => matchesTeam(r, teamFilter));
+      if (pipelineFilters.size) rows = rows.filter(r => pipelineFilters.has(r.pipeline || ""));
+      if (teamExpandedSet) rows = rows.filter(r => teamExpandedSet.has(r.team || ""));
       if (repFilter) rows = rows.filter(r => matchesRep(r.owner, repFilter, r.meetingPaes));
       if (q.trim()) rows = rows.filter(r => matchesSearch(q, r.deal, r.owner));
       return { ...g, rows, meta: `${rows.length} deals` };
     });
     return gs.filter(g => g.rows.length);
-  },[q, D.groups, teamFilter, repFilter]);
+  },[q, D.groups, pipelineFilters, teamExpandedSet, repFilter]);
 
   const totalDeals = groups.reduce((s, g) => s + g.rows.length, 0);
   const totalMrr = groups.reduce((s, g) => s + g.rows.reduce((s2, r) => s2 + (r.mrr || 0), 0), 0);
@@ -102,10 +106,8 @@ function DealsTable({ onOpen, view, setView }: DealsTableProps) {
           <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar deals…"/>
         </label>
         <div className="cz-filters">
-          <select className="cz-native-select" value={teamFilter} onChange={e=>{setTeamFilter(e.target.value);setRepFilter("");}}>
-            <option value="">All Teams</option>
-            {teams.map(t=><option key={t} value={t}>{t}</option>)}
-          </select>
+          <MultiSelectTeam teams={pipelines} selected={pipelineFilters} onChange={v=>{setPipelineFilters(v);setTeamFilters(new Set());setRepFilter("");}} allLabel="All Pipelines" />
+          <MultiSelectTeam teams={teams} selected={teamFilters} onChange={v=>{setTeamFilters(v);setRepFilter("");}} />
           <select className="cz-native-select" value={repFilter} onChange={e=>setRepFilter(e.target.value)}>
             <option value="">All PAEs/PBDs</option>
             {reps.map(r=><option key={r} value={r}>{r}</option>)}

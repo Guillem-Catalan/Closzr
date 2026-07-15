@@ -98,6 +98,7 @@ type RawDealUI = {
   push_action: string | null;
   forecast_risks: any[] | null;
   forecast_accelerators: any[] | null;
+  pipeline_name: string | null;
   outcome: string | null;
   outcome_summary: string | null;
   employees: string | null;
@@ -137,6 +138,7 @@ function toDealRow(d: RawDealUI): DealRow & { _macro: string; _amount: number; _
     closeDateClaudio: d.estimated_close_date || null,
     owner: d.pae || d.pbd || "—",
     team: d.team || "",
+    pipeline: d.pipeline_name || "",
     stale: d.is_stale || false,
     signal: d.action_signal || d.action_headline_short || "",
     score: d.score ?? undefined,
@@ -182,7 +184,7 @@ function toForecastDeal(d: RawDealUI, row: DealRow): ForecastDeal {
   };
 }
 
-const DEAL_UI_COLS = "deal_id,hs_deal_id,company_name,deal_name_full,stage,macro_stage,pae,pbd,team,mrr,close_probability,close_date,close_date_hs,last_contact_label,trend,is_stale,stale_days,score,bucket,action_priority,action_headline,action_headline_short,action_signal,action_type,action_who,action_due_date,action_due_label,howto_body,deal_summary,deal_assessment,m_score,e_score,dc_score,dp_score,i_score,c_score,m_text,e_text,dc_text,dp_text,i_text,c_text,blockers_count,signals_count,next_steps,forecast_confidence,deal_momentum,estimated_close_date,forecast_reasoning,push_action,forecast_risks,forecast_accelerators,outcome,outcome_summary,employees,forecast_category,deal_age_days,closed_lost_reason,has_meeting_today,full_narrative,analysis_timeline,analysis_what_worked,analysis_what_failed,analysis_could_have_changed,analysis_rep_assessment,analysis_key_people,analysis_products_pitched,analysis_products_missed,analysis_product_assessment,trajectory,interactions,lessons,key_turning_point";
+const DEAL_UI_COLS = "deal_id,hs_deal_id,company_name,deal_name_full,stage,macro_stage,pae,pbd,team,mrr,close_probability,close_date,close_date_hs,last_contact_label,trend,is_stale,stale_days,score,bucket,action_priority,action_headline,action_headline_short,action_signal,action_type,action_who,action_due_date,action_due_label,howto_body,deal_summary,deal_assessment,m_score,e_score,dc_score,dp_score,i_score,c_score,m_text,e_text,dc_text,dp_text,i_text,c_text,blockers_count,signals_count,next_steps,forecast_confidence,deal_momentum,estimated_close_date,forecast_reasoning,push_action,forecast_risks,forecast_accelerators,outcome,outcome_summary,employees,forecast_category,deal_age_days,closed_lost_reason,has_meeting_today,full_narrative,analysis_timeline,analysis_what_worked,analysis_what_failed,analysis_could_have_changed,analysis_rep_assessment,analysis_key_people,analysis_products_pitched,analysis_products_missed,analysis_product_assessment,trajectory,interactions,lessons,key_turning_point,pipeline_name";
 
 async function loadData(): Promise<CZData> {
   const [allDeals, targets] = await Promise.all([
@@ -317,7 +319,7 @@ async function loadData(): Promise<CZData> {
   const toBenchmark = (d: RawDealUI, outcome: "won" | "lost"): BenchmarkDeal => ({
     id: d.deal_id, hsId: d.hs_deal_id || undefined,
     deal: d.company_name || d.deal_name_full || "—",
-    mrr: d.mrr, owner: d.pae || d.pbd || "—", team: d.team || "",
+    mrr: d.mrr, owner: d.pae || d.pbd || "—", team: d.team || "", pipeline: d.pipeline_name || "",
     closeDate: d.close_date_hs || null, dealAge: d.deal_age_days || null, outcome,
     meddic: { m: d.m_score || 0, e: d.e_score || 0, dc: d.dc_score || 0, dp: d.dp_score || 0, i: d.i_score || 0, c: d.c_score || 0 },
     meddicText: { m: d.m_text || null, e: d.e_text || null, dc: d.dc_text || null, dp: d.dp_text || null, i: d.i_text || null, c: d.c_text || null },
@@ -374,7 +376,7 @@ async function loadData(): Promise<CZData> {
     .map(d => {
       let followUps: ActionItem["followUps"] = [];
       if (d.next_steps && Array.isArray(d.next_steps)) followUps = d.next_steps.slice(1).map((s: any, i: number) => ({ order: i + 2, type: s.type || "PREP", who: s.who || "—", text: s.text || "", when: s.when || "pendiente", due: s.due || undefined }));
-      return { id: d.deal_id, dealId: d.deal_id, hsId: d.hs_deal_id || undefined, dealName: d.company_name || d.deal_name_full || "—", dealOwner: d.pae || d.pbd || "—", dealMrr: d.mrr, dealStage: shortStage(d.stage || ""), bucket: d.bucket || "pipeline", claudioCloseDate: d.estimated_close_date || null, actionHeadline: d.action_headline || "", actionDetail: d.howto_body || null, actionType: d.action_type || "PREP", actionWho: d.action_who || "—", actionWhen: d.action_due_label || "pendiente", actionPriority: d.action_priority || 5, actionDueDate: d.action_due_date || null, followUps, status: "pending", team: d.team || "" };
+      return { id: d.deal_id, dealId: d.deal_id, hsId: d.hs_deal_id || undefined, dealName: d.company_name || d.deal_name_full || "—", dealOwner: d.pae || d.pbd || "—", dealMrr: d.mrr, dealStage: shortStage(d.stage || ""), bucket: d.bucket || "pipeline", claudioCloseDate: d.estimated_close_date || null, actionHeadline: d.action_headline || "", actionDetail: d.howto_body || null, actionType: d.action_type || "PREP", actionWho: d.action_who || "—", actionWhen: d.action_due_label || "pendiente", actionPriority: d.action_priority || 5, actionDueDate: d.action_due_date || null, followUps, status: "pending", team: d.team || "", pipeline: d.pipeline_name || "" };
     });
 
   // ---- Meetings today ----

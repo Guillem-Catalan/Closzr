@@ -8,7 +8,7 @@ import { Icon, Chip, ProbBadge, fmtMRR, MultiSelectTeam } from "../components";
 import { useData } from "../../data/store";
 import type { ForecastDeal, ClosedDeal, LostDeal } from "../../data/store";
 import { hubspotDealUrl, ADMIN_ROLES } from "../../display";
-import { normalize, distinctTeams, distinctOwners, distinctPipelines, expandTeam, expandTeams } from "../../data/filters";
+import { normalize, distinctTeams, distinctOwners, distinctPipelines, expandTeams } from "../../data/filters";
 import { usePermissions } from "../../permissions";
 import { supabase } from "../../data/supabase";
 

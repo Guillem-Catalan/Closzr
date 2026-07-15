@@ -25,6 +25,13 @@ export function expandTeam(team: string): Set<string> {
   return result;
 }
 
+export function expandTeams(teams: Set<string>): Set<string> | null {
+  if (teams.size === 0) return null;
+  const result = new Set<string>();
+  for (const t of teams) for (const child of expandTeam(t)) result.add(child);
+  return result;
+}
+
 // ---- Normalize for accent-insensitive comparison ----
 export function normalize(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -39,6 +46,12 @@ export function repNameToEmail(name: string): string {
 export function distinctTeams(rows: DealRow[]): string[] {
   const set = new Set<string>();
   for (const r of rows) if (r.team) set.add(r.team);
+  return [...set].sort();
+}
+
+export function distinctPipelines(rows: { pipeline?: string }[]): string[] {
+  const set = new Set<string>();
+  for (const r of rows) if (r.pipeline) set.add(r.pipeline);
   return [...set].sort();
 }
 

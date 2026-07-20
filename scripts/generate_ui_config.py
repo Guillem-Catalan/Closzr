@@ -85,9 +85,11 @@ def build_stages() -> dict:
             continue
         cat = info["category"]
         categories.setdefault(cat, []).append(label)
+        if internal not in categories.get(cat, []):
+            categories[cat].append(internal)
 
     for cat in categories:
-        categories[cat] = sorted(categories[cat])
+        categories[cat] = sorted(set(categories[cat]))
 
     return {
         "display": display,

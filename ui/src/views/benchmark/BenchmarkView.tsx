@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Icon, Avatar, TONE, fmtMRR } from "../components";
 import { useData } from "../../data/store";
 import type { BenchmarkDeal } from "../../data/store";
-import { hubspotDealUrl } from "../../display";
+import { hubspotDealUrl, MEDDIC_AXES, CRM_SHORT, WON_DISPLAY_LABEL, LOST_DISPLAY_LABEL, WON_LABEL, LOST_LABEL } from "../../display";
 import { normalize, expandTeams, distinctPipelines } from "../../data/filters";
 import { MultiSelectTeam } from "../components";
 
@@ -65,7 +65,7 @@ function BulletList({ items, tone }: { items: string[]; tone: "green" | "red" | 
 /* ============================================================
    POST-MORTEM OVERLAY — per design handoff
    ============================================================ */
-const MEDDIC_LABELS: Record<string, string> = { m: "Metrics", e: "Economic Buyer", dc: "Decision Criteria", dp: "Decision Process", i: "Identify Pain", c: "Champion" };
+const MEDDIC_LABELS: Record<string, string> = Object.fromEntries(MEDDIC_AXES.map(a => [a.key.toLowerCase(), a.label]));
 const MEDDIC_EMOJI: Record<string, string> = { m: "📊", e: "💰", dc: "📋", dp: "🔄", i: "🎯", c: "🤝" };
 
 function PostMortem({ d, onClose }: { d: BenchmarkDeal; onClose: () => void }) {
@@ -112,7 +112,7 @@ function PostMortem({ d, onClose }: { d: BenchmarkDeal; onClose: () => void }) {
           <div className="cz-pm-id">
             <div className="cz-pm-title-row">
               <span className={"cz-oc big " + d.outcome}>
-                <Icon name={won ? "award" : "xCircle"} size={14} stroke={2.2} />{won ? "Won" : "Lost"}
+                <Icon name={won ? "award" : "xCircle"} size={14} stroke={2.2} />{won ? WON_DISPLAY_LABEL : LOST_DISPLAY_LABEL}
               </span>
               <h1 className="display">{d.deal}</h1>
             </div>
@@ -124,7 +124,7 @@ function PostMortem({ d, onClose }: { d: BenchmarkDeal; onClose: () => void }) {
               {d.hsId && (
                 <a className="cz-hs" href={hubspotDealUrl(d.hsId)} target="_blank" rel="noopener noreferrer"
                   style={{ textDecoration: "none", color: "inherit", marginLeft: 4, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <Icon name="external" size={12} /> HS
+                  <Icon name="external" size={12} /> {CRM_SHORT}
                 </a>
               )}
             </div>
@@ -353,7 +353,7 @@ function PostMortem({ d, onClose }: { d: BenchmarkDeal; onClose: () => void }) {
           {/* LOST REASON — only for lost deals without turning point */}
           {!won && d.lostReason && !d.keyTurningPoint && (
             <section className="cz-card cmp" style={{ marginTop: "var(--gap)", background: "var(--red-tint)", borderColor: "var(--red)" }}>
-              <div className="cz-ovh"><span className="eyebrow" style={{ color: "var(--red-ink)" }}>❌ Lost Reason</span></div>
+              <div className="cz-ovh"><span className="eyebrow" style={{ color: "var(--red-ink)" }}>❌ {LOST_LABEL} Reason</span></div>
               <p className="cz-summary" style={{ color: "var(--red-ink)" }}>{d.lostReason}</p>
             </section>
           )}
@@ -422,13 +422,13 @@ function BenchRow({ d, open, onToggle, onOpen, onAnalysis }: { d: BenchmarkDeal;
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               {d.whatWorked.length > 0 && (
                 <div style={{ padding: "10px 14px", background: "var(--green-tint)", borderRadius: "var(--r-sm)" }}>
-                  <span className="eyebrow" style={{ display: "block", marginBottom: 6, color: "var(--green-ink)" }}>What Worked</span>
+                  <span className="eyebrow" style={{ display: "block", marginBottom: 6, color: "var(--green-ink)" }}>What {WON_LABEL}</span>
                   <BulletList items={d.whatWorked.slice(0, 3)} tone="green" />
                 </div>
               )}
               {d.whatFailed.length > 0 && (
                 <div style={{ padding: "10px 14px", background: "var(--red-tint)", borderRadius: "var(--r-sm)" }}>
-                  <span className="eyebrow" style={{ display: "block", marginBottom: 6, color: "var(--red-ink)" }}>What Failed</span>
+                  <span className="eyebrow" style={{ display: "block", marginBottom: 6, color: "var(--red-ink)" }}>What {LOST_LABEL}</span>
                   <BulletList items={d.whatFailed.slice(0, 3)} tone="red" />
                 </div>
               )}
@@ -439,7 +439,7 @@ function BenchRow({ d, open, onToggle, onOpen, onAnalysis }: { d: BenchmarkDeal;
           {d.whatWorked.length === 0 && d.whatFailed.length === 0 && d.outcomeSummary && (
             <div style={{ padding: "10px 14px", background: isWon ? "var(--green-tint)" : "var(--red-tint)", borderRadius: "var(--r-sm)" }}>
               <span className="eyebrow" style={{ display: "block", marginBottom: 6, color: isWon ? "var(--green-ink)" : "var(--red-ink)" }}>
-                {isWon ? "How it was won" : "Lost reason"}
+                {isWon ? `How it was ${WON_LABEL.toLowerCase()}` : `${LOST_LABEL} reason`}
               </span>
               <BulletList items={d.outcomeSummary.split("\n")} tone={isWon ? "green" : "red"} />
             </div>
@@ -567,8 +567,8 @@ export default function BenchmarkView({ onOpen }: { onOpen: (row: any, tab?: str
         <div style={{ flex: 1 }} />
         <div className="cz-seg">
           <button className={outcomeFilter === "all" ? "on" : ""} onClick={() => { setOutcomeFilter("all"); setExpandedId(null); }}>All ({allWon.length + allLost.length})</button>
-          <button className={outcomeFilter === "won" ? "on" : ""} onClick={() => { setOutcomeFilter("won"); setExpandedId(null); }}>Won ({allWon.length})</button>
-          <button className={outcomeFilter === "lost" ? "on" : ""} onClick={() => { setOutcomeFilter("lost"); setExpandedId(null); }}>Lost ({allLost.length})</button>
+          <button className={outcomeFilter === "won" ? "on" : ""} onClick={() => { setOutcomeFilter("won"); setExpandedId(null); }}>{WON_LABEL} ({allWon.length})</button>
+          <button className={outcomeFilter === "lost" ? "on" : ""} onClick={() => { setOutcomeFilter("lost"); setExpandedId(null); }}>{LOST_LABEL} ({allLost.length})</button>
         </div>
         <select className="cz-native-select" value={monthFilter} onChange={e => setMonthFilter(e.target.value)}>
           <option value="">All Months</option>
@@ -589,14 +589,14 @@ export default function BenchmarkView({ onOpen }: { onOpen: (row: any, tab?: str
       {/* Stat cards — always show totals, not affected by outcome filter */}
       <div className="cz-cl-stats" style={{ marginBottom: 16 }}>
         <div className="cz-cl-stat won">
-          <span className="cz-cl-stat-k"><Icon name="award" size={15} stroke={2} /> Won</span>
+          <span className="cz-cl-stat-k"><Icon name="award" size={15} stroke={2} /> {WON_LABEL}</span>
           <span className="cz-cl-stat-v display num">{allWon.length}</span>
           <span className="cz-cl-stat-sub num">{fmtEur(totalWonMrr)} MRR</span>
         </div>
         <div className="cz-cl-stat lost">
-          <span className="cz-cl-stat-k"><Icon name="xCircle" size={15} stroke={2} /> Lost</span>
+          <span className="cz-cl-stat-k"><Icon name="xCircle" size={15} stroke={2} /> {LOST_LABEL}</span>
           <span className="cz-cl-stat-v display num">{allLost.length}</span>
-          <span className="cz-cl-stat-sub num">{fmtEur(totalLostMrr)} MRR lost</span>
+          <span className="cz-cl-stat-sub num">{fmtEur(totalLostMrr)} MRR {LOST_LABEL.toLowerCase()}</span>
         </div>
         <div className="cz-cl-stat rate">
           <span className="cz-cl-stat-k"><Icon name="target" size={15} stroke={2} /> Win Rate</span>

@@ -1,5 +1,5 @@
 """
-Daily Trajectories — compiles closed deals into learning data.
+Daily Trajectories v2 — compiles closed deals into learning data.
 
 Detects deals that closed (won/lost/on_hold) since the last daily run
 and don't have a trajectory yet. For each one:
@@ -7,48 +7,73 @@ and don't have a trajectory yet. For each one:
   2. 1 Claude call → outcome analysis + lessons
   3. Writes to deal_trajectories
 
-The forecast uses deal_trajectories as benchmark for predicting active deals.
-Everything from config.
+Internal names everywhere: schema.tbl(), schema.col(), config2.*.
 """
 
 import json
 import re
 from datetime import date
 
-from src.config import (
-    INTELLIGENCE_CONFIG,
-    DAILY_CONFIG,
-    PROMPTS_DIR,
-    MODEL_DEFAULT,
-    MAX_TOKENS_AUDIT,
-    get_subteam,
-)
+from src import schema
+from src.config2 import DAILY, PROMPTS_DIR, MODEL_DEFAULT, MAX_TOKENS, get_lang_prompt
 from src.db.client import supabase
 from src.integrations import claude
 
-_I = INTELLIGENCE_CONFIG
-_D = DAILY_CONFIG
 
+# ═══════════════════════════════════════════════════════════════════════════
+# RESOLVED CONSTANTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+_TBL_DEALS        = schema.tbl("deals")
+_TBL_SNAPSHOTS    = schema.tbl("snapshots")
+_TBL_TRAJECTORIES = schema.tbl("trajectories")
+_TBL_CALLS        = schema.tbl("calls")
+_TBL_MEETINGS     = schema.tbl("meetings")
+
+_D_UUID       = schema.col("deal_uuid")
+_D_NAME       = schema.col("deal_name")
+_D_STAGE      = schema.col("stage")
+_D_MRR        = schema.col("mrr")
+_D_AGE        = schema.col("deal_age")
+_D_CLOSE_DATE = schema.col("close_date")
+_D_PAE        = schema.col("pae")
+_D_PBD        = schema.col("pbd")
+_D_TEAM       = schema.col("team")
+_D_CONTEXT    = schema.col("deal_context")
+_D_PIPELINE   = schema.col("pipeline")
+_D_LOST_REASON = schema.col("closed_lost_reason")
+_D_CALL_COUNT  = schema.col("call_count")
+_D_EMAIL_COUNT = schema.col("email_count")
+_D_NOTE_COUNT  = schema.col("note_count")
+
+_FK_DEAL_ID       = "deal_id"
+_FK_SNAPSHOT_DATE  = schema.SNAPSHOT_IDENTITY_COLS["snapshot_date"]
+_FK_MEETINGS_DEAL  = "hs_deal_id"
+
+_SNAP_TRAJ_COLS   = schema.TRAJECTORY_SNAPSHOT_COLS
+
+_CLOSED_STAGES = list(schema.CLOSED)
+_STALLED_STAGES = list(schema.STALLED)
+_ALL_TERMINAL = _CLOSED_STAGES + _STALLED_STAGES
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FETCHERS
+# ═══════════════════════════════════════════════════════════════════════════
 
 def _fetch_deals_to_compile() -> list[dict]:
-    """Find deals that need trajectory compilation.
-    - Closed (won/lost): only if no trajectory exists (one shot)
-    - On Hold: if no trajectory OR if previously compiled as on_hold but now closed (redo)
-    """
-    all_stages = _D["closed_stages"] + _D["on_hold_stages"]
-
-    # Get deal IDs that have snapshots (no snapshots = no trajectory data)
+    """Find deals that need trajectory compilation."""
     has_snapshot: set[str] = set()
     offset = 0
     while True:
         snap_resp = (
-            supabase.table(_I["snapshot_table"])
-            .select("deal_id")
+            supabase.table(_TBL_SNAPSHOTS)
+            .select(_FK_DEAL_ID)
             .range(offset, offset + 999)
             .execute()
         )
         batch = snap_resp.data or []
-        has_snapshot.update(d["deal_id"] for d in batch)
+        has_snapshot.update(d[_FK_DEAL_ID] for d in batch)
         if len(batch) < 1000:
             break
         offset += 1000
@@ -56,16 +81,15 @@ def _fetch_deals_to_compile() -> list[dict]:
     if not has_snapshot:
         return []
 
-    # Fetch closed deals that have snapshots
     snapshot_ids = list(has_snapshot)
     all_deals = []
     for i in range(0, len(snapshot_ids), 200):
         batch = snapshot_ids[i:i + 200]
         deals_resp = (
-            supabase.table(_I["deals_table"])
+            supabase.table(_TBL_DEALS)
             .select("*")
-            .in_(_I["deal_col_id"], batch)
-            .in_(_I["deal_col_stage"], all_stages)
+            .in_(_D_UUID, batch)
+            .in_(_D_STAGE, _ALL_TERMINAL)
             .execute()
         )
         all_deals.extend(deals_resp.data or [])
@@ -73,52 +97,50 @@ def _fetch_deals_to_compile() -> list[dict]:
     if not all_deals:
         return []
 
-    deal_ids = [d[_I["deal_col_id"]] for d in all_deals]
+    deal_ids = [d[_D_UUID] for d in all_deals]
 
-    # Check existing trajectories in batches
     existing = {}
     for i in range(0, len(deal_ids), 200):
         batch = deal_ids[i:i + 200]
         existing_resp = (
-            supabase.table(_D["trajectories_table"])
-            .select("deal_id, outcome")
-            .in_(_D["fk_deal_id"], batch)
+            supabase.table(_TBL_TRAJECTORIES)
+            .select(f"{_FK_DEAL_ID}, outcome")
+            .in_(_FK_DEAL_ID, batch)
             .execute()
         )
         for r in (existing_resp.data or []):
-            existing[r["deal_id"]] = r.get("outcome")
+            existing[r[_FK_DEAL_ID]] = r.get("outcome")
 
     result = []
     for d in all_deals:
-        did = d[_I["deal_col_id"]]
-        stage = d.get(_I["deal_col_stage"]) or ""
+        did = d[_D_UUID]
+        stage = d.get(_D_STAGE) or ""
 
         if did not in existing:
             result.append(d)
-        elif existing[did] == "on_hold" and stage in _D["closed_stages"]:
+        elif existing[did] == "on_hold" and stage in _CLOSED_STAGES:
             result.append(d)
 
-    return result[:_D["trajectories_max_per_run"]]
+    return result[:DAILY["trajectories_max"]]
 
 
 def _determine_outcome(stage: str) -> str:
-    from src.config import STAGE_WON, STAGE_LOST
-    if stage in STAGE_WON:
+    if stage in schema.WON:
         return "won"
-    if stage in STAGE_LOST:
+    if stage in schema.LOST:
         return "lost"
-    if stage in _D["on_hold_stages"]:
+    if stage in schema.STALLED:
         return "on_hold"
     return "unknown"
 
 
 def _fetch_all_snapshots(deal_uuid: str) -> list[dict]:
-    cols = ", ".join(_D["snapshot_trajectory_cols"])
+    cols = ", ".join(_SNAP_TRAJ_COLS)
     resp = (
-        supabase.table(_I["snapshot_table"])
+        supabase.table(_TBL_SNAPSHOTS)
         .select(cols)
-        .eq(_I["fk_deal_id"], deal_uuid)
-        .order(_I["fk_snapshot_date"])
+        .eq(_FK_DEAL_ID, deal_uuid)
+        .order(_FK_SNAPSHOT_DATE)
         .execute()
     )
     return resp.data or []
@@ -128,16 +150,16 @@ def _build_trajectory(snapshots: list[dict], close_date: str | None) -> list[dic
     trajectory = []
     for s in snapshots:
         days_before = None
-        if close_date and s.get(_I["fk_snapshot_date"]):
+        if close_date and s.get(_FK_SNAPSHOT_DATE):
             try:
                 cd = date.fromisoformat(str(close_date)[:10])
-                sd = date.fromisoformat(str(s[_I["fk_snapshot_date"]])[:10])
+                sd = date.fromisoformat(str(s[_FK_SNAPSHOT_DATE])[:10])
                 days_before = (cd - sd).days
             except (ValueError, TypeError):
                 pass
 
         trajectory.append({
-            "date": s.get(_I["fk_snapshot_date"]),
+            "date": s.get(_FK_SNAPSHOT_DATE),
             "days_before_close": days_before,
             "probability": s.get("close_probability"),
             "meddic": {
@@ -169,44 +191,42 @@ def _build_stage_dates(deal: dict) -> dict:
 
 
 def _count_interactions(deal: dict, deal_uuid: str) -> dict:
-    calls_resp = supabase.table(_I["calls_table"]).select("id").eq(_I["fk_deal_id"], deal_uuid).execute()
-    from src.config import SYNC_CONFIG
-    meetings_resp = supabase.table(SYNC_CONFIG["meetings_table"]).select("id").eq(SYNC_CONFIG["meetings_col_deal_id"], deal_uuid).execute()
+    calls_resp = supabase.table(_TBL_CALLS).select("id").eq(_FK_DEAL_ID, deal_uuid).execute()
+    meetings_resp = supabase.table(_TBL_MEETINGS).select("id").eq(_FK_MEETINGS_DEAL, deal_uuid).execute()
 
     return {
-        "total_calls": deal.get("numero_de_calls") or 0,
-        "total_emails": deal.get("numero_de_emails") or 0,
-        "total_notes": deal.get("numero_de_notas") or 0,
+        "total_calls": deal.get(_D_CALL_COUNT) or 0,
+        "total_emails": deal.get(_D_EMAIL_COUNT) or 0,
+        "total_notes": deal.get(_D_NOTE_COUNT) or 0,
         "modjo_calls": len(calls_resp.data or []),
         "hs_meetings": len(meetings_resp.data or []),
     }
 
 
 def _resolve_team(deal: dict) -> str:
-    pae = deal.get(_I["deal_col_pae"]) or ""
-    pbd = deal.get(_I["deal_col_pbd"]) or ""
-    team = deal.get(_I["deal_col_team"]) or ""
-    if team:
-        return team
-    return ""
+    return deal.get(_D_TEAM) or ""
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PROMPT
+# ═══════════════════════════════════════════════════════════════════════════
 
 def _build_user_prompt(deal: dict, trajectory: list[dict], stage_dates: dict) -> str:
-    outcome = _determine_outcome(deal.get(_I["deal_col_stage"]) or "")
-    deal_context = deal.get(_I["deal_context_col"]) or ""
+    outcome = _determine_outcome(deal.get(_D_STAGE) or "")
+    deal_context = deal.get(_D_CONTEXT) or ""
 
     lines = []
     lines.append("## DEAL METADATA")
-    lines.append(f"- Name: {deal.get(_I['deal_col_deal_name']) or '?'}")
+    lines.append(f"- Name: {deal.get(_D_NAME) or '?'}")
     lines.append(f"- Outcome: {outcome}")
-    lines.append(f"- Amount: €{deal.get(_I['deal_col_amount']) or '?'}")
-    lines.append(f"- Deal Age: {deal.get(_I['deal_col_age']) or '?'} days")
-    lines.append(f"- Stage: {deal.get(_I['deal_col_stage']) or '?'}")
-    lines.append(f"- PAE: {deal.get(_I['deal_col_pae']) or '?'}")
-    lines.append(f"- PBD: {deal.get(_I['deal_col_pbd']) or '?'}")
-    lines.append(f"- Team: {deal.get(_I['deal_col_team']) or '?'}")
-    lines.append(f"- Close Date: {deal.get(_I['deal_col_close_date']) or '?'}")
-    lines.append(f"- Closed Lost Reason: {deal.get('closed_lost_reason') or 'N/A'}")
+    lines.append(f"- Amount: €{deal.get(_D_MRR) or '?'}")
+    lines.append(f"- Deal Age: {deal.get(_D_AGE) or '?'} days")
+    lines.append(f"- Stage: {deal.get(_D_STAGE) or '?'}")
+    lines.append(f"- PAE: {deal.get(_D_PAE) or '?'}")
+    lines.append(f"- PBD: {deal.get(_D_PBD) or '?'}")
+    lines.append(f"- Team: {deal.get(_D_TEAM) or '?'}")
+    lines.append(f"- Close Date: {deal.get(_D_CLOSE_DATE) or '?'}")
+    lines.append(f"- Closed Lost Reason: {deal.get(_D_LOST_REASON) or 'N/A'}")
     lines.append("")
 
     lines.append("## DEAL CONTEXT — FULL HISTORY")
@@ -251,24 +271,27 @@ def _parse_response(text: str) -> dict:
         raise
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════════════════════════
+
 def compile_trajectory(deal: dict) -> dict | None:
     """Compile trajectory for a single closed deal."""
-    deal_uuid = deal[_I["deal_col_id"]]
-    deal_name = deal.get(_I["deal_col_deal_name"]) or "?"
-    stage = deal.get(_I["deal_col_stage"]) or ""
+    deal_uuid = deal[_D_UUID]
+    deal_name = deal.get(_D_NAME) or "?"
+    stage = deal.get(_D_STAGE) or ""
     outcome = _determine_outcome(stage)
 
     print(f"    TRAJECTORY: {deal_name} ({outcome})")
 
     snapshots = _fetch_all_snapshots(deal_uuid)
-    trajectory = _build_trajectory(snapshots, deal.get(_I["deal_col_close_date"]))
+    trajectory = _build_trajectory(snapshots, deal.get(_D_CLOSE_DATE))
     stage_dates = _build_stage_dates(deal)
     interactions = _count_interactions(deal, deal_uuid)
     team = _resolve_team(deal)
 
-    from src.config2 import get_lang_prompt
-    owner_email = deal.get(_I["deal_col_pae"]) or deal.get(_I["deal_col_pbd"])
-    system_prompt = (PROMPTS_DIR / _D["trajectories_prompt_path"]).read_text(encoding="utf-8").strip()
+    owner_email = deal.get(_D_PAE) or deal.get(_D_PBD)
+    system_prompt = (PROMPTS_DIR / DAILY["trajectories_prompt"]).read_text(encoding="utf-8").strip()
     lang_text = get_lang_prompt(team, owner_email=owner_email)
     if lang_text:
         system_prompt += "\n\n" + lang_text
@@ -276,7 +299,7 @@ def compile_trajectory(deal: dict) -> dict | None:
 
     print(f"    Claude ({len(user_prompt)} chars)...")
     try:
-        raw = claude.analyze(system_prompt, user_prompt, model=MODEL_DEFAULT, max_tokens=MAX_TOKENS_AUDIT)
+        raw = claude.analyze(system_prompt, user_prompt, model=MODEL_DEFAULT, max_tokens=MAX_TOKENS["audit"])
         parsed = _parse_response(raw)
     except Exception as e:
         print(f"    ✗ Claude failed: {e}")
@@ -290,16 +313,16 @@ def compile_trajectory(deal: dict) -> dict | None:
             lessons = [lessons]
 
     row = {
-        "deal_id": deal_uuid,
+        _FK_DEAL_ID: deal_uuid,
         "outcome": outcome,
-        "amount": deal.get(_I["deal_col_amount"]),
-        "deal_age_days": deal.get(_I["deal_col_age"]),
-        "pae": deal.get(_I["deal_col_pae"]),
-        "pbd": deal.get(_I["deal_col_pbd"]),
+        "amount": deal.get(_D_MRR),
+        "deal_age_days": deal.get(_D_AGE),
+        "pae": deal.get(_D_PAE),
+        "pbd": deal.get(_D_PBD),
         "team": team,
-        "pipeline_name": deal.get("pipeline_name"),
-        "closed_lost_reason": deal.get("closed_lost_reason"),
-        "close_date": deal.get(_I["deal_col_close_date"]),
+        "pipeline_name": deal.get(_D_PIPELINE),
+        "closed_lost_reason": deal.get(_D_LOST_REASON),
+        "close_date": deal.get(_D_CLOSE_DATE),
         "trajectory": json.dumps(trajectory),
         "stage_dates": json.dumps(stage_dates),
         "interactions": json.dumps(interactions),
@@ -310,7 +333,7 @@ def compile_trajectory(deal: dict) -> dict | None:
     row = {k: v for k, v in row.items() if v is not None}
 
     try:
-        supabase.table(_D["trajectories_table"]).upsert(row, on_conflict="deal_id").execute()
+        supabase.table(_TBL_TRAJECTORIES).upsert(row, on_conflict=_FK_DEAL_ID).execute()
         print(f"    ✓ Trajectory written ({len(trajectory)} snapshots, {len(lessons)} lessons)")
         return row
     except Exception as e:

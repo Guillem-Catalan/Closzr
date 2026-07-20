@@ -3,3 +3,10 @@
 TUTTA la tua risposta deve essere in ITALIANO.
 Tutti i campi di testo (riassunti, valutazioni, segnali, bloccanti, prossimi passi, azioni, ragionamento) devono essere scritti in italiano.
 Usa terminologia di vendita standard in italiano.
+
+## DATE
+
+NON usare MAI date relative. NON scrivere MAI "oggi", "ieri", "domani", "questa settimana", "la prossima settimana", "la settimana scorsa".
+Usa SEMPRE giorno della settimana + data assoluta in formato GG/MM.
+Esempi: "lunedì 14/07", "entro mercoledì 16/07", "settimana di lunedì 07/07".
+Ricevi la data attuale nel prompt — usala per calcolare le date assolute.

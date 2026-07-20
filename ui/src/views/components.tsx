@@ -3,6 +3,7 @@
    ============================================================ */
 import { type CSSProperties, useState, useEffect, useRef } from "react";
 import { useData } from "../data/store";
+import { MEDDIC_AXES as _CFG_AXES } from "../display";
 
 /* ---------- tone -> css vars ---------- */
 export const TONE: Record<string, { bg: string; fg: string }> = {
@@ -220,15 +221,13 @@ export function SectionLabel({ letter, tone = "indigo", children, right }: Secti
 /* =========================================================
    MEDDIC Radar -- hexagonal radar chart (M E DC DP I C)
    ========================================================= */
-export const MEDDIC_AXES = [
-  { key:"M",    label:"M",    full:"Metrics",          color:"#7C5BD8" },
-  { key:"E",    label:"E",    full:"Economic Buyer",   color:"#2E78D8" },
-  { key:"DC",   label:"DC",   full:"Decision Criteria",color:"#D8892A" },
-  { key:"DP",   label:"DP",   full:"Decision Process", color:"#D8442F" },
-  { key:"I",    label:"I",    full:"Identify Pain",    color:"#1F8A5B" },
-  { key:"C",    label:"C",    full:"Champion",         color:"#3B4BD8" },
-  { key:"Comp", label:"CP", full:"Competition",      color:"#D8442F" },
-];
+const MEDDIC_COLORS: Record<string, string> = {
+  M: "#7C5BD8", E: "#2E78D8", DC: "#D8892A", DP: "#D8442F",
+  I: "#1F8A5B", C: "#3B4BD8", Comp: "#D8442F",
+};
+export const MEDDIC_AXES = _CFG_AXES.map(a => ({
+  key: a.key, label: a.short, full: a.label, color: MEDDIC_COLORS[a.key] || "#888",
+}));
 
 interface MeddicRadarProps {
   scores: Record<string, number>;

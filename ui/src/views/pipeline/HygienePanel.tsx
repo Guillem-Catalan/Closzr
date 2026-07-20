@@ -1,23 +1,19 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Icon, StageChip, ProbBadge } from "../components";
-import { STAGE_DISPLAY, shortStage, CLOSED_WON_STAGES, CLOSED_LOST_STAGES, PIPELINE_STAGES } from "../../display";
+import { STAGE_DISPLAY, shortStage, CLOSED_WON_STAGES, CLOSED_LOST_STAGES, PIPELINE_STAGES, TEAM_PIPELINES, LOST_REASONS, CRM_NAME, CRM_SHORT } from "../../display";
 
 type ActionKey = "stage" | "closeDate" | "lost" | "note";
 
 const ISSUE_META: Record<string, { label: string; tone: string; desc: string }> = {
-  overdue:   { label: "Overdue",    tone: "red",    desc: "Fecha de cierre HS pasada" },
+  overdue:   { label: "Overdue",    tone: "red",    desc: `Fecha de cierre ${CRM_SHORT} pasada` },
   closeSoon: { label: "Close soon", tone: "amber",  desc: "Cierra en ≤10 días" },
   stale:     { label: "Stale",      tone: "amber",  desc: "Parado 14+ días" },
   silent:    { label: "Silent",     tone: "violet", desc: "7+ días sin tocar" },
-  noDate:    { label: "Sin fecha",  tone: "ink",    desc: "Sin fecha de cierre en HS" },
+  noDate:    { label: "Sin fecha",  tone: "ink",    desc: `Sin fecha de cierre en ${CRM_SHORT}` },
 };
 
 const ISSUE_KEYS = Object.keys(ISSUE_META);
 
-const LOST_REASONS = [
-  "Budget / Pricing", "Lost to competitor", "No decision / No response",
-  "Timing not right", "Product fit", "Internal change", "Other",
-];
 
 const closedSet = new Set([
   ...CLOSED_WON_STAGES.map(s => s.toLowerCase()),
@@ -28,15 +24,6 @@ const ALL_OPEN_STAGES = Object.entries(STAGE_DISPLAY)
   .map(([stage, info]) => ({ value: stage, label: info.short }))
   .filter((s, i, arr) => arr.findIndex(x => x.label === s.label) === i);
 
-const TEAM_PIPELINES: Record<string, string[]> = {
-  Santander:  ["Partners Distribution", "SDR Partner Opportunities Pipeline"],
-  Telefonica: ["Partners Distribution", "SDR Partner Opportunities Pipeline"],
-  TIM:        ["IT AE Pipeline", "IT SDR Pipeline"],
-  TELEKOM:    ["IT AE Pipeline", "IT SDR Pipeline"],
-  Mexico:     ["Sales Pipeline", "OB SDR Pipeline"],
-  XL:         ["XL Account Pipeline", "XL SDR Pipeline"],
-};
-const DS_PIPELINES = ["Sales Pipeline", "OB SDR Pipeline", "IB SDR Pipeline"];
 
 const _stageToP = new Map<string, string[]>();
 for (const [p, stages] of Object.entries(PIPELINE_STAGES)) {
@@ -54,7 +41,7 @@ function stagesForDeal(deal: any): { value: string; label: string }[] {
   }
   const team = deal?._raw?.team || deal?.team || "";
   const currentStage = deal?._raw?.stage || "";
-  const teamPipelines = TEAM_PIPELINES[team] || (team.startsWith("DS ") ? DS_PIPELINES : null);
+  const teamPipelines = TEAM_PIPELINES[team] || null;
   if (teamPipelines) {
     const stageIn = _stageToP.get(currentStage) || [];
     const match = teamPipelines.find(p => stageIn.includes(p));
@@ -70,7 +57,7 @@ function stagesForDeal(deal: any): { value: string; label: string }[] {
 const ACTIONS = [
   { key: "stage" as const,     label: "Cambiar stage",  icon: "layers",   hint: "Mover en el pipeline" },
   { key: "closeDate" as const, label: "Fecha cierre",   icon: "calendar", hint: "Reprogramar cierre" },
-  { key: "lost" as const,      label: "Marcar perdido", icon: "xCircle",  hint: "Closed Lost", danger: true },
+  { key: "lost" as const,      label: "Marcar perdido", icon: "xCircle",  hint: CLOSED_LOST_STAGES[0], danger: true },
   { key: "note" as const,      label: "Añadir nota",    icon: "note",     hint: "Solo log interno" },
 ];
 
@@ -230,7 +217,7 @@ export default function HygienePanel({ open, onClose, deals, initialDealId = nul
     };
     // TODO: call Edge Function deal-update
     setLog(l => [{ action: action!, label: labels[action!], at: Date.now() }, ...l]);
-    setFlash(labels[action!] + " · sincronizado con HubSpot");
+    setFlash(labels[action!] + ` · sincronizado con ${CRM_NAME}`);
     if (action === "stage") deal.stage = shortStage(toStage);
     if (action === "closeDate") deal.closeDateHs = date;
     resetAction();
@@ -352,7 +339,7 @@ export default function HygienePanel({ open, onClose, deals, initialDealId = nul
                 )}
 
                 {action === "closeDate" && (
-                  <label className="cz-hy-field"><span>Nueva fecha de cierre (HS)</span>
+                  <label className="cz-hy-field"><span>Nueva fecha de cierre ({CRM_SHORT})</span>
                     <input type="date" value={date} onChange={e => setDate(e.target.value)} className="cz-native-select" />
                     <span className="cz-hy-hint">Closzr sugiere {czFmtDate(deal.closeDateClaudio) || "—"}</span>
                   </label>
@@ -363,7 +350,7 @@ export default function HygienePanel({ open, onClose, deals, initialDealId = nul
                     <select value={reason} onChange={e => setReason(e.target.value)} className="cz-native-select">
                       {LOST_REASONS.map(r => <option key={r}>{r}</option>)}
                     </select>
-                    <span className="cz-hy-hint danger">Pasará a <b>Closed Lost</b> en HubSpot.</span>
+                    <span className="cz-hy-hint danger">Pasará a <b>{CLOSED_LOST_STAGES[0]}</b> en {CRM_NAME}.</span>
                   </label>
                 )}
 
@@ -377,7 +364,7 @@ export default function HygienePanel({ open, onClose, deals, initialDealId = nul
                   onClick={applyUpdate}
                 >
                   <Icon name="route" size={14} stroke={2} />
-                  {action === "lost" ? "Marcar perdido en HS" : action === "note" ? "Guardar nota" : "Aplicar en HubSpot"}
+                  {action === "lost" ? `Marcar perdido en ${CRM_NAME}` : action === "note" ? "Guardar nota" : `Aplicar en ${CRM_NAME}`}
                 </button>
               </div>
             )}

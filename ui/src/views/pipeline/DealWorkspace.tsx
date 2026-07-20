@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { Icon, StageChip, ProbBadge, Chip, Avatar, AreaLine, MEDDIC_AXES } from "../components";
 import { AtlasView, NextView } from "./DealViews";
-import { hubspotDealUrl } from "../../display";
+import { hubspotDealUrl, CRM_NAME, ROLE_LABELS, METHODOLOGY_NAME } from "../../display";
 
 /* ---- persistent KPI pulse strip ---- */
 function PulseStrip({ d }: { d: any }) {
@@ -209,7 +209,7 @@ function HistView({ d, goTo }: { d: any; goTo: (tab: string) => void }) {
         {/* COL B — qualification */}
         <div className="cz-col">
           <section className="cz-card cmp">
-            <div className="cz-ovh"><span className="eyebrow">MEDDICC</span><Chip tone={mddTone}>{meddicTotal} / 70</Chip></div>
+            <div className="cz-ovh"><span className="eyebrow">{METHODOLOGY_NAME}</span><Chip tone={mddTone}>{meddicTotal} / 70</Chip></div>
             <div className="cz-md-list">
               {MEDDIC_AXES.map(a=>{
                 const md = meddic[a.key] || { score: 0, text: "Sin datos" };
@@ -352,12 +352,12 @@ function DealWorkspace({ detail, initialTab="hist", onClose }: DealWorkspaceProp
               <StageChip stage={d.stage}/>
             </div>
             <div className="cz-spine-meta">
-              <span>PAE: <b>{d.pae}</b></span><span className="cz-dot">·</span>
-              <span>PBD: <b>{d.pbd}</b></span><span className="cz-dot">·</span>
+              <span>{ROLE_LABELS.PAE}: <b>{d.pae}</b></span><span className="cz-dot">·</span>
+              <span>{ROLE_LABELS.PBD}: <b>{d.pbd}</b></span><span className="cz-dot">·</span>
               <span>Last contact: <b className="num">{d.lastContact}</b></span>
               {d.hsId ? (
                 <a className="cz-hs" href={hubspotDealUrl(d.hsId!)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", color: "inherit" }}>
-                  <Icon name="external" size={13}/> HubSpot
+                  <Icon name="external" size={13}/> {CRM_NAME}
                 </a>
               ) : (
                 <span className="cz-hs"><Icon name="route" size={13}/> {d.atlas.crm}</span>

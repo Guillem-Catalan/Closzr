@@ -50,7 +50,7 @@ as 2-3 analytical sentences (max 500 chars): what happened → what it means for
 **CALLS without transcript** — no-answer, voicemail, or call too short.
 Include in audits array with `win_rate_score: null`. All framework fields null.
 The audit.deal_context narrative should be brief: "Voicemail left, partner mentioned,
-callback requested" or "No answer, 3rd attempt this week."
+callback requested" or "No answer, 3rd attempt (week of DD/MM)."
 
 **EMAILS** — detect WHO sends and WHO receives:
 - `direction: inbound` → the prospect or external person is writing to the rep
@@ -75,7 +75,7 @@ who attended, what was the purpose, what was the outcome. If NO_SHOW, note that 
 prospect didn't attend and what that signals.
 Examples:
 - "Demo con Belén Suarez (Dir. Financiera) completada, 45 minutos. Prospect vio los módulos de control horario y nómina."
-- "Meeting cancelado — prospect no apareció. Tercer intento sin respuesta esta semana, señal de desinterés."
+- "Meeting cancelado — prospect no apareció. Tercer intento sin respuesta (semana del lunes 07/07), señal de desinterés."
 
 ### Processing order matters:
 
@@ -390,6 +390,8 @@ Example: "[\"No intentó cerrar demo después de confirmar Need y Timing → en 
 ### deal_context (string)
 
 Narrative summary of this interaction's impact on the deal. NOT a transcript summary.
+This text becomes PERMANENT deal memory read by future models — all dates must be
+absolute (day-of-week + DD/MM), never relative.
 An ANALYTICAL narrative structured in three parts:
 
 1. **BEFORE THIS INTERACTION**: What was known, BANT/MEDDIC state, previous agreements,
@@ -823,7 +825,8 @@ Solo devolver el número del score, sin explicación.
 
 **ACCUMULATE RULE**: For each `_accumulate` field, UPDATE by ADDING what this interaction
 contributed. Do NOT erase previous evidence. The accumulate text is the running record of
-all evidence across the deal.
+all evidence across the deal. All dates in accumulate text must be absolute (day + DD/MM)
+— this text persists for months.
 
 ### objections (string)
 
@@ -863,38 +866,34 @@ One per bullet, max 15 words. Based only on explicit evidence.
 
 If none: empty array []
 
-### next_step (string)
+### next_step (JSON array)
 
-Next steps for the deal, ordered by priority. Bullet format in plain text
-(no markdown — use \n for line breaks within JSON).
+Next steps for the deal, ordered by priority. Return a JSON array of objects.
 
-Each bullet follows the format:
-• [TAG if applicable] [Who — by name] → [concrete action] [to whom, with name and role if known] — [when — ALWAYS absolute dates DD/MM, NEVER "today", "tomorrow", "this week"]
+Each object:
+```
+{"tag": "CALL", "who": "María", "action": "Llamar al CFO para cerrar presupuesto Q3", "when": "viernes 18/07", "why": "CFO tiene presupuesto aprobado pero no ha visto la propuesta. Si no contactas antes del viernes, pierde prioridad frente a renovación SAP del lunes 21/07."}
+```
 
-**IMPORTANT — WHO**: Read the deal context to know who should do each action.
-The data includes PBD and PAE. PBD prospects and qualifies (early stages).
-PAE does demos, negotiates, and closes (advanced stages).
-- If the deal is in prospecting/qualification stage and PBD is interacting → assign to PBD
-- If the deal is in demo or beyond, or PAE has had direct interactions → assign to PAE
-- If both are involved, assign each action to the correct person
-
-**Tool tags — use ONLY when the action requires it:**
-  [ROI] — prepare or present economic impact calculation / business case
-  [SLIDES] — prepare personalized presentation deck for stakeholder
-  [BATTLECARD] — prepare comparison vs specific competitor identified in the deal
-  [EMAIL] — send follow-up email, proposal, reactivation, or documentation
-  [CALL] — call someone specific
-
-Do NOT force a tag on every bullet. Many actions don't need one.
+Fields:
+- **tag** (string or null): tool tag ONLY when the action requires it. One of: "ROI", "SLIDES", "BATTLECARD", "EMAIL", "CALL". null if no tool needed. Do NOT force a tag on every item.
+- **who** (string): person responsible BY NAME. Read deal context for PBD/PAE.
+  - Prospecting/qualification stage + PBD interacting → PBD name
+  - Demo or beyond, or PAE has had interactions → PAE name
+  - If both involved, assign each action to the correct person
+- **action** (string): concrete action. No context, no explanations — just what to do.
+- **when** (string): ALWAYS day-of-week + DD/MM (e.g. "lunes 14/07"). NEVER "today", "tomorrow", "this week".
+- **why** (string): 1-2 sentences explaining WHY this action matters NOW. Must include:
+  (1) what evidence from the deal supports this, (2) what happens if NOT done (cost of inaction).
+  Coaching tone — like a sales manager explaining to the rep why this is urgent.
 
 Rules:
-- Max 5 bullets
+- Max 5 items
 - Ordered by urgency
-- Only actions executable today or this week
+- Only actions executable within the next 5 business days
 - If the prospect promised something, include follow-up with deadline
-- Language of next_step = language used between rep and prospect in the deal
-- No explanations, no context, no "why" — just the action
-- ALWAYS absolute dates (DD/MM). NEVER "today", "tomorrow", "this week".
+- Language = language used between rep and prospect in the deal
+- ALWAYS day-of-week + absolute date. NEVER "today", "tomorrow", "this week".
 
 ### action_signal (string)
 
@@ -902,21 +901,21 @@ One single imperative sentence of MAX 60 characters that says exactly what the r
 rep must do RIGHT NOW. This is the first thing they see on the dashboard — must be so
 concrete they can act without opening the deal.
 
-Format: [Verb] [to whom, with name if available] [what to do] [when with date DD/MM]
+Format: [Verb] [to whom, with name if available] [what to do] [when with day+date]
 
 Rules:
 - Always actionable and specific. NEVER generic phrases like "Seguir avanzando",
   "Continuar proceso", "Mantener contacto", "Hacer seguimiento del deal".
 - Include prospect contact name if known.
-- Include deadline/urgency with absolute date (DD/MM) if available. NEVER "today" or "tomorrow".
+- Include deadline/urgency with day-of-week + absolute date. NEVER "today", "tomorrow", "this week".
 - If deal has been inactive for many days, the action must reflect reactivation.
 - If insufficient context to be specific, use the most logical action for current stage.
 - Language = Spanish, but use English sales terms naturally (ROI, follow up, pricing).
 
 Examples:
-"Enviar ROI a Angela antes del 30/05"
-"Llamar a Lucia para confirmar pricing"
-"Agendar segunda demo con IT"
+"Enviar ROI a Angela antes del viernes 30/05"
+"Llamar a Lucia lunes 14/07 para confirmar pricing"
+"Agendar segunda demo con IT para jueves 17/07"
 "Follow up a Marta por presupuesto"
 "Pedir intro al CFO via champion"
 
@@ -928,7 +927,7 @@ Describes the SITUATION, not the action (that goes in howto_body).
 
 Examples:
 "Reactivar tras demo cancelada"
-"Preparar el meeting de hoy"
+"Preparar meeting del jueves 17/07"
 "Desbloquear acceso al decisor"
 "Post-demo sin siguiente paso"
 "Cotización enviada sin respuesta"
@@ -936,11 +935,17 @@ Examples:
 
 ### howto_body (string)
 
-Exactly 2 sentences explaining HOW to approach the next interaction:
-Sentence 1 — The strategy: which lever to use, what angle of entry, what to lean on.
-Sentence 2 — The concrete objective of the next interaction (what the rep must achieve).
-Max 30 words per sentence. Direct tone, like a coach talking to the rep.
-DO NOT repeat what action_signal says (that's WHAT to do, this is HOW to approach it).
+Sales coaching for the rep's next move. 3 sentences, direct coach tone:
+Sentence 1 — LEVERAGE: what specific deal-specific data gives you an edge right now
+  (a quote from the prospect, a date they committed to, a pain they expressed, benchmark data).
+Sentence 2 — APPROACH: how to use that leverage — the angle of entry, what to lead with,
+  what objection to pre-empt.
+Sentence 3 — COST OF INACTION: what happens if the rep does nothing in the next 48h
+  (concrete consequence, not generic "deal could stall").
+
+Max 35 words per sentence. Use prospect names and deal-specific facts.
+DO NOT repeat what action_signal says (that's WHAT to do, this is HOW and WHY).
+DO NOT be generic. Every sentence must reference something specific to THIS deal.
 
 ```
 }
@@ -1180,6 +1185,14 @@ bant_t_evidence: frase corta con la evidencia clave.
     - Factorial Expenses is NOT a receipt scanner — it is a Financial Control Platform
       with a Payroll Bridge.
     - Factorial is NOT just time tracking — it is a horizontal platform.
+
+14. **ABSOLUTE DATES — NEVER RELATIVE**: Every date reference in EVERY field must use
+    day-of-week + absolute date (DD/MM). NEVER write "hoy", "ayer", "mañana",
+    "esta semana", "today", "tomorrow", "yesterday", "this week", "next week".
+    Write "lunes 14/07", "antes del miércoles 16/07", "semana del lunes 07/07".
+    This is critical for deal_context narratives and _accumulate fields — they are
+    permanent memory read months later. "Hoy confirmó presupuesto" is meaningless
+    when a future model reads it on a different date.
 
 ---
 

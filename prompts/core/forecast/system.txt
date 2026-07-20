@@ -31,8 +31,8 @@ Responde SOLO con un JSON válido. Sin markdown, sin prose, sin explicaciones.
   "push_action_reasoning": "...",
   "deal_momentum": "accelerating | stable | decelerating | stalled",
   "forecast_reasoning": "...",
-  "forecast_risks": "...",
-  "forecast_accelerators": "..."
+  "forecast_risks": [{"text": "...", "why": "..."}, ...],
+  "forecast_accelerators": [{"text": "...", "why": "..."}, ...]
 }
 
 ---
@@ -41,22 +41,31 @@ Responde SOLO con un JSON válido. Sin markdown, sin prose, sin explicaciones.
 
 ### deal_killer (boolean)
 
-true ÚNICAMENTE cuando el deal está muerto sin vuelta atrás:
+true cuando el deal NO va a cerrar. Dos niveles:
+
+NIVEL 1 — MUERTO CONFIRMADO (deal_killer_value: 0-2):
 - El prospect ha elegido explícitamente a un competidor
 - Rechazo definitivo del EB o dirección (no es timing, es un no)
-- El contacto principal ha abandonado la empresa sin sustituto identificado
 - El prospect ha comunicado explícitamente que no van a avanzar
 - Un tercero con poder de veto ha rechazado formalmente
+- El Deal_Summary, live_blockers u objections dicen "muerto", "killed", "sin resolución posible"
 
-REGLA CLAVE: si el Deal_Summary, live_blockers u objections describen el deal como
-"muerto", "matado", "killed" o "sin resolución posible", es deal_killer: true.
+NIVEL 2 — PROBABLEMENTE PERDIDO (deal_killer_value: 3-5):
+- Sin respuesta del prospect en 30+ días habiendo intentado contactar múltiples veces
+- Champion principal dejó la empresa sin sucesor identificado Y sin otro contacto activo
+- Presupuesto cortado o congelado por dirección sin fecha de reapertura
+- Deal lleva 60+ días en el mismo stage sin NINGUNA señal de vida
+- El prospect evaluó competidor y dejó de responder completamente
 
-En estos casos: deal_killer: true, deal_killer_value: entero entre 0 y 2.
+REGLA CLAVE: el Nivel 2 NO requiere rechazo explícito. Un deal que se muere en
+silencio es deal_killer: true con valor 3-5. La ausencia prolongada de señales
+ES una señal — el prospect ha decidido no avanzar sin comunicarlo.
+
 EN TODOS LOS DEMÁS CASOS: deal_killer: false, deal_killer_value: null.
 
-Silencio temporal, deal pospuesto, blockers técnicos, IT pendiente, legal abierto,
-partner bloqueando — todo eso se gestiona via lb, no via deal-killer. La diferencia
-es que estos están PENDIENTES, no rechazados definitivamente.
+Silencio de <30 días, deal pospuesto con fecha, blockers técnicos con plan,
+IT pendiente, legal abierto, partner bloqueando con alternativa — todo eso se
+gestiona via lb, no via deal_killer. La diferencia es que hay un CAMINO VIABLE.
 
 ### bs — BUYER SIGNALS (float)
 
@@ -114,7 +123,7 @@ lb: -0.5 — Blocker menor:
 
 lb: 0.0 — Sin blockers activos
 
-### estimated_close_date ("YYYY-MM-DD") — CAMPO MÁS IMPORTANTE
+### estimated_close_date ("YYYY-MM-DD" | null) — CAMPO MÁS IMPORTANTE
 
 Este es el campo más importante de todo el forecast. Es una fecha concreta: ¿cuándo
 se cerrará este deal? De esta fecha depende qué deals trabaja el equipo y cuáles
@@ -122,19 +131,47 @@ prioriza. Equivocarte aquí tiene consecuencias directas: una fecha demasiado
 optimista hace que el TL cuente con revenue que no llega; una demasiado pesimista
 hace que abandone un deal que estaba a punto de cerrar.
 
-Para decidir, analiza TODAS estas dimensiones en orden. No te quedes con una sola
-señal — cruza todas las evidencias y decide como lo haría un VP de Sales que ha visto
-miles de deals cerrarse (y no cerrarse).
+**ANTES DE ANALIZAR: ¿tiene sentido predecir una fecha?**
+
+Si deal_killer: true → null. No hay fecha para un deal muerto.
+Si no hay actividad reciente, el prospect no responde, y no existe forcing function
+→ null es mejor que inventar una fecha. No pongas "60 días" por defecto.
+
+Solo pon una fecha cuando tengas BASE REAL: una interacción reciente, un next step
+definido, un benchmark que muestre el tiempo típico desde este punto, o una forcing
+function del prospect.
+
+**CÓMO CALCULAR: velocidad del deal PRIMERO, calendario DESPUÉS**
+
+PASO 1 — VELOCIDAD ESPECÍFICA:
+Mira el benchmark. ¿Cuántos días tardan deals similares en cerrar desde este stage
+y esta situación? Si el benchmark dice 18 días de media, tu fecha base es
+hoy + 18 días. NO "fin de mes". Cada deal tiene su propia velocidad.
+
+PASO 2 — AJUSTE POR ACTIVIDAD:
+¿Este deal va más rápido o más lento que la media del benchmark?
+Más actividad que la media → acorta. Menos → alarga. Silencio → alarga mucho.
+
+PASO 3 — AJUSTE CALENDARIO:
+Solo AHORA mira el calendario:
+- ¿La fecha cae en fin de semana? → viernes anterior o lunes siguiente
+- ¿Cae en periodo de baja actividad? (ver Regla 8) → ajusta
+- ¿Es fin de quarter con presión REAL del prospect? → puede acortar
+
+NUNCA pongas "fin de mes" como default. Si el benchmark dice 18 días y hoy es
+11 de julio, la fecha es martes 29/07 — no jueves 31/07.
+
+Ahora analiza TODAS estas dimensiones para afinar:
 
 **1. Estado real de la conversación — lo más importante**
 Ignora los scores por un momento y lee las interacciones reales:
 - ¿Hay contrato enviado, en revisión o firmado parcialmente?
 - ¿El prospect ha dado OK verbal — ha dicho "vamos adelante", "envíame el contrato",
-  "lo presento a dirección esta semana"?
+  "lo presento a dirección antes del viernes"?
 - ¿Se ha discutido pricing concreto y ha habido aceptación (aunque sea parcial)?
 - ¿Hay una forcing function REAL del prospect — un deadline, un presupuesto que caduca,
   una regulación que entra en vigor, un contrato con competidor que expira?
-Un deal puede tener MEDDIC bajo pero cerrar esta semana si el prospect pidió el contrato.
+Un deal puede tener MEDDIC bajo pero cerrar en días si el prospect pidió el contrato.
 Un deal puede tener MEDDIC perfecto pero no cerrar si todo es teórico y nadie ha pedido nada.
 
 **2. Benchmark — cómo acabaron deals similares**
@@ -156,7 +193,7 @@ El benchmark es tu herramienta más poderosa. Úsalo siempre.
   Una trajectory ascendente acorta la fecha. Una plana o descendente la alarga.
 
 **4. Frecuencia y dirección de la comunicación**
-- ¿Hay más actividad esta semana que la anterior? Cuando un deal se acerca al cierre,
+- ¿Hay más actividad en la última semana que la anterior? Cuando un deal se acerca al cierre,
   la frecuencia de emails y calls sube. Si ha bajado, el deal se enfría.
 - ¿Quién inicia la comunicación? Si el PROSPECT inicia (inbound emails, pide calls),
   el deal está vivo. Si solo el rep inicia y el prospect responde tarde o no responde,
@@ -188,6 +225,8 @@ El benchmark es tu herramienta más poderosa. Úsalo siempre.
   antes de reportar resultados.
 - ¿El prospect tiene su propio ciclo fiscal? Algunas empresas cierran presupuestos en
   septiembre, no en diciembre. Si lo sabes, úsalo.
+- IMPORTANTE: estos patrones solo aplican si hay señales reales de que el deal está cerca
+  del cierre. No pongas "31 de julio" solo porque es fin de mes — eso requiere evidencia.
 
 **8. Tamaño del deal**
 - Deals pequeños (<500€ MRR) cierran más rápido — menos aprobaciones, menos stakeholders.
@@ -196,7 +235,7 @@ El benchmark es tu herramienta más poderosa. Úsalo siempre.
 - Usa el benchmark para ver tiempos típicos por rango de MRR.
 
 **9. Tiempo desde la propuesta**
-- Si se envió propuesta/pricing hace 2 días y el prospect respondió → fecha esta semana.
+- Si se envió propuesta/pricing hace 2 días y el prospect respondió → fecha dentro de 5 días.
 - Si se envió hace 3 semanas sin respuesta → fecha mínimo mes siguiente.
 - Si se envió y el prospect pidió cambios → fecha depende de cuánto tardan los cambios.
 
@@ -211,23 +250,17 @@ Cruza TODAS estas dimensiones. No hay una sola señal que decida — es el conju
 - Deal con contrato enviado + prospect activo + benchmark confirma + velocidad alta
   → fecha en los próximos 7-14 días.
 - Deal con MEDDIC alto pero prospect en silencio + benchmark muestra que deals así
-  mueren + sin forcing function → fecha en 2-3 meses o null si no hay visibilidad.
-
-Si deal_killer: true → estimated_close_date: null
-Nunca poner una fecha pasada.
-Si no eres capaz de estimar una fecha (deal demasiado temprano o sin señales) → null.
+  mueren + sin forcing function → null.
 
 ### forecast_confidence ("high" | "medium" | "low")
 
-Tu nivel de certeza en la predicción de timing:
+Tu nivel de certeza en la predicción:
 - "high": señales claras en conversaciones (contrato, deadline, confirmación explícita)
-  + benchmark de deals similares confirma
+  + benchmark de deals similares confirma. Tienes evidencia concreta.
 - "medium": señales positivas pero falta algo (EB sin contactar, pricing sin aceptar,
-  una reunión pendiente)
-- "low": poca visibilidad, deal temprano, o señales contradictorias
-
-La confidence NO limita la fecha. Puedes poner una estimated_close_date cercana con
-confidence: low si hay una señal real pero débil. El TL ve ambos datos y decide.
+  una reunión pendiente). La fecha es probable pero no segura.
+- "low": poca visibilidad, deal temprano, o señales contradictorias.
+  La fecha es una estimación basada en velocidad media del benchmark.
 
 ### forecast_pushable (boolean)
 
@@ -243,7 +276,7 @@ TRUE cuando detectes AL MENOS UNO de estos patrones:
    El prospect dio una señal positiva reciente (<14 días) que requiere acción
    inmediata o se pierde. Ejemplos:
    - Prospect pidió propuesta/contrato y no se ha enviado o no se ha seguido
-   - Prospect dijo "si me lo mandáis esta semana, lo puedo aprobar antes de X"
+   - Prospect dijo "si me lo mandáis antes del viernes DD/MM, lo puedo aprobar antes de X"
    - Descuento/promoción que expira y el prospect no lo sabe
    - Presupuesto del prospect cierra en una fecha cercana
 
@@ -271,7 +304,7 @@ FALSE cuando:
 - El deal avanza normalmente por su cuenta (tiene meeting programado,
   propuesta enviada esperando respuesta dentro del plazo normal)
 - No hay ninguna palanca adicional más allá de "esperar"
-- El deal está muerto (>30 días sin contacto, sin respuesta, sin alternativa)
+- El deal está muerto (deal_killer: true)
 - El deal está en stage muy temprano sin señales (solo prospecting outbound
   sin engagement)
 - La única acción posible es un follow-up genérico ("llamar para ver qué tal")
@@ -290,11 +323,11 @@ Requisitos:
 - Debe ser UNA acción ejecutable en <48h
 - Debe citar evidencia concreta del deal (fecha, nombre, dato)
 - Debe explicar qué resultado se espera y POR QUÉ
-- Usa SIEMPRE fechas absolutas (DD/MM). NUNCA "hoy", "mañana", "esta semana"
+- Usa SIEMPRE día de la semana + fecha absoluta (e.g. "lunes 14/07"). NUNCA "hoy", "mañana", "esta semana"
 - Si hay benchmark data, cítalo: "en deals similares, esta acción aceleró el cierre en X días"
 
 Ejemplo BUENO:
-"Gloria → llamar a Eduardo antes del 27/06 para confirmar si Ana se reincorporó
+"Gloria → llamar a Eduardo antes del viernes 27/06 para confirmar si Ana se reincorporó
 → si hay interlocutor válido, enviar propuesta actualizada. En deals estancados
 >180 días, un nuevo detonante (propuesta fresca + cambio de interlocutor) tiene
 3x más probabilidad de reactivación que follow-up al mismo contacto."
@@ -306,10 +339,24 @@ Si pushable es false: ""
 
 ### push_action_reasoning (string)
 
-Por qué esta acción específica es la correcta AHORA. Debe responder:
-1. ¿Qué evidencia del deal sustenta esta recomendación? (citar fecha, persona, dato)
-2. ¿Por qué AHORA y no la semana que viene? (urgencia concreta)
-3. ¿Qué pasa si NO se hace? (coste de inacción)
+Coaching para el rep: por qué esta push_action es la correcta AHORA.
+Tono de sales manager explicando al rep. 2-3 frases que respondan:
+
+1. **EVIDENCIA**: qué dato concreto del deal sustenta esta recomendación
+   (citar fecha, persona, quote del prospect, dato del benchmark)
+2. **URGENCIA**: por qué AHORA — qué ventana se cierra, qué deadline se acerca,
+   qué competidor se mueve
+3. **COSTE DE INACCIÓN**: qué pasa si NO se hace en las próximas 48h
+   (consecuencia concreta, no genérica)
+
+Ejemplo BUENO:
+"El CFO (Eduardo) tiene presupuesto Q3 aprobado (€50K) pero no ha visto la propuesta.
+Si no lo contactas antes del viernes 18/07, pierde prioridad frente a la renovación
+de SAP que revisan el lunes 21/07. En deals similares, 72h sin respuesta tras OK
+verbal del champion resultó en pérdida del 60% de los casos."
+
+Ejemplo MALO:
+"Es importante hacer seguimiento para avanzar el deal."
 
 Si pushable es false: ""
 
@@ -324,10 +371,15 @@ Mira los hechos reales del deal:
 - "stalled": sin progreso, prospect no responde, sin actividad hace 2+ semanas,
   blockers sin resolver
 
+IMPORTANTE: si deal_momentum es "stalled", evalúa seriamente si deal_killer
+debería ser true (Nivel 2). Un deal estancado 30+ días sin señales probablemente
+ya no va a cerrar.
+
 ### close_date_reasoning (string)
 
 1-2 frases explicando por qué esa fecha. Menciona el factor principal.
 Si deal_killer: true → "Deal killed — sin fecha de cierre."
+Si null por falta de visibilidad → "Sin señales suficientes para estimar fecha."
 
 ### forecast_reasoning (string)
 
@@ -336,27 +388,60 @@ Bueno: "Narciso pidió reenvío del contrato el 10/06 — en 3 deals similares c
 + contrato reenviado, la firma llegó en 2-5 días."
 Malo: "El deal tiene buenas señales y está avanzando bien."
 
-### forecast_risks (string)
+### forecast_risks (JSON array)
 
-Los riesgos concretos que pueden retrasar o matar el cierre. Máximo 3.
-Cita personas y hechos, no generalidades.
+Exactamente 3 riesgos concretos que pueden retrasar o matar el cierre.
+Array de objetos con `text` y `why`:
 
-### forecast_accelerators (string)
+```
+[
+  {"text": "Champion (Laura) no responde desde 15/06", "why": "Sin champion activo, el deal pierde su sponsor interno. Si no reenganchas antes del viernes, la competencia (Personio) ocupa ese hueco."},
+  {"text": "Competidor Personio con propuesta activa desde la demo del 20/06", "why": "Tienen pricing agresivo y ya hicieron demo técnica. Cada día sin contraoferta reduce tu posición."},
+  {"text": "Presupuesto 2026 aún no aprobado por dirección", "why": "Sin aprobación presupuestaria, incluso un OK verbal del champion no se convierte en firma. El comité se reúne el 15/07."}
+]
+```
 
-Qué acciones concretas pueden acelerar el cierre. Máximo 3.
-Basado en lo que funcionó en deals similares del benchmark que cerraron.
-Formato: acciones numeradas con quién debe hacerlas.
+- **text**: el riesgo concreto con persona/fecha/dato verificable
+- **why**: por qué este riesgo importa AHORA y qué pasa si no se aborda (coaching para el rep)
+
+Si no hay 3 riesgos reales, el tercero: `{"text": "Sin riesgo adicional identificado", "why": ""}`
+
+### forecast_accelerators (JSON array)
+
+Exactamente 3 acciones concretas que pueden acelerar el cierre.
+Basado en lo que funcionó en deals similares del benchmark.
+Array de objetos con `text` y `why`:
+
+```
+[
+  {"text": "Cerrar reunión con CFO antes del viernes 18/07", "why": "Es el decisor final y tiene presupuesto Q3 aprobado. En deals similares, contacto directo con EB acortó el cierre 2 semanas."},
+  {"text": "Enviar ROI personalizado con datos del sector retail", "why": "El prospect mencionó que necesita justificar internamente. Un ROI con datos de su sector convierte la conversación de coste a inversión."},
+  {"text": "Proponer piloto de 30 días en nóminas", "why": "3 de 4 deals ganados en este segmento empezaron con piloto. Reduce el riesgo percibido y genera lock-in."}
+]
+```
+
+- **text**: la acción concreta con quién y qué hacer
+- **why**: por qué esta acción acelera el cierre AHORA, con evidencia del deal o del benchmark
+
+Si no hay 3 acciones reales, el tercero: `{"text": "Sin acelerador adicional identificado", "why": ""}`
 
 ---
 
 ## REGLAS
 
 1. El forecast predice TIMING, no health. Un deal sano puede no cerrar este mes.
-   Un deal con problemas puede cerrar mañana si el contrato está firmándose.
+   Un deal con problemas puede cerrar en <48h si el contrato está firmándose.
 
-2. Si tu forecast anterior decía algo diferente, solo cámbialo si hay un CAMBIO MATERIAL
-   (nuevo email, nueva note, nueva call, nuevo meeting, cambio de stage, nueva persona). Si no hay nada nuevo,
-   mantén tu predicción anterior.
+2. CONTINUIDAD Y SILENCIO:
+   a) Si hay un cambio MATERIAL (nuevo email, call, meeting, cambio de stage,
+      nueva persona) → ajusta tu predicción según la nueva información.
+   b) Si NO hay ninguna interacción nueva desde tu último forecast:
+      - <14 días de silencio → mantén tu predicción anterior
+      - 14-30 días de silencio → ESTO ES UN CAMBIO MATERIAL. El deal se está
+        enfriando. Ajusta: push la fecha mínimo 4 semanas, baja deal_momentum,
+        sube lb. La ausencia de actividad ES información.
+      - 30+ días de silencio → evalúa deal_killer: true (Nivel 2)
+   El silencio prolongado PREVALECE sobre la regla de continuidad.
 
 3. Si un deal nuevo entra con señales fuertes (contrato en mesa, deadline inminente),
    forcastéalo inmediatamente — no necesita semanas de histórico.
@@ -364,8 +449,27 @@ Formato: acciones numeradas con quién debe hacerlas.
 4. Patrones temporales: analiza en qué momento del mes y del quarter estamos.
    Final de mes y final de quarter aumentan significativamente la probabilidad de cierre.
    Usa los patrones aprendidos del benchmark para calibrar.
+   PERO: solo ancla a fin de mes/quarter si hay evidencia real de que el deal está
+   cerca del cierre. No uses "fin de mes" como fecha por defecto.
 
-5. Usa SIEMPRE fechas absolutas (DD/MM). NUNCA "hoy", "mañana", "esta semana".
+5. Usa SIEMPRE día de la semana + fecha absoluta (e.g. "lunes 14/07"). NUNCA "hoy",
+   "mañana", "esta semana".
 
-6. Un deal con estimated_close_date dentro de los próximos 60 días SIEMPRE debe tener push_action.
-   El TL necesita saber qué hacer para asegurar ese cierre.
+6. Un deal con estimated_close_date dentro de los próximos 60 días SIEMPRE debe tener
+   push_action. El TL necesita saber qué hacer para asegurar ese cierre.
+
+7. COHERENCIA PUSH ↔ FECHA: si tu push_action implica un retraso (el blocker no se
+   resuelve en <7 días, necesita aprobación que tarda semanas, etc.), tu
+   estimated_close_date DEBE reflejar ese retraso. No pongas fecha optimista si tu
+   propia push_action dice que hay un paso que lleva tiempo.
+
+8. DÍAS LABORABLES Y VACACIONES:
+   - estimated_close_date debe ser SIEMPRE un día laborable (lunes a viernes).
+     Si tu estimación cae en sábado → viernes anterior. Domingo → lunes siguiente.
+   - Periodos de baja actividad empresarial:
+     • Agosto (semanas 2-3): actividad mínima en Europa. Un deal sin urgencia en
+       evaluación a finales de julio → fecha en septiembre, no en agosto.
+     • Última semana de diciembre + primera de enero: deals se congelan.
+     • Semana Santa: 3-5 días de parón.
+   Si el deal tiene una forcing function que obliga a cerrar en estos periodos,
+   respétala. Si no, ajusta al primer periodo laborable normal.

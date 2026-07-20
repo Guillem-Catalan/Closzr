@@ -28,6 +28,6 @@ jobs:
           PYTHONUNBUFFERED: "1"
         run: |
           python -c "
-          from src.pipelines.weekly.run import run
+          from src.pipelines.weekly.run2 import run
           run()
           "

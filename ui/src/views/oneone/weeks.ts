@@ -25,7 +25,7 @@ export type WeekConfig = {
 
 const HIGIENE_QUERIES = ["past_close", "same_stage_30d", "stale_7d", "demo_6w"];
 const HIGIENE_GUIDE = [
-  "Close Date pasada → actualiza o mueve a Lost",
+  "Close Date pasada → actualiza o mueve a lost",
   "Mismo stage +30d → define acción concreta o ciérralo",
   "Sin actividad 7d → pide que explique y define próximo paso",
   "Demo hace +6 sem → acelera o limpia",
@@ -108,7 +108,7 @@ export const WEEKS: WeekConfig[] = [
     type: 3, label: "W3", subtitle: "Cierre M+0", duration: 45,
     sections: [
       { num: "01", title: "M+0 — FOCO TOTAL EN CIERRE", tone: "red", time: 25, items: [
-        { id: "w3-m0", text: "Revisión deal por deal M+0 — qué falta para cerrar cada uno", query: "m0", guide: ["¿Quién firma? ¿Cuándo? ¿Paso intermedio que pueda retrasarlo?", "Si no cierra este mes → mueve a M+1 o Lost, no dejar en limbo", "¿Hay bloqueo por contrato, legal o pricing? Define quién resuelve y cuándo"] },
+        { id: "w3-m0", text: "Revisión deal por deal M+0 — qué falta para cerrar cada uno", query: "m0", guide: ["¿Quién firma? ¿Cuándo? ¿Paso intermedio que pueda retrasarlo?", "Si no cierra este mes → mueve a M+1 o lost, no dejar en limbo", "¿Hay bloqueo por contrato, legal o pricing? Define quién resuelve y cuándo"] },
         { id: "w3-m0-soon", text: "Deals que cierran esta semana — confirmar o alertar slip", query: "m0_closing_soon", guide: ["¿Están confirmados o hay riesgo de slip?", "Acción concreta hoy o mañana, no 'la semana que viene'"] },
       ]},
       { num: "02", title: "INTERVENCIÓN DEL TL", tone: "amber", time: 10, items: [

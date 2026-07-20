@@ -10,7 +10,7 @@ import { useState, useEffect, type ReactNode } from "react";
 import { DataContext, type CZData, type DealRow, type FunnelStage, type ForecastDeal, type ForecastData, type ClosedDeal, type ActionItem, type BenchmarkDeal } from "./store";
 import { supabase } from "./supabase";
 import { usePermissions, type UserProfile } from "../permissions";
-import { PIPELINE_FUNNEL, PIPELINE_ASIDE, stageAbbr, shortStage, CLOSED_WON_STAGES, CLOSED_LOST_STAGES, STAGE_TONES } from "../display";
+import { PIPELINE_FUNNEL, PIPELINE_ASIDE, stageAbbr, shortStage, CLOSED_WON_STAGES, CLOSED_LOST_STAGES, STAGE_TONES, MEDDIC_AXES, WON_DISPLAY_LABEL, LOST_DISPLAY_LABEL } from "../display";
 import { repNameToEmail, expandTeam } from "./filters";
 
 // ---- Paginated fetch ----
@@ -234,13 +234,13 @@ async function loadData(): Promise<CZData> {
   // Caja 6 — Cerrado: stage in CLOSED_WON_STAGES AND close_date_hs this month
   const closedDeals: ClosedDeal[] = allDeals
     .filter(d => wonSet.has(stageLower(d)) && (d.close_date_hs || "").startsWith(cm))
-    .map(d => ({ id: d.deal_id, hsId: d.hs_deal_id || undefined, deal: d.company_name || d.deal_name_full || "—", stage: "Won", mrr: d.mrr, prob: 100, last: d.close_date_hs || "—", trend: null, closeDateHs: d.close_date_hs || null, closeDateClaudio: d.estimated_close_date || null, owner: d.pae || d.pbd || "—", team: d.team || "", dealAge: d.deal_age_days || null, strengths: d.outcome_summary || null, lessons: [], interactions: null }));
+    .map(d => ({ id: d.deal_id, hsId: d.hs_deal_id || undefined, deal: d.company_name || d.deal_name_full || "—", stage: WON_DISPLAY_LABEL, mrr: d.mrr, prob: 100, last: d.close_date_hs || "—", trend: null, closeDateHs: d.close_date_hs || null, closeDateClaudio: d.estimated_close_date || null, owner: d.pae || d.pbd || "—", team: d.team || "", dealAge: d.deal_age_days || null, strengths: d.outcome_summary || null, lessons: [], interactions: null }));
   const closedIds = new Set(closedDeals.map(d => d.id));
 
   // Caja 7 — Perdidos: stage in CLOSED_LOST_STAGES AND close_date_hs this month
   const lostDeals: import("./store").LostDeal[] = allDeals
     .filter(d => lostSet.has(stageLower(d)) && (d.close_date_hs || "").startsWith(cm))
-    .map(d => ({ id: d.deal_id, hsId: d.hs_deal_id || undefined, deal: d.company_name || d.deal_name_full || "—", stage: "Lost", mrr: d.mrr, prob: 0, last: d.close_date_hs || "—", trend: null, closeDateHs: d.close_date_hs || null, closeDateClaudio: d.estimated_close_date || null, owner: d.pae || d.pbd || "—", team: d.team || "", closeDate: d.close_date_hs || null, lostReason: d.closed_lost_reason || null, dealAge: d.deal_age_days || null }));
+    .map(d => ({ id: d.deal_id, hsId: d.hs_deal_id || undefined, deal: d.company_name || d.deal_name_full || "—", stage: LOST_DISPLAY_LABEL, mrr: d.mrr, prob: 0, last: d.close_date_hs || "—", trend: null, closeDateHs: d.close_date_hs || null, closeDateClaudio: d.estimated_close_date || null, owner: d.pae || d.pbd || "—", team: d.team || "", closeDate: d.close_date_hs || null, lostReason: d.closed_lost_reason || null, dealAge: d.deal_age_days || null }));
 
   // Caja 2 — HS Forecast: close_date_hs this month, exclude won/lost
   const hsDeals = activeFcDeals.filter(d =>
@@ -256,12 +256,12 @@ async function loadData(): Promise<CZData> {
     .filter(d => !closzrActiveIds.has(d.id))
     .map(d => {
       const raw = rawById.get(d.id!);
-      return { ...d, closesThisMonth: true, closesNextMonth: false, pushable: false, pushAction: null, momentum: null, confidence: null, claudioCloseDate: null, forecastReasoning: raw?.deal_assessment || null, forecastRisks: null, forecastAccelerators: null, hsCategory: "Won", closeDate: d.last } as ForecastDeal;
+      return { ...d, closesThisMonth: true, closesNextMonth: false, pushable: false, pushAction: null, momentum: null, confidence: null, claudioCloseDate: null, forecastReasoning: raw?.deal_assessment || null, forecastRisks: null, forecastAccelerators: null, hsCategory: WON_DISPLAY_LABEL, closeDate: d.last } as ForecastDeal;
     });
   const closzrWonActive = closzrActive.map(d => {
     if (closedIds.has(d.id!)) {
       const raw = rawById.get(d.id!);
-      return { ...d, prob: 100, hsCategory: "Won", forecastReasoning: raw?.deal_assessment || d.forecastReasoning };
+      return { ...d, prob: 100, hsCategory: WON_DISPLAY_LABEL, forecastReasoning: raw?.deal_assessment || d.forecastReasoning };
     }
     return d;
   });
@@ -350,7 +350,8 @@ async function loadData(): Promise<CZData> {
   const repDeals = allRows.filter(r => r.owner === rep);
   const repSnaps = repDeals.map(r => r._raw);
   const avg = (f: keyof RawDealUI) => { const v = repSnaps.map(s => s[f] as number | null).filter(x => x != null) as number[]; return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length * 10) / 10 : 0; };
-  const meddicScores = [{ key: "Metrics", score: avg("m_score") }, { key: "Economic Buyer", score: avg("e_score") }, { key: "Decision Criteria", score: avg("dc_score") }, { key: "Decision Process", score: avg("dp_score") }, { key: "Identify Pain", score: avg("i_score") }, { key: "Champion", score: avg("c_score") }];
+  const _scoreCol: Record<string, keyof RawDealUI> = { M: "m_score", E: "e_score", DC: "dc_score", DP: "dp_score", I: "i_score", C: "c_score" };
+  const meddicScores = MEDDIC_AXES.filter(a => _scoreCol[a.key]).map(a => ({ key: a.label, score: avg(_scoreCol[a.key]!) }));
   const weakest = [...meddicScores].sort((a, b) => a.score - b.score);
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -360,7 +361,7 @@ async function loadData(): Promise<CZData> {
     top10: [...repDeals].sort((a, b) => b._amount - a._amount).slice(0, 10).map(r => ({ id: r.id, deal: r.deal, stage: r.stage, mrr: r.mrr, prob: r.prob })),
     meddicBase: repSnaps.length, meddic: meddicScores,
     meddicNote: weakest[0] && weakest[1] ? `${weakest[0].key} (${weakest[0].score}) y ${weakest[1].key} (${weakest[1].score}) son las áreas más débiles.` : "",
-    weakness: [{ label: "Metrics", count: repSnaps.filter(s => (s.m_score || 0) < 4).length }, { label: "Economic Buyer", count: repSnaps.filter(s => (s.e_score || 0) < 4).length }, { label: "Decision Process", count: repSnaps.filter(s => (s.dp_score || 0) < 4).length }, { label: "Champion", count: repSnaps.filter(s => (s.c_score || 0) < 4).length }, { label: "Decision Criteria", count: repSnaps.filter(s => (s.dc_score || 0) < 4).length }, { label: "Identify Pain", count: repSnaps.filter(s => (s.i_score || 0) < 4).length }].sort((a, b) => b.count - a.count),
+    weakness: MEDDIC_AXES.filter(a => _scoreCol[a.key]).map(a => ({ label: a.label, count: repSnaps.filter(s => ((s[_scoreCol[a.key]!] as number | null) || 0) < 4).length })).sort((a, b) => b.count - a.count),
     tlActions: repDeals.filter(r => (r._raw.blockers_count || 0) > 0 || r.stale).sort((a, b) => b._amount - a._amount).slice(0, 10).map(r => ({ id: r.id, deal: r.deal, stage: r.stage, mrr: r.mrr, prob: r.prob, flag: r.stale ? `Sin contacto ${r._raw.stale_days || "?"}d` : "Blocker activo", sev: r.stale && (r._raw.stale_days || 0) > 30 || (r._raw.blockers_count || 0) > 0 ? "alto" : "medio", text: r.signal || "Requiere revisión." })),
     methodologyOpen: repDeals.length,
     methodology: [

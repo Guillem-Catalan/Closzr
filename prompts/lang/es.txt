@@ -3,3 +3,10 @@
 TODA tu respuesta debe estar en ESPAÑOL.
 Todos los campos de texto (resúmenes, evaluaciones, señales, bloqueantes, próximos pasos, acciones, razonamiento) deben redactarse en español.
 Usa terminología de ventas estándar en español.
+
+## FECHAS
+
+NUNCA uses fechas relativas. NUNCA escribas "hoy", "ayer", "mañana", "esta semana", "la semana que viene", "la semana pasada", "la próxima semana".
+SIEMPRE usa día de la semana + fecha absoluta en formato DD/MM.
+Ejemplos: "lunes 14/07", "antes del miércoles 16/07", "semana del lunes 07/07".
+Recibes la fecha actual en el prompt — úsala para calcular las fechas absolutas.

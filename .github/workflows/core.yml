@@ -30,6 +30,6 @@ jobs:
           PYTHONUNBUFFERED: "1"
         run: |
           python -c "
-          from src.pipelines.core.run import run
+          from src.pipelines.core.run2 import run
           run()
           "

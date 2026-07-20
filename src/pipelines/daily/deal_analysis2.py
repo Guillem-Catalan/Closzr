@@ -1,52 +1,74 @@
 """
-Daily Deal Analysis — post-mortem for closed deals.
+Daily Deal Analysis v2 — post-mortem for closed deals.
 
 Runs after trajectories. Detects deals that have a trajectory but no analysis.
 For each one: 1 Claude call with full context → detailed analysis for TLs/UI.
 
-Everything from config.
+Internal names everywhere: schema.tbl(), schema.col(), config2.*.
 """
 
 import json
 import re
-from datetime import date
 
-from src.config import (
-    INTELLIGENCE_CONFIG,
-    DAILY_CONFIG,
-    PROMPTS_DIR,
-    MODEL_DEFAULT,
-    MAX_TOKENS_AUDIT,
-)
+from src import schema
+from src.config2 import DAILY, PROMPTS_DIR, MODEL_DEFAULT, MAX_TOKENS, get_lang_prompt
 from src.db.client import supabase
 from src.integrations import claude
 
-_I = INTELLIGENCE_CONFIG
-_D = DAILY_CONFIG
 
+# ═══════════════════════════════════════════════════════════════════════════
+# RESOLVED CONSTANTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+_TBL_DEALS          = schema.tbl("deals")
+_TBL_SNAPSHOTS      = schema.tbl("snapshots")
+_TBL_TRAJECTORIES   = schema.tbl("trajectories")
+_TBL_ANALYSIS       = schema.tbl("analysis")
+_TBL_PRODUCT_SIGNALS = schema.tbl("product_signals")
+
+_D_UUID       = schema.col("deal_uuid")
+_D_NAME       = schema.col("deal_name")
+_D_STAGE      = schema.col("stage")
+_D_MRR        = schema.col("mrr")
+_D_AGE        = schema.col("deal_age")
+_D_CLOSE_DATE = schema.col("close_date")
+_D_PAE        = schema.col("pae")
+_D_PBD        = schema.col("pbd")
+_D_TEAM       = schema.col("team")
+_D_CONTEXT    = schema.col("deal_context")
+_D_LOST_REASON = schema.col("closed_lost_reason")
+
+_FK_DEAL_ID       = "deal_id"
+_FK_SNAPSHOT_DATE  = schema.SNAPSHOT_IDENTITY_COLS["snapshot_date"]
+
+_SNAP_TRAJ_COLS   = schema.TRAJECTORY_SNAPSHOT_COLS
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FETCHERS
+# ═══════════════════════════════════════════════════════════════════════════
 
 def _fetch_deals_without_analysis() -> list[dict]:
-    """Deals that have trajectory but no analysis yet.
-    Also re-analyzes on_hold deals that later closed."""
+    """Deals that have trajectory but no analysis yet."""
     traj_resp = (
-        supabase.table(_D["trajectories_table"])
-        .select("deal_id, outcome")
+        supabase.table(_TBL_TRAJECTORIES)
+        .select(f"{_FK_DEAL_ID}, outcome")
         .order("created_at", desc=True)
         .limit(200)
         .execute()
     )
     if not traj_resp.data:
         return []
-    traj_map = {r[_D["fk_deal_id"]]: r.get("outcome") for r in traj_resp.data}
+    traj_map = {r[_FK_DEAL_ID]: r.get("outcome") for r in traj_resp.data}
     traj_deal_ids = list(traj_map.keys())
 
     analysis_resp = (
-        supabase.table(_D["analysis_table"])
-        .select("deal_id, outcome")
-        .in_(_D["fk_deal_id"], traj_deal_ids)
+        supabase.table(_TBL_ANALYSIS)
+        .select(f"{_FK_DEAL_ID}, outcome")
+        .in_(_FK_DEAL_ID, traj_deal_ids)
         .execute()
     )
-    analysis_map = {r[_D["fk_deal_id"]]: r.get("outcome") for r in (analysis_resp.data or [])}
+    analysis_map = {r[_FK_DEAL_ID]: r.get("outcome") for r in (analysis_resp.data or [])}
 
     new_ids = []
     for did in traj_deal_ids:
@@ -59,32 +81,31 @@ def _fetch_deals_without_analysis() -> list[dict]:
         return []
 
     deals_resp = (
-        supabase.table(_I["deals_table"])
+        supabase.table(_TBL_DEALS)
         .select("*")
-        .in_(_I["deal_col_id"], new_ids[:_D["analysis_max_per_run"]])
+        .in_(_D_UUID, new_ids[:DAILY["analysis_max"]])
         .execute()
     )
     return deals_resp.data or []
 
 
 def _determine_outcome(stage: str) -> str:
-    from src.config import STAGE_WON, STAGE_LOST
-    if stage in STAGE_WON:
+    if stage in schema.WON:
         return "won"
-    if stage in STAGE_LOST:
+    if stage in schema.LOST:
         return "lost"
-    if stage in _D["on_hold_stages"]:
+    if stage in schema.STALLED:
         return "on_hold"
     return "unknown"
 
 
 def _fetch_all_snapshots(deal_uuid: str) -> list[dict]:
-    cols = ", ".join(_D["snapshot_trajectory_cols"])
+    cols = ", ".join(_SNAP_TRAJ_COLS)
     resp = (
-        supabase.table(_I["snapshot_table"])
+        supabase.table(_TBL_SNAPSHOTS)
         .select(cols)
-        .eq(_I["fk_deal_id"], deal_uuid)
-        .order(_I["fk_snapshot_date"])
+        .eq(_FK_DEAL_ID, deal_uuid)
+        .order(_FK_SNAPSHOT_DATE)
         .execute()
     )
     return resp.data or []
@@ -92,10 +113,10 @@ def _fetch_all_snapshots(deal_uuid: str) -> list[dict]:
 
 def _fetch_product_signals(deal_uuid: str) -> list[dict]:
     resp = (
-        supabase.table(_I["product_signals_table"])
+        supabase.table(_TBL_PRODUCT_SIGNALS)
         .select("*")
-        .eq(_D["fk_deal_id"], deal_uuid)
-        .order("snapshot_date", desc=True)
+        .eq(_FK_DEAL_ID, deal_uuid)
+        .order(_FK_SNAPSHOT_DATE, desc=True)
         .limit(5)
         .execute()
     )
@@ -116,23 +137,27 @@ def _build_stage_dates(deal: dict) -> dict:
     return stage_dates
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# PROMPT
+# ═══════════════════════════════════════════════════════════════════════════
+
 def _build_user_prompt(deal: dict, snapshots: list[dict], stage_dates: dict, product_signals: list[dict]) -> str:
-    outcome = _determine_outcome(deal.get(_I["deal_col_stage"]) or "")
-    deal_context = deal.get(_I["deal_context_col"]) or ""
+    outcome = _determine_outcome(deal.get(_D_STAGE) or "")
+    deal_context = deal.get(_D_CONTEXT) or ""
 
     lines = []
 
     lines.append("## DEAL METADATA")
-    lines.append(f"- Name: {deal.get(_I['deal_col_deal_name']) or '?'}")
+    lines.append(f"- Name: {deal.get(_D_NAME) or '?'}")
     lines.append(f"- Outcome: {outcome}")
-    lines.append(f"- Amount: €{deal.get(_I['deal_col_amount']) or '?'}")
-    lines.append(f"- Deal Age: {deal.get(_I['deal_col_age']) or '?'} days")
-    lines.append(f"- Stage: {deal.get(_I['deal_col_stage']) or '?'}")
-    lines.append(f"- PAE: {deal.get(_I['deal_col_pae']) or '?'}")
-    lines.append(f"- PBD: {deal.get(_I['deal_col_pbd']) or '?'}")
-    lines.append(f"- Team: {deal.get(_I['deal_col_team']) or '?'}")
-    lines.append(f"- Close Date: {deal.get(_I['deal_col_close_date']) or '?'}")
-    lines.append(f"- Closed Lost Reason: {deal.get('closed_lost_reason') or 'N/A'}")
+    lines.append(f"- Amount: €{deal.get(_D_MRR) or '?'}")
+    lines.append(f"- Deal Age: {deal.get(_D_AGE) or '?'} days")
+    lines.append(f"- Stage: {deal.get(_D_STAGE) or '?'}")
+    lines.append(f"- PAE: {deal.get(_D_PAE) or '?'}")
+    lines.append(f"- PBD: {deal.get(_D_PBD) or '?'}")
+    lines.append(f"- Team: {deal.get(_D_TEAM) or '?'}")
+    lines.append(f"- Close Date: {deal.get(_D_CLOSE_DATE) or '?'}")
+    lines.append(f"- Closed Lost Reason: {deal.get(_D_LOST_REASON) or 'N/A'}")
     lines.append("")
 
     lines.append("## DEAL CONTEXT — FULL HISTORY")
@@ -146,7 +171,7 @@ def _build_user_prompt(deal: dict, snapshots: list[dict], stage_dates: dict, pro
             f"{k}={s.get(f'{k}_score', '?')}"
             for k in ["m", "e", "dc", "dp", "i", "c", "comp"]
         )
-        lines.append(f"  {s.get(_I['fk_snapshot_date'], '?')}: prob={prob}% | {scores}")
+        lines.append(f"  {s.get(_FK_SNAPSHOT_DATE, '?')}: prob={prob}% | {scores}")
         assessment = s.get("deal_assessment") or ""
         if assessment:
             lines.append(f"    Assessment: {assessment}")
@@ -207,11 +232,15 @@ def _parse_response(text: str) -> dict:
         raise
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════════════════════════
+
 def analyze_deal(deal: dict) -> dict | None:
     """Generate post-mortem analysis for a single closed deal."""
-    deal_uuid = deal[_I["deal_col_id"]]
-    deal_name = deal.get(_I["deal_col_deal_name"]) or "?"
-    stage = deal.get(_I["deal_col_stage"]) or ""
+    deal_uuid = deal[_D_UUID]
+    deal_name = deal.get(_D_NAME) or "?"
+    stage = deal.get(_D_STAGE) or ""
     outcome = _determine_outcome(stage)
 
     print(f"    ANALYSIS: {deal_name} ({outcome})")
@@ -220,10 +249,9 @@ def analyze_deal(deal: dict) -> dict | None:
     stage_dates = _build_stage_dates(deal)
     product_signals = _fetch_product_signals(deal_uuid)
 
-    from src.config2 import get_lang_prompt
-    team = deal.get(_I["deal_col_team"]) or ""
-    owner_email = deal.get(_I["deal_col_pae"]) or deal.get(_I["deal_col_pbd"])
-    system_prompt = (PROMPTS_DIR / _D["analysis_prompt_path"]).read_text(encoding="utf-8").strip()
+    team = deal.get(_D_TEAM) or ""
+    owner_email = deal.get(_D_PAE) or deal.get(_D_PBD)
+    system_prompt = (PROMPTS_DIR / DAILY["analysis_prompt"]).read_text(encoding="utf-8").strip()
     lang_text = get_lang_prompt(team, owner_email=owner_email)
     if lang_text:
         system_prompt += "\n\n" + lang_text
@@ -231,14 +259,14 @@ def analyze_deal(deal: dict) -> dict | None:
 
     print(f"    Claude ({len(user_prompt)} chars)...")
     try:
-        raw = claude.analyze(system_prompt, user_prompt, model=MODEL_DEFAULT, max_tokens=MAX_TOKENS_AUDIT)
+        raw = claude.analyze(system_prompt, user_prompt, model=MODEL_DEFAULT, max_tokens=MAX_TOKENS["audit"])
         parsed = _parse_response(raw)
     except Exception as e:
         print(f"    ✗ Claude failed: {e}")
         return None
 
     row = {
-        "deal_id": deal_uuid,
+        _FK_DEAL_ID: deal_uuid,
         "outcome": outcome,
         "full_narrative": parsed.get("full_narrative") or "",
         "outcome_summary": parsed.get("outcome_summary") or "",
@@ -255,7 +283,7 @@ def analyze_deal(deal: dict) -> dict | None:
     row = {k: v for k, v in row.items() if v is not None}
 
     try:
-        supabase.table(_D["analysis_table"]).upsert(row, on_conflict="deal_id").execute()
+        supabase.table(_TBL_ANALYSIS).upsert(row, on_conflict=_FK_DEAL_ID).execute()
         print(f"    ✓ Analysis written")
         return row
     except Exception as e:

@@ -7,7 +7,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { Icon, Chip, ProbBadge, fmtMRR, MultiSelectTeam } from "../components";
 import { useData } from "../../data/store";
 import type { ForecastDeal, ClosedDeal, LostDeal } from "../../data/store";
-import { hubspotDealUrl, ADMIN_ROLES } from "../../display";
+import { hubspotDealUrl, CRM_SHORT, CRM_FORECAST_CATEGORIES, ROLE_LABELS, WON_LABEL, LOST_LABEL, WON_DISPLAY_LABEL } from "../../display";
 import { normalize, distinctTeams, distinctOwners, distinctPipelines, expandTeams } from "../../data/filters";
 import { usePermissions } from "../../permissions";
 import { supabase } from "../../data/supabase";
@@ -45,7 +45,7 @@ function HsLogo({ size = 14 }: { size?: number }) {
   );
 }
 
-const MANAGEMENT_ROLES = new Set(ADMIN_ROLES.filter(r => ["Admin", "Manager", "Director", "TL"].includes(r)));
+const MANAGEMENT_ROLES = new Set(["Admin", "Manager", "Director", "TL"]);
 
 type Panel = "m0" | "m1" | "m2" | "closed";
 
@@ -74,7 +74,7 @@ function FcRow({ d, open, onToggle, onOpen, showPushChip, dotColor }: { d: Forec
           {dotColor && <span style={{ width: 7, height: 7, borderRadius: "50%", background: dotColor, flex: "none" }} />}
           {fmtMRR(d.mrr)}
         </div>
-        <div><Chip tone={d.hsCategory === "Commit" ? "green" : d.hsCategory === "Upside" ? "amber" : "ink"} style={{ fontSize: 10.5 }}>{d.hsCategory || "—"}</Chip></div>
+        <div><Chip tone={d.hsCategory === CRM_FORECAST_CATEGORIES[0] ? "green" : d.hsCategory === CRM_FORECAST_CATEGORIES[1] ? "amber" : "ink"} style={{ fontSize: 10.5 }}>{d.hsCategory || "—"}</Chip></div>
         <div><ProbBadge value={d.prob}/></div>
         <div className="cz-pc-close">
           <span className="num" style={{ flex: 1, textAlign: "right" }}>{fmtDate(d.closeDate)}</span>
@@ -132,7 +132,7 @@ function FcRow({ d, open, onToggle, onOpen, showPushChip, dotColor }: { d: Forec
           </div>
           <div style={{ display: "flex", gap: 12, fontSize: 12.5, color: "var(--ink-3)" }}>
             {d.claudioCloseDate && <span>Closzr close: <b className="num">{d.claudioCloseDate}</b></span>}
-            {d.closeDate && <span>HS close: <b className="num">{d.closeDate}</b></span>}
+            {d.closeDate && <span>{CRM_SHORT} close: <b className="num">{d.closeDate}</b></span>}
           </div>
         </div>
       )}
@@ -175,7 +175,7 @@ function ClosedRow({ d, open, onToggle, onOpen }: { d: ClosedDeal; open: boolean
       {open && allBullets.length > 0 && (
         <div style={{ padding: "16px 22px 20px", background: "var(--card-2)", borderBottom: "1px solid var(--line-2)" }}>
           <div style={{ padding: "12px 16px", background: "var(--green-tint)", borderRadius: "var(--r-sm)" }}>
-            <span className="eyebrow" style={{ display: "block", marginBottom: 8, color: "var(--green-ink)" }}>How it was won</span>
+            <span className="eyebrow" style={{ display: "block", marginBottom: 8, color: "var(--green-ink)" }}>How it was {WON_LABEL.toLowerCase()}</span>
             <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
               {allBullets.map((b, i) => (
                 <li key={i} style={{ display: "flex", gap: 8, fontSize: 13, lineHeight: 1.55, color: "var(--green-ink)" }}>
@@ -222,7 +222,7 @@ function LostRow({ d, open, onToggle, onOpen }: { d: LostDeal; open: boolean; on
       {open && d.lostReason && (
         <div style={{ padding: "16px 22px 20px", background: "var(--card-2)", borderBottom: "1px solid var(--line-2)" }}>
           <div style={{ padding: "12px 16px", background: "var(--red-tint)", borderRadius: "var(--r-sm)" }}>
-            <span className="eyebrow" style={{ display: "block", marginBottom: 8, color: "var(--red-ink)" }}>Lost reason</span>
+            <span className="eyebrow" style={{ display: "block", marginBottom: 8, color: "var(--red-ink)" }}>{LOST_LABEL} reason</span>
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: "var(--red-ink)" }}>{d.lostReason}</p>
           </div>
         </div>
@@ -417,14 +417,14 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
         MRR <span style={{ fontSize: 10, marginLeft: 4, color: colActive("mrr") ? "var(--indigo)" : "var(--ink-3)" }}>▼</span>
         <SortDrop col="mrr" options={[{ key: "mrr-desc", label: "High → Low" }, { key: "mrr-asc", label: "Low → High" }]} />
       </div>
-      <div>HS Cat.</div>
+      <div>{CRM_SHORT} Cat.</div>
       <div style={{ position: "relative", cursor: "pointer", color: colActive("prob") ? "var(--indigo)" : undefined }} onClick={() => setOpenMenu(openMenu === "prob" ? "" : "prob")}>
         Prob <span style={{ fontSize: 10, marginLeft: 4, color: colActive("prob") ? "var(--indigo)" : "var(--ink-3)" }}>▼</span>
         <SortDrop col="prob" options={[{ key: "prob-desc", label: "High → Low" }, { key: "prob-asc", label: "Low → High" }]} />
       </div>
       <div style={{ position: "relative", cursor: "pointer", color: colActive("hs") || colActive("closzr") ? "var(--indigo)" : undefined }} onClick={() => setOpenMenu(openMenu === "close" ? "" : "close")}>
-        HS | Closzr <span style={{ fontSize: 10, marginLeft: 4, color: colActive("hs") || colActive("closzr") ? "var(--indigo)" : "var(--ink-3)" }}>▼</span>
-        <SortDrop col="close" options={[{ key: "hs-asc", label: "HS Earliest" }, { key: "hs-desc", label: "HS Latest" }, { key: "closzr-asc", label: "Closzr Earliest" }, { key: "closzr-desc", label: "Closzr Latest" }]} />
+        {CRM_SHORT} | Closzr <span style={{ fontSize: 10, marginLeft: 4, color: colActive("hs") || colActive("closzr") ? "var(--indigo)" : "var(--ink-3)" }}>▼</span>
+        <SortDrop col="close" options={[{ key: "hs-asc", label: `${CRM_SHORT} Earliest` }, { key: "hs-desc", label: `${CRM_SHORT} Latest` }, { key: "closzr-asc", label: "Closzr Earliest" }, { key: "closzr-desc", label: "Closzr Latest" }]} />
       </div>
       <div>Owner</div>
       <div></div>
@@ -486,7 +486,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
         <MultiSelectTeam teams={pipelines} selected={pipelineFilters} onChange={v => { setPipelineFilters(v); setTeamFilters(new Set()); setRepFilter(""); }} allLabel="All Pipelines" />
         <MultiSelectTeam teams={teams} selected={teamFilters} onChange={v => { setTeamFilters(v); setRepFilter(""); }} />
         <select className="cz-native-select" value={repFilter} onChange={e => setRepFilter(e.target.value)}>
-          <option value="">All PAEs/PBDs</option>
+          <option value="">All {ROLE_LABELS.PAE}/{ROLE_LABELS.PBD}s</option>
           {reps.map((r: string) => <option key={r} value={r}>{r}</option>)}
         </select>
         <label className="cz-search">
@@ -612,12 +612,12 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
             <div style={{ flex: 1, textAlign: "center" }}>
               <div className="cz-fc-kpi-v display" style={{ fontSize: 18, color: "var(--green)" }}>{fmtEur(closedTotal)}</div>
-              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>{fClosed.length} won</span>
+              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>{fClosed.length} {WON_LABEL.toLowerCase()}</span>
             </div>
             <span style={{ color: "var(--ink-4)" }}>|</span>
             <div style={{ flex: 1, textAlign: "center" }}>
               <div className="cz-fc-kpi-v display" style={{ fontSize: 18, color: "var(--red)" }}>{fmtEur(lostTotal)}</div>
-              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>{fLost.length} lost</span>
+              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>{fLost.length} {LOST_LABEL.toLowerCase()}</span>
             </div>
           </div>
           {target > 0 && (
@@ -649,7 +649,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
                 color: closedTab === "won" ? "var(--green)" : "var(--ink-3)",
                 borderBottom: closedTab === "won" ? "2px solid var(--green)" : "2px solid transparent",
                 marginBottom: -2,
-              }}>Won · {fClosed.length} deals · {fmtEur(closedTotal)}</button>
+              }}>{WON_LABEL} · {fClosed.length} deals · {fmtEur(closedTotal)}</button>
               <button onClick={() => { setClosedTab("lost"); setExpandedId(null); }} style={{
                 flex: 1, padding: "12px 20px", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em",
                 border: "none", cursor: "pointer", transition: "all .15s",
@@ -657,7 +657,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
                 color: closedTab === "lost" ? "var(--red)" : "var(--ink-3)",
                 borderBottom: closedTab === "lost" ? "2px solid var(--red)" : "2px solid transparent",
                 marginBottom: -2,
-              }}>Lost · {fLost.length} deals · {fmtEur(lostTotal)}</button>
+              }}>{LOST_LABEL} · {fLost.length} deals · {fmtEur(lostTotal)}</button>
             </div>
             {closedTab === "won" ? (
               <>
@@ -667,7 +667,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
                 {fClosed.map((d, i) => (
                   <ClosedRow key={d.id || i} d={d} open={expandedId === d.id} onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)} onOpen={onOpen} />
                 ))}
-                {!fClosed.length && <div className="cz-empty">No closed won deals this month.</div>}
+                {!fClosed.length && <div className="cz-empty">No {WON_DISPLAY_LABEL.toLowerCase()} deals this month.</div>}
               </>
             ) : (
               <>
@@ -677,7 +677,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
                 {fLost.map((d, i) => (
                   <LostRow key={d.id || i} d={d} open={expandedId === d.id} onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)} onOpen={onOpen} />
                 ))}
-                {!fLost.length && <div className="cz-empty">No lost deals this month.</div>}
+                {!fLost.length && <div className="cz-empty">No {LOST_LABEL.toLowerCase()} deals this month.</div>}
               </>
             )}
           </div>
@@ -686,7 +686,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
             {/* Intro + view pills */}
             <div style={{ padding: "14px 20px 12px", borderBottom: "1px solid var(--line-2)" }}>
               <div style={{ display: "flex", gap: 20, marginBottom: 10, fontSize: 12.5, color: "var(--ink-3)" }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--ink-2)", flex: "none" }} /><b style={{ color: "var(--ink-2)" }}>HS Forecast</b> — rep's close date</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--ink-2)", flex: "none" }} /><b style={{ color: "var(--ink-2)" }}>{CRM_SHORT} Forecast</b> — rep's close date</span>
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--indigo)", flex: "none" }} /><b style={{ color: "var(--indigo)" }}>Closzr Forecast</b> — AI predicted close date</span>
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--green)", flex: "none" }} /><b style={{ color: "var(--green)" }}>Shared</b> — both agree on the same month</span>
               </div>
@@ -695,7 +695,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
                 const c = viewCounts(deals);
                 const pills: { key: "all" | "hs" | "closzr" | "shared"; label: string; count: number; color: string }[] = [
                   { key: "all", label: "All", count: c.all, color: "var(--ink)" },
-                  { key: "hs", label: "HS Forecast", count: c.hs, color: "var(--ink)" },
+                  { key: "hs", label: `${CRM_SHORT} Forecast`, count: c.hs, color: "var(--ink)" },
                   { key: "closzr", label: "Closzr", count: c.cz, color: "var(--indigo)" },
                   { key: "shared", label: "Shared", count: c.shared, color: "var(--green)" },
                 ];

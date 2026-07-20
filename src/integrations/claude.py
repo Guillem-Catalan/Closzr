@@ -3,19 +3,20 @@ import time
 
 import anthropic
 
-from src.config import (
+from src.config2 import (
     MODEL_DEFAULT,
     CLAUDE_MAX_RETRIES,
     CLAUDE_DEFAULT_MAX_TOKENS,
     CLAUDE_RETRY_BACKOFF_BASE,
 )
+from src.org import API_ENDPOINTS
 
 _client = anthropic.Anthropic(
     base_url=os.environ["AZURE_CLAUDE_ENDPOINT"],
     api_key=os.environ["AZURE_CLAUDE_API_KEY"],
     default_headers={
-        "api-key": os.environ["AZURE_CLAUDE_API_KEY"],
-        "api-version": "2024-10-01",
+        API_ENDPOINTS["azure_auth_header"]: os.environ["AZURE_CLAUDE_API_KEY"],
+        "api-version": API_ENDPOINTS["azure_api_version"],
     },
 )
 

@@ -35,7 +35,10 @@ from src.pipelines.core.sync import (
     _fetch_partner_associations,
 )
 from src.pipelines.core.intelligence import run as intelligence_run
-from src.pipelines.core.forecast import run_refresh as forecast_refresh
+from src.pipelines.core.forecast2 import run as _forecast2_run
+
+def forecast_refresh(deal_uuid):
+    return _forecast2_run(deal_uuid, use_latest=True)
 from src.pipelines.core import parser
 from src.pipelines.daily.trajectories import compile_trajectory
 from src.pipelines.daily.deal_analysis import analyze_deal

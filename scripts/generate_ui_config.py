@@ -114,16 +114,30 @@ def build_teams() -> dict:
             elif "tl" in role_key:
                 tls.append(entry)
 
-        teams[name] = {
-            "active": team.get("active", False),
-            "channel": "partners",
-            "directors": directors,
-            "tls": tls,
-            "pae": sorted(team.get("pae", set())),
-            "pbd": sorted(team.get("pbd", set())),
-            "ae": [],
-            "sdr": [],
-        }
+        if "tl" in team and isinstance(team["tl"], str):
+            tls.append({"email": team["tl"], "name": team.get("tl_name", ""), "role": "TL"})
+            all_ae = list(_collect_ds_emails(team) - {team["tl"]})
+            teams[name] = {
+                "active": team.get("active", False),
+                "channel": "partners",
+                "directors": directors,
+                "tls": tls,
+                "pae": sorted(all_ae),
+                "pbd": [],
+                "ae": [],
+                "sdr": [],
+            }
+        else:
+            teams[name] = {
+                "active": team.get("active", False),
+                "channel": "partners",
+                "directors": directors,
+                "tls": tls,
+                "pae": sorted(team.get("pae", set())),
+                "pbd": sorted(team.get("pbd", set())),
+                "ae": [],
+                "sdr": [],
+            }
 
     for name, ds_team in _flatten_ds_teams(org.DIRECT_SALES.get("teams", {})):
         directors = []
@@ -336,6 +350,17 @@ def build_stage_roadmaps() -> dict:
 # ═══════════════════════════════════════════════════════════════════════════
 # HELPERS (internal)
 # ═══════════════════════════════════════════════════════════════════════════
+
+
+def _collect_ds_emails(node: dict) -> set[str]:
+    """Collect all emails from a DS-style tree (tl/ae/subteams)."""
+    emails: set[str] = set()
+    emails |= node.get("ae", set())
+    if "tl" in node and isinstance(node["tl"], str):
+        emails.add(node["tl"])
+    for sub in node.get("subteams", {}).values():
+        emails |= _collect_ds_emails(sub)
+    return emails
 
 
 def _flatten_ds_teams(teams: dict) -> list[tuple[str, dict]]:

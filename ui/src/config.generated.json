@@ -131,37 +131,29 @@
     "Mexico": {
       "active": true,
       "channel": "partners",
-      "directors": [
-        {
-          "email": "francesc.terns@factorial.co",
-          "name": "Francesc Terns",
-          "role": "Channel Manager Mexico"
-        },
-        {
-          "email": "ernesto.blanco@factorial.co",
-          "name": "Ernesto Blanco Sierra",
-          "role": "Director Mexico"
-        }
-      ],
+      "directors": [],
       "tls": [
         {
-          "email": "meritxell.goikoetxea@factorial.co",
-          "name": "Meritxell Goikoetxea",
-          "role": "Team Lead Mexico"
+          "email": "oriol.pesa@factorial.co",
+          "name": "Oriol Pesa",
+          "role": "TL"
         }
       ],
       "pae": [
         "cristian.ramos@factorial.co",
         "daniela.orozco@factorial.co",
         "diana.bernal@factorial.co",
-        "eduardo.mahr@factorial.co",
-        "gustavo.torres@factorial.co",
-        "maximiliano.velasco@factorial.co"
-      ],
-      "pbd": [
         "diego.hernandez@factorial.co",
-        "marta.ruiz@factorial.co"
+        "eduardo.mahr@factorial.co",
+        "ernesto.blanco@factorial.co",
+        "fabiola.villalobos@factorial.co",
+        "francesc.terns@factorial.co",
+        "gustavo.torres@factorial.co",
+        "marta.ruiz@factorial.co",
+        "maximiliano.velasco@factorial.co",
+        "meritxell.goikoetxea@factorial.co"
       ],
+      "pbd": [],
       "ae": [],
       "sdr": []
     },
@@ -1082,6 +1074,14 @@
     "yolanda.tello@factorial.co": "Yolanda Tello"
   },
   "known_users": {
+    "jon.azconobieta@factorial.co": {
+      "role": "PBD",
+      "team": "Telefonica"
+    },
+    "alejandro.soto@factorial.co": {
+      "role": "PAE",
+      "team": "Telefonica"
+    },
     "david.clemente@factorial.co": {
       "role": "PAE",
       "team": "Telefonica"
@@ -1090,27 +1090,19 @@
       "role": "PBD",
       "team": "Telefonica"
     },
-    "nerea.urien@factorial.co": {
-      "role": "PAE",
-      "team": "Telefonica"
-    },
-    "jon.azconobieta@factorial.co": {
-      "role": "PBD",
-      "team": "Telefonica"
-    },
     "carlos.sanchez@factorial.co": {
       "role": "PAE",
       "team": "DS Monica"
     },
-    "alejandro.soto@factorial.co": {
+    "nerea.urien@factorial.co": {
       "role": "PAE",
       "team": "Telefonica"
     },
-    "maria.masoliver@factorial.co": {
+    "carlos.acosta@factorial.co": {
       "role": "PBD",
       "team": "Telefonica"
     },
-    "carlos.acosta@factorial.co": {
+    "maria.masoliver@factorial.co": {
       "role": "PBD",
       "team": "Telefonica"
     },
@@ -1122,23 +1114,19 @@
       "role": "PAE",
       "team": "TIM"
     },
-    "miljan.nojkic@factorial.co": {
-      "role": "PBD",
+    "nunzio.fumo@factorial.co": {
+      "role": "PAE",
       "team": "TIM"
     },
     "christian.lombardo@factorial.co": {
       "role": "PAE",
       "team": "TIM"
     },
-    "cecilia.rinaldo@factorial.co": {
+    "miljan.nojkic@factorial.co": {
       "role": "PBD",
       "team": "TIM"
     },
-    "giovanni.laghi@factorial.co": {
-      "role": "PAE",
-      "team": "TIM"
-    },
-    "alessandro.cardinale@factorial.co": {
+    "cecilia.rinaldo@factorial.co": {
       "role": "PBD",
       "team": "TIM"
     },
@@ -1146,7 +1134,11 @@
       "role": "PAE",
       "team": "TIM"
     },
-    "nunzio.fumo@factorial.co": {
+    "giuditta.giunta@factorial.co": {
+      "role": "PAE",
+      "team": "TIM"
+    },
+    "giovanni.laghi@factorial.co": {
       "role": "PAE",
       "team": "TIM"
     },
@@ -1154,24 +1146,24 @@
       "role": "PAE",
       "team": "TIM"
     },
-    "giuditta.giunta@factorial.co": {
-      "role": "PAE",
+    "alessandro.cardinale@factorial.co": {
+      "role": "PBD",
       "team": "TIM"
     },
     "andrea.galimberti@factorial.co": {
       "role": "PAE",
       "team": "TIM"
     },
-    "leonhard.zeus@factorial.co": {
-      "role": "PAE",
-      "team": "TELEKOM"
-    },
-    "johanna.henrich@factorial.co": {
+    "chiang.nguyen@factorial.co": {
       "role": "PBD",
       "team": "TELEKOM"
     },
     "stefan.platt@factorial.co": {
       "role": "PAE",
+      "team": "TELEKOM"
+    },
+    "alexander.ulrich@factorial.co": {
+      "role": "PBD",
       "team": "TELEKOM"
     },
     "fiona.durr@factorial.co": {
@@ -1182,11 +1174,15 @@
       "role": "PAE",
       "team": "TELEKOM"
     },
+    "lior.shechori@factorial.co": {
+      "role": "PAE",
+      "team": "TELEKOM"
+    },
     "katrin.virtbauer@factorial.co": {
       "role": "PAE",
       "team": "TELEKOM"
     },
-    "lior.shechori@factorial.co": {
+    "gabriel.lichtenstein@factorial.co": {
       "role": "PAE",
       "team": "TELEKOM"
     },
@@ -1194,15 +1190,11 @@
       "role": "PAE",
       "team": "TELEKOM"
     },
-    "chiang.nguyen@factorial.co": {
-      "role": "PBD",
-      "team": "TELEKOM"
-    },
-    "gabriel.lichtenstein@factorial.co": {
+    "leonhard.zeus@factorial.co": {
       "role": "PAE",
       "team": "TELEKOM"
     },
-    "alexander.ulrich@factorial.co": {
+    "johanna.henrich@factorial.co": {
       "role": "PBD",
       "team": "TELEKOM"
     },
@@ -1210,39 +1202,7 @@
       "role": "PAE",
       "team": "TELEKOM"
     },
-    "maximiliano.velasco@factorial.co": {
-      "role": "PAE",
-      "team": "Mexico"
-    },
     "diego.hernandez@factorial.co": {
-      "role": "PBD",
-      "team": "Mexico"
-    },
-    "diana.bernal@factorial.co": {
-      "role": "PAE",
-      "team": "Mexico"
-    },
-    "gustavo.torres@factorial.co": {
-      "role": "PAE",
-      "team": "Mexico"
-    },
-    "eduardo.mahr@factorial.co": {
-      "role": "PAE",
-      "team": "Mexico"
-    },
-    "daniela.orozco@factorial.co": {
-      "role": "PAE",
-      "team": "Mexico"
-    },
-    "marta.ruiz@factorial.co": {
-      "role": "PBD",
-      "team": "Mexico"
-    },
-    "cristian.ramos@factorial.co": {
-      "role": "PAE",
-      "team": "Mexico"
-    },
-    "oriol.pesa@factorial.co": {
       "role": "PAE",
       "team": "Mexico"
     },
@@ -1250,11 +1210,43 @@
       "role": "PAE",
       "team": "Mexico"
     },
-    "ernesto.blanco@factorial.co": {
+    "marta.ruiz@factorial.co": {
+      "role": "PAE",
+      "team": "Mexico"
+    },
+    "maximiliano.velasco@factorial.co": {
+      "role": "PAE",
+      "team": "Mexico"
+    },
+    "daniela.orozco@factorial.co": {
+      "role": "PAE",
+      "team": "Mexico"
+    },
+    "gustavo.torres@factorial.co": {
+      "role": "PAE",
+      "team": "Mexico"
+    },
+    "diana.bernal@factorial.co": {
       "role": "PAE",
       "team": "Mexico"
     },
     "meritxell.goikoetxea@factorial.co": {
+      "role": "PAE",
+      "team": "Mexico"
+    },
+    "oriol.pesa@factorial.co": {
+      "role": "PAE",
+      "team": "Mexico"
+    },
+    "eduardo.mahr@factorial.co": {
+      "role": "PAE",
+      "team": "Mexico"
+    },
+    "cristian.ramos@factorial.co": {
+      "role": "PAE",
+      "team": "Mexico"
+    },
+    "ernesto.blanco@factorial.co": {
       "role": "PAE",
       "team": "Mexico"
     },
@@ -1270,7 +1262,7 @@
       "role": "AE",
       "team": "DS Antoni Grau"
     },
-    "sonia.jimenez@factorial.co": {
+    "edgar.ybarguengoitia@factorial.co": {
       "role": "AE",
       "team": "DS Mireia"
     },
@@ -1278,31 +1270,11 @@
       "role": "AE",
       "team": "DS Mireia"
     },
-    "edgar.ybarguengoitia@factorial.co": {
+    "sonia.jimenez@factorial.co": {
       "role": "AE",
       "team": "DS Mireia"
     },
-    "camila.aldana@factorial.co": {
-      "role": "AE",
-      "team": "DS Rubén"
-    },
     "guillermo.ferrer@factorial.co": {
-      "role": "AE",
-      "team": "DS Rubén"
-    },
-    "nil.oleaga@factorial.co": {
-      "role": "AE",
-      "team": "DS Rubén"
-    },
-    "iban.cordobes@factorial.co": {
-      "role": "AE",
-      "team": "DS Rubén"
-    },
-    "arnau.palos@factorial.co": {
-      "role": "AE",
-      "team": "DS Rubén"
-    },
-    "andreu.aloguin@factorial.co": {
       "role": "AE",
       "team": "DS Rubén"
     },
@@ -1310,7 +1282,7 @@
       "role": "AE",
       "team": "DS Rubén"
     },
-    "miquel.criado@factorial.co": {
+    "iban.cordobes@factorial.co": {
       "role": "AE",
       "team": "DS Rubén"
     },
@@ -1318,19 +1290,35 @@
       "role": "AE",
       "team": "DS Rubén"
     },
-    "abel.exposito@factorial.co": {
+    "camila.aldana@factorial.co": {
+      "role": "AE",
+      "team": "DS Rubén"
+    },
+    "miquel.criado@factorial.co": {
+      "role": "AE",
+      "team": "DS Rubén"
+    },
+    "nil.oleaga@factorial.co": {
+      "role": "AE",
+      "team": "DS Rubén"
+    },
+    "andreu.aloguin@factorial.co": {
+      "role": "AE",
+      "team": "DS Rubén"
+    },
+    "arnau.palos@factorial.co": {
+      "role": "AE",
+      "team": "DS Rubén"
+    },
+    "pablo.andres@factorial.co": {
+      "role": "AE",
+      "team": "DS Andrea C"
+    },
+    "carlota.alvarez@factorial.co": {
       "role": "AE",
       "team": "DS Andrea C"
     },
     "nuria.gisbert@factorial.co": {
-      "role": "AE",
-      "team": "DS Andrea C"
-    },
-    "andrea.castanar@factorial.co": {
-      "role": "AE",
-      "team": "DS Andrea C"
-    },
-    "pablo.andres@factorial.co": {
       "role": "AE",
       "team": "DS Andrea C"
     },
@@ -1342,7 +1330,11 @@
       "role": "AE",
       "team": "DS Andrea C"
     },
-    "carlota.alvarez@factorial.co": {
+    "andrea.castanar@factorial.co": {
+      "role": "AE",
+      "team": "DS Andrea C"
+    },
+    "abel.exposito@factorial.co": {
       "role": "AE",
       "team": "DS Andrea C"
     },
@@ -1354,19 +1346,11 @@
       "role": "AE",
       "team": "DS Andrea C"
     },
-    "beatriz.bravo@factorial.co": {
-      "role": "AE",
-      "team": "DS Roberto"
-    },
     "joan.lorenzo@factorial.co": {
       "role": "AE",
       "team": "DS Roberto"
     },
-    "xavier.fortuny@factorial.co": {
-      "role": "AE",
-      "team": "DS Roberto"
-    },
-    "pol.bartolome@factorial.co": {
+    "beatriz.bravo@factorial.co": {
       "role": "AE",
       "team": "DS Roberto"
     },
@@ -1374,31 +1358,19 @@
       "role": "AE",
       "team": "DS Roberto"
     },
+    "pol.bartolome@factorial.co": {
+      "role": "AE",
+      "team": "DS Roberto"
+    },
+    "xavier.fortuny@factorial.co": {
+      "role": "AE",
+      "team": "DS Roberto"
+    },
     "roberto.moran@factorial.co": {
       "role": "AE",
       "team": "DS Roberto"
     },
-    "daniela.hernandez@factorial.co": {
-      "role": "AE",
-      "team": "DS Luis"
-    },
-    "amadeo.cuellar@factorial.co": {
-      "role": "AE",
-      "team": "DS Luis"
-    },
-    "maria.reina@factorial.co": {
-      "role": "AE",
-      "team": "DS Luis"
-    },
-    "l.rodriguez@factorial.co": {
-      "role": "AE",
-      "team": "DS Luis"
-    },
-    "iker.gordo@factorial.co": {
-      "role": "AE",
-      "team": "DS Luis"
-    },
-    "irene.orra@factorial.co": {
+    "nuria.delacerda@factorial.co": {
       "role": "AE",
       "team": "DS Luis"
     },
@@ -1406,9 +1378,41 @@
       "role": "AE",
       "team": "DS Luis"
     },
-    "nuria.delacerda@factorial.co": {
+    "iker.gordo@factorial.co": {
       "role": "AE",
       "team": "DS Luis"
+    },
+    "amadeo.cuellar@factorial.co": {
+      "role": "AE",
+      "team": "DS Luis"
+    },
+    "daniela.hernandez@factorial.co": {
+      "role": "AE",
+      "team": "DS Luis"
+    },
+    "irene.orra@factorial.co": {
+      "role": "AE",
+      "team": "DS Luis"
+    },
+    "l.rodriguez@factorial.co": {
+      "role": "AE",
+      "team": "DS Luis"
+    },
+    "maria.reina@factorial.co": {
+      "role": "AE",
+      "team": "DS Luis"
+    },
+    "andrea.alonso@factorial.co": {
+      "role": "AE",
+      "team": "DS Pilar"
+    },
+    "cristina.tarres@factorial.co": {
+      "role": "AE",
+      "team": "DS Pilar"
+    },
+    "alejandra.denobregas@factorial.co": {
+      "role": "AE",
+      "team": "DS Pilar"
     },
     "pilar.elizaga@factorial.co": {
       "role": "AE",
@@ -1418,7 +1422,7 @@
       "role": "AE",
       "team": "DS Pilar"
     },
-    "andrea.alonso@factorial.co": {
+    "julia.flaque@factorial.co": {
       "role": "AE",
       "team": "DS Pilar"
     },
@@ -1426,27 +1430,11 @@
       "role": "AE",
       "team": "DS Pilar"
     },
-    "cristina.tarres@factorial.co": {
+    "ignacio.catasus@factorial.co": {
       "role": "AE",
-      "team": "DS Pilar"
-    },
-    "julia.flaque@factorial.co": {
-      "role": "AE",
-      "team": "DS Pilar"
-    },
-    "alejandra.denobregas@factorial.co": {
-      "role": "AE",
-      "team": "DS Pilar"
+      "team": "DS Caterina"
     },
     "sabri.blaybel@factorial.co": {
-      "role": "AE",
-      "team": "DS Caterina"
-    },
-    "caterina.peraire@factorial.co": {
-      "role": "AE",
-      "team": "DS Caterina"
-    },
-    "ignacio.catasus@factorial.co": {
       "role": "AE",
       "team": "DS Caterina"
     },
@@ -1454,19 +1442,19 @@
       "role": "AE",
       "team": "DS Caterina"
     },
-    "alberto.toboso@factorial.co": {
+    "caterina.peraire@factorial.co": {
       "role": "AE",
       "team": "DS Caterina"
     },
-    "daniel.terrasa@factorial.co": {
+    "alberto.toboso@factorial.co": {
       "role": "AE",
-      "team": "DS Zafra"
+      "team": "DS Caterina"
     },
     "yolanda.tello@factorial.co": {
       "role": "AE",
       "team": "DS Zafra"
     },
-    "belen.lombardia@factorial.co": {
+    "daniel.terrasa@factorial.co": {
       "role": "AE",
       "team": "DS Zafra"
     },
@@ -1474,11 +1462,15 @@
       "role": "AE",
       "team": "DS Zafra"
     },
-    "monica.ortiz@factorial.co": {
+    "belen.lombardia@factorial.co": {
+      "role": "AE",
+      "team": "DS Zafra"
+    },
+    "joane.fuldain@factorial.co": {
       "role": "AE",
       "team": "DS Monica"
     },
-    "joane.fuldain@factorial.co": {
+    "monica.ortiz@factorial.co": {
       "role": "AE",
       "team": "DS Monica"
     },
@@ -1486,11 +1478,15 @@
       "role": "AE",
       "team": "XL"
     },
+    "ariadna.isla@factorial.co": {
+      "role": "AE",
+      "team": "XL"
+    },
     "gerard.ghneim@factorial.co": {
       "role": "AE",
       "team": "XL"
     },
-    "lorena.tapia@factorial.co": {
+    "sebastian.boudet@factorial.co": {
       "role": "AE",
       "team": "XL"
     },
@@ -1498,7 +1494,15 @@
       "role": "AE",
       "team": "XL"
     },
-    "ariadna.isla@factorial.co": {
+    "jacobo.enriquez@factorial.co": {
+      "role": "AE",
+      "team": "XL"
+    },
+    "lorena.tapia@factorial.co": {
+      "role": "AE",
+      "team": "XL"
+    },
+    "karen.andrade@factorial.co": {
       "role": "AE",
       "team": "XL"
     },
@@ -1510,23 +1514,7 @@
       "role": "AE",
       "team": "XL"
     },
-    "karen.andrade@factorial.co": {
-      "role": "AE",
-      "team": "XL"
-    },
-    "sebastian.boudet@factorial.co": {
-      "role": "AE",
-      "team": "XL"
-    },
-    "jacobo.enriquez@factorial.co": {
-      "role": "AE",
-      "team": "XL"
-    },
-    "domenica.galarza@factorial.co": {
-      "role": "Manager",
-      "team": "All"
-    },
-    "samuel.fernandez@factorial.co": {
+    "albert.fernandez@factorial.co": {
       "role": "Manager",
       "team": "All"
     },
@@ -1534,11 +1522,15 @@
       "role": "Manager",
       "team": "All"
     },
-    "marc.macia@factorial.co": {
+    "alex.martinez@factorial.co": {
       "role": "Manager",
       "team": "All"
     },
-    "alex.martinez@factorial.co": {
+    "oriol.delmoral@factorial.co": {
+      "role": "Manager",
+      "team": "All"
+    },
+    "samuel.fernandez@factorial.co": {
       "role": "Manager",
       "team": "All"
     },
@@ -1550,11 +1542,11 @@
       "role": "Manager",
       "team": "All"
     },
-    "oriol.delmoral@factorial.co": {
+    "domenica.galarza@factorial.co": {
       "role": "Manager",
       "team": "All"
     },
-    "albert.fernandez@factorial.co": {
+    "marc.macia@factorial.co": {
       "role": "Manager",
       "team": "All"
     }

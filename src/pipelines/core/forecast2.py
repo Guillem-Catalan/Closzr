@@ -50,6 +50,7 @@ _D_CLOSE = schema.col("close_date")
 _D_PBD = schema.col("pbd")
 _D_PAE = schema.col("pae")
 _D_TEAM = schema.col("team")
+_D_PIPELINE = schema.col("pipeline")
 _D_CONTEXT = schema.col("deal_context")
 _D_LAST_CONTACT = schema.col("last_contacted")
 
@@ -248,8 +249,9 @@ def _query_trajectories(outcome, stage, amount, age, team, limit):
     return results
 
 
-def _fetch_patterns(team):
+def _fetch_patterns(team, pipeline=None):
     patterns = []
+
     if team:
         resp = (
             supabase.table(_TBL_PATTERNS)
@@ -262,10 +264,23 @@ def _fetch_patterns(team):
         )
         patterns.extend(p[_P_PATTERN] for p in (resp.data or []) if p.get(_P_PATTERN))
 
+    if pipeline:
+        pipeline_scope = pipeline.lower().replace(" ", "_")
+        resp = (
+            supabase.table(_TBL_PATTERNS)
+            .select(_P_PATTERN)
+            .eq(_P_SCOPE, pipeline_scope)
+            .order(_P_CONFIDENCE, desc=True)
+            .order(_P_GENERATED_AT, desc=True)
+            .limit(_F["max_patterns_pipeline"])
+            .execute()
+        )
+        patterns.extend(p[_P_PATTERN] for p in (resp.data or []) if p.get(_P_PATTERN))
+
     resp = (
         supabase.table(_TBL_PATTERNS)
         .select(_P_PATTERN)
-        .eq(_P_SCOPE, "global")
+        .eq(_P_SCOPE, "all")
         .order(_P_CONFIDENCE, desc=True)
         .order(_P_GENERATED_AT, desc=True)
         .limit(_F["max_patterns_global"])
@@ -533,6 +548,7 @@ def run(deal_uuid, use_latest=False):
     stage = deal.get(_D_STAGE) or ""
     age = deal.get(_D_AGE) or 0
     team = deal.get(_D_TEAM) or ""
+    pipeline = deal.get(_D_PIPELINE) or ""
 
     label = "FORECAST REFRESH" if use_latest else "FORECAST"
     snapshot = _fetch_snapshot(hs_deal_id, today, use_latest=use_latest)
@@ -546,7 +562,7 @@ def run(deal_uuid, use_latest=False):
     owner_email = deal.get(_D_PAE) or deal.get(_D_PBD)
     trajectory = _fetch_trajectory(deal_uuid)
     similar_won, similar_lost = _fetch_similar_deals(stage, amount, age, team)
-    patterns = _fetch_patterns(team)
+    patterns = _fetch_patterns(team, pipeline)
     calibration = _fetch_calibration(today)
 
     prev_forecast = None

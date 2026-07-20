@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import { Icon, StageChip, ProbBadge, Trend, Chip, fmtMRR, MultiSelectTeam } from "../components";
 import { useData } from "../../data/store";
 import { distinctTeams, distinctOwners, distinctPipelines, expandTeams, matchesRep, matchesSearch } from "../../data/filters";
+import { ROLE_LABELS } from "../../display";
 
 function RowJump({ onOpen }: { onOpen: (tab: string) => void }) {
   return (
@@ -109,7 +110,7 @@ function DealsTable({ onOpen, view, setView }: DealsTableProps) {
           <MultiSelectTeam teams={pipelines} selected={pipelineFilters} onChange={v=>{setPipelineFilters(v);setTeamFilters(new Set());setRepFilter("");}} allLabel="All Pipelines" />
           <MultiSelectTeam teams={teams} selected={teamFilters} onChange={v=>{setTeamFilters(v);setRepFilter("");}} />
           <select className="cz-native-select" value={repFilter} onChange={e=>setRepFilter(e.target.value)}>
-            <option value="">All PAEs/PBDs</option>
+            <option value="">All {ROLE_LABELS.PAE}/{ROLE_LABELS.PBD}s</option>
             {reps.map(r=><option key={r} value={r}>{r}</option>)}
           </select>
         </div>

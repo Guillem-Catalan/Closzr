@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { repNameToEmail } from "./filters";
+import { STAGE_ROADMAPS, CLOSED_LOST_STAGES, CRM_NAME, TEAM_PIPELINES, ORG_NAME, ROLE_LABELS } from "../display";
 
 export type DealDetail = {
   id: string;
@@ -189,25 +190,22 @@ function parseContactsBreakdown(breakdown: string | null): Contact[] {
   return contacts;
 }
 
-// Build stage roadmap from deal entered/exited timestamps
 function buildRoadmap(deal: any, currentStage: string): DealDetail["roadmap"] {
-  const stageOrder = [
-    { key: "sdr_prequalified", label: "Prequalified" },
-    { key: "sdr_attempting_to_contact", label: "Attempting to contact" },
-    { key: "sdr_engaged", label: "Engaged" },
-    { key: "dist_demo_booked", label: "Demo Booked" },
-    { key: "dist_product_alignment", label: "Product Alignment" },
-    { key: "dist_meddpicc_validation", label: "MEDDPICC" },
-    { key: "dist_pricing_and_packaging", label: "Pricing & Packaging" },
-    { key: "dist_contracting", label: "Contracting" },
-    { key: "dist_closed_won", label: "Closed Won" },
-    { key: "sales_meeting_booked", label: "Meeting Booked" },
-    { key: "sales_discovery", label: "Discovery" },
-    { key: "sales_product_alignment", label: "Product Alignment" },
-    { key: "sales_pricing_and_packaging", label: "Pricing & Packaging" },
-    { key: "sales_contracting", label: "Contracting" },
-    { key: "sales_closed_won", label: "Closed Won" },
-  ];
+  const pipelineName = deal.pipeline_name || "";
+  const team = deal.team || "";
+  const teamPipes = TEAM_PIPELINES[team] || [];
+
+  const candidatePipelines = pipelineName
+    ? [pipelineName, ...teamPipes]
+    : teamPipes;
+
+  let stageOrder: Array<{ key: string; label: string }> = [];
+  for (const p of candidatePipelines) {
+    if (STAGE_ROADMAPS[p]?.length) { stageOrder = STAGE_ROADMAPS[p]; break; }
+  }
+  if (!stageOrder.length) {
+    stageOrder = Object.values(STAGE_ROADMAPS).flat();
+  }
 
   const steps: DealDetail["roadmap"] = [];
   const seen = new Set<string>();
@@ -225,7 +223,6 @@ function buildRoadmap(deal: any, currentStage: string): DealDetail["roadmap"] {
     steps.push({ stage: s.label, range, dur, done });
   }
 
-  // Mark current
   if (steps.length) {
     const last = steps[steps.length - 1];
     if (!last.done) last.current = true;
@@ -294,11 +291,11 @@ function buildAtlasData(
         { k: "Stage", v: deal.deal_stage || "—" },
         { k: "MRR", v: deal.amount ? "€" + deal.amount : "—" },
         { k: "Empleados", v: atlas?.company_size || "—" },
-        { k: "PAE", v: deal.pae || "—" },
+        { k: ROLE_LABELS.PAE, v: deal.pae || "—" },
       ];
 
   // History summary
-  const historyNote = card?.history_summary || atlas?.deal_history?.slice(0, 150) || "Reconstruido desde HubSpot + Modjo.";
+  const historyNote = card?.history_summary || atlas?.deal_history?.slice(0, 150) || `Reconstruido desde ${CRM_NAME} + Modjo.`;
 
   // Warnings from company_card
   const warnings: string[] = card?.warnings || [];
@@ -330,7 +327,7 @@ function buildAtlasData(
   // Patterns from deal_insights
   const patterns: string[] = insights?.patterns || parseBullets(snap?.improvements).slice(0, 4);
 
-  // Merge contacts: contacts_map (analyzed) + contacts_breakdown (raw from HubSpot)
+  // Merge contacts: contacts_map (analyzed) + contacts_breakdown (raw from CRM)
   const breakdownContacts = parseContactsBreakdown(atlas?.contacts_breakdown);
   const allContactNames = new Set(contacts.map(c => c.name.toLowerCase()));
   for (const bc of breakdownContacts) {
@@ -343,7 +340,7 @@ function buildAtlasData(
   return {
     company,
     tags: tags.length ? tags : [deal.deal_stage || ""],
-    crm: "HubSpot",
+    crm: CRM_NAME,
     description: card?.headline || (atlas?.company_context?.split(".").slice(0, 2).join(".") + ".") || snap?.deal_summary?.split(".")[0] + "." || "Sin información de empresa.",
     fit: { level: fitLevel, text: fitText },
     facts,
@@ -398,7 +395,6 @@ export async function fetchDealDetail(dealId: string): Promise<DealDetail | null
   if (breakdownDeals.length) {
     siblingDeals = breakdownDeals.filter(d => d.name !== deal.deal_name);
   } else if (deal.atlas_id) {
-    const LOST_STAGES = ["Opportunity lost", "Closed lost", "Closed Lost", "Opportunity Lost"];
     const { data: siblings } = await supabase
       .from("deals")
       .select("id,deal_name,deal_stage,pae,close_date")
@@ -406,7 +402,7 @@ export async function fetchDealDetail(dealId: string): Promise<DealDetail | null
       .neq("id", dealId)
       .limit(20);
     siblingDeals = (siblings || []).map(s => ({
-      status: LOST_STAGES.includes(s.deal_stage || "") ? "PERDIDO" : "ACTIVO",
+      status: CLOSED_LOST_STAGES.includes(s.deal_stage || "") ? "PERDIDO" : "ACTIVO",
       name: s.deal_name || "—",
       owner: s.pae || "—",
       date: s.close_date || undefined,
@@ -498,7 +494,7 @@ export async function fetchDealDetail(dealId: string): Promise<DealDetail | null
     if (dashMatch && dashMatch[1].split(" ").length <= 3) {
       return { kind, who: dashMatch[1].trim(), text: cap(dashMatch[2].trim()), when: dashMatch[3]?.trim() || "pendiente" };
     }
-    return { kind, who: deal.pae || "PAE", text: cap(clean), when: "pendiente" };
+    return { kind, who: deal.pae || ROLE_LABELS.PAE, text: cap(clean), when: "pendiente" };
   });
   // Sort by timing urgency, then by tag importance
   const WHEN_ORDER: Record<string, number> = { "hoy": 0, "ahora": 0, "inmediatamente": 0, "durante la call": 1, "tras la call": 2, "inmediatamente después": 2, "mañana": 3, "esta semana": 4, "antes de": 4, "si no": 5, "viernes": 5, "pendiente": 6 };
@@ -517,7 +513,7 @@ export async function fetchDealDetail(dealId: string): Promise<DealDetail | null
   });
 
   if (!nextSteps.length) {
-    nextSteps.push({ kind: "CALL", who: deal.pae || "PAE", text: "Contactar para avanzar el deal.", when: "pendiente" });
+    nextSteps.push({ kind: "CALL", who: deal.pae || ROLE_LABELS.PAE, text: "Contactar para avanzar el deal.", when: "pendiente" });
   }
 
   // Roadmap
@@ -582,7 +578,7 @@ export async function fetchDealDetail(dealId: string): Promise<DealDetail | null
     bant: {
       overall: bant
         ? `B: ${bantLabel(bant.bant_budget_status)} · A: ${bantLabel(bant.bant_authority_status)} · N: ${bantLabel(bant.bant_need_status)} · T: ${bantLabel(bant.bant_timing_status)}`
-        : "Sin datos BANT — no hay auditorías PBD para este deal.",
+        : `Sin datos BANT — no hay auditorías ${ROLE_LABELS.PBD} para este deal.`,
       items: [
         { key: "B", label: "Budget", status: bantLabel(bant?.bant_budget_status), tone: bantTone(bant?.bant_budget_status), text: bant?.bant_budget_evidence || "Sin datos" },
         { key: "A", label: "Authority", status: bantLabel(bant?.bant_authority_status), tone: bantTone(bant?.bant_authority_status), text: bant?.bant_authority_evidence || "Sin datos" },
@@ -598,16 +594,16 @@ export async function fetchDealDetail(dealId: string): Promise<DealDetail | null
     nextSteps,
     tools,
     email: emailDraft ? {
-      from: deal.pae || "Factorial",
-      fromAddr: repNameToEmail(deal.pae || "ventas"),
-      fromInit: initials(deal.pae || "FA"),
+      from: deal.pae || ORG_NAME,
+      fromAddr: repNameToEmail(deal.pae || ORG_NAME.toLowerCase()),
+      fromInit: initials(deal.pae || ORG_NAME),
       to: emailDraft.recipient || company,
       toAddr: emailDraft.recipient || "",
       when: emailDraft.send_when || "Pendiente",
       reason: emailDraft.reason || "Follow up",
       subject: emailDraft.subject || `Siguientes pasos — ${company}`,
       body: (emailDraft.body || "").split("\n\n").filter(Boolean),
-      signoff: `Un saludo,\n${deal.pae || "Factorial"}`,
+      signoff: `Un saludo,\n${deal.pae || ORG_NAME}`,
     } : null,
     atlas: buildAtlasData(company, deal, atlas, snap, contacts, siblingDeals),
   };

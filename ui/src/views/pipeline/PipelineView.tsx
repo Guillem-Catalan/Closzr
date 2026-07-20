@@ -4,7 +4,7 @@
 import { useState, useMemo } from "react";
 import { Icon, StageChip, ProbBadge, Chip, TONE, MultiSelectTeam } from "../components";
 import { useData } from "../../data/store";
-import { STAGE_DISPLAY } from "../../display";
+import { STAGE_DISPLAY, CRM_SHORT, ROLE_LABELS } from "../../display";
 import { normalize, distinctTeams, distinctOwners, distinctPipelines, expandTeams, repNameToEmail } from "../../data/filters";
 
 function fmtK(v: number | null | undefined){
@@ -149,9 +149,9 @@ const STAGE_TONE: Record<string, string> = { closing: "indigo", evaluating: "vio
 type HygieneKey = "stale" | "hsOverdue" | "closzrOverdue" | "hs10d" | "closzr10d" | "silent7d";
 const HYGIENE_FILTERS: { key: HygieneKey; label: string }[] = [
   { key: "stale", label: "Stale" },
-  { key: "hsOverdue", label: "HS overdue" },
+  { key: "hsOverdue", label: `${CRM_SHORT} overdue` },
   { key: "closzrOverdue", label: "Closzr overdue" },
-  { key: "hs10d", label: "HS < 10d" },
+  { key: "hs10d", label: `${CRM_SHORT} < 10d` },
   { key: "closzr10d", label: "Closzr < 10d" },
   { key: "silent7d", label: "+7d silent" },
 ];
@@ -279,7 +279,7 @@ function PipelineView({ onOpen }: PipelineViewProps) {
           <MultiSelectTeam teams={pipelines} selected={pipelineFilters} onChange={v=>{setPipelineFilters(v);setTeamFilters(new Set());setRepFilter("");}} allLabel="All Pipelines" />
           <MultiSelectTeam teams={teams} selected={teamFilters} onChange={v=>{setTeamFilters(v);setRepFilter("");}} />
           <select className="cz-native-select" value={repFilter} onChange={e=>setRepFilter(e.target.value)}>
-            <option value="">All PAEs/PBDs</option>
+            <option value="">All {ROLE_LABELS.PAE}/{ROLE_LABELS.PBD}s</option>
             {reps.map((r: string)=><option key={r} value={r}>{r}</option>)}
           </select>
         </div>
@@ -327,7 +327,7 @@ function PipelineView({ onOpen }: PipelineViewProps) {
               <div>MRR</div>
               <div>Prob</div>
               <div>Last contacted</div>
-              <div>HS | Closzr</div>
+              <div>{CRM_SHORT} | Closzr</div>
               <div>Owner</div>
               <div>Next Step</div>
             </div>
@@ -351,7 +351,7 @@ function PipelineView({ onOpen }: PipelineViewProps) {
               <div>MRR</div>
               <div>Prob</div>
               <div>Last contacted</div>
-              <div>HS | Closzr</div>
+              <div>{CRM_SHORT} | Closzr</div>
               <div>Owner</div>
               <div>Next Step</div>
             </div>

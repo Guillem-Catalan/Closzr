@@ -177,6 +177,10 @@ FIELDS = {
     "first_meeting_at":     {"column": "first_meeting_at",     "type": "datetime", "persist": True},
     "next_meeting":         {"column": "hs_next_meeting_start_time", "type": "datetime", "persist": True},
 
+    # ── Demo dates ──
+    "after_demo_date":      {"column": "after_demo_date",      "type": "datetime", "persist": True},
+    "after_demo_followup":  {"column": "after_demo_followup_date", "type": "datetime", "persist": True},
+
     # ── Close info ──
     "closed_lost_reason":   {"column": "closed_lost_reason",   "type": "text",     "persist": True},
     "is_closed_won":        {"column": "is_closed_won",        "type": "boolean",  "persist": False},

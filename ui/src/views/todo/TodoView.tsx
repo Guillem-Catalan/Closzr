@@ -7,7 +7,7 @@ import { Icon, Chip, StageChip, fmtMRR, MultiSelectTeam } from "../components";
 import { useData } from "../../data/store";
 import type { ActionItem, DealRow } from "../../data/store";
 import { supabase } from "../../data/supabase";
-import { hubspotDealUrl, BUCKET_STYLE, ACTION_TYPE_ICON } from "../../display";
+import { hubspotDealUrl, BUCKET_STYLE, ACTION_TYPE_ICON, CRM_NAME, ROLE_LABELS } from "../../display";
 import { distinctTeams, distinctOwnersFromActions, distinctPipelines, normalize, repNameToEmail, expandTeams } from "../../data/filters";
 
 type TimeFilter = "hoy" | "semana" | "next_week" | "mes";
@@ -110,7 +110,7 @@ function ActionRow({ a, onOpen, onToggle, isDone, today }: {
             {a.dealName} · {fmtMRR(a.dealMrr)} · {a.dealStage}
             {a.hsId && (
               <a href={hubspotDealUrl(a.hsId!)}
-                target="_blank" rel="noopener noreferrer" title="Abrir en HubSpot"
+                target="_blank" rel="noopener noreferrer" title={`Abrir en ${CRM_NAME}`}
                 onClick={e => e.stopPropagation()}
                 style={{ display: "inline-flex", color: "var(--ink-4)", flex: "none" }}>
                 <svg width={12} height={12} viewBox="0 0 24 24" fill="currentColor"><path d="M17.63 13.31a3.3 3.3 0 01-1.63.43 3.37 3.37 0 01-3.37-3.37c0-.6.16-1.17.44-1.66l-2.3-2.3a.99.99 0 01-.15-.17 2.48 2.48 0 01-1.52.53V9.3a1.35 1.35 0 110-2.7V4.06A2.06 2.06 0 007.04 2a2.06 2.06 0 00-2.06 2.06v2.53a2.73 2.73 0 00.88 5.31h.05a2.7 2.7 0 001.79-.68l2.38 2.38a3.34 3.34 0 00-.46 1.69A3.37 3.37 0 0013 18.66a3.3 3.3 0 001.86-.57l2.74 2.74a1.1 1.1 0 001.56-1.56zM13 16.92a1.63 1.63 0 110-3.25 1.63 1.63 0 010 3.25z"/></svg>
@@ -337,7 +337,7 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
         <MultiSelectTeam teams={pipelines} selected={pipelineFilters} onChange={v => { setPipelineFilters(v); setTeamFilters(new Set()); setRepFilter(""); }} allLabel="All Pipelines" />
         <MultiSelectTeam teams={teams} selected={teamFilters} onChange={v => { setTeamFilters(v); setRepFilter(""); }} />
         <select className="cz-native-select" value={repFilter} onChange={e => setRepFilter(e.target.value)}>
-          <option value="">All PAEs</option>
+          <option value="">All {ROLE_LABELS.PAE}s</option>
           {reps.map((r: string) => <option key={r} value={r}>{r}</option>)}
         </select>
         <label className="cz-search">

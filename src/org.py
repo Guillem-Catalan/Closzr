@@ -109,6 +109,10 @@ CRM_DEAL_PROPERTIES = {  # ? ALL keys are HubSpot property names
 
     # ── Champion ──
     "champion_name":                         {"label": "Champion name",                  "internal": "champion",             "column": "champion"},  # &
+
+    # ── Demo dates ──
+    "after_demo_date":                       {"label": "Demo Held Date",                 "internal": "after_demo_date",      "column": "after_demo_date"},  # &
+    "after_demo_follow_up_meeting_date":     {"label": "After Demo Follow-up Date",      "internal": "after_demo_followup",  "column": "after_demo_followup_date"},  # &
 }
 
 
@@ -269,16 +273,16 @@ CRM_STAGE_MAP = {  # & ALL entries — stage IDs are account-specific
 # ──────────────────────────────────────────────────────────────────────────────
 
 CRM_PIPELINE_MAP = {  # & ALL entries — pipeline IDs are account-specific
-    # ── Active (new sales) ──
-    "11834984":    {"name": "Partners Distribution",                "active": True},
-    "684767384":   {"name": "SDR Partner Opportunities Pipeline",   "active": True},
-    "default":     {"name": "Sales Pipeline",                       "active": True},
-    "9048177":     {"name": "OB SDR Pipeline",                      "active": True},
-    "831558698":   {"name": "IB SDR Pipeline",                      "active": True},
-    "685413816":   {"name": "XL Account Pipeline",                  "active": True},
-    "3576083668":  {"name": "XL SDR Pipeline",                      "active": True},
-    "824790797":   {"name": "IT AE Pipeline",                       "active": True},
-    "3612610753":  {"name": "IT SDR Pipeline",                      "active": True},
+    # ── Active (new sales) ── prefix = column prefix in schema.STAGE_DATE_FIELDS
+    "11834984":    {"name": "Partners Distribution",                "active": True,  "prefix": "dist"},
+    "684767384":   {"name": "SDR Partner Opportunities Pipeline",   "active": True,  "prefix": "sdr"},
+    "default":     {"name": "Sales Pipeline",                       "active": True,  "prefix": "sales"},
+    "9048177":     {"name": "OB SDR Pipeline",                      "active": True,  "prefix": "ob"},
+    "831558698":   {"name": "IB SDR Pipeline",                      "active": True,  "prefix": "ib"},
+    "685413816":   {"name": "XL Account Pipeline",                  "active": True,  "prefix": "xl"},
+    "3576083668":  {"name": "XL SDR Pipeline",                      "active": True,  "prefix": "xlsdr"},
+    "824790797":   {"name": "IT AE Pipeline",                       "active": True,  "prefix": "itae"},
+    "3612610753":  {"name": "IT SDR Pipeline",                      "active": True,  "prefix": "itsdr"},
     # ── Excluded (post-sale / other) ──
     "12669399":    {"name": "Upselling Pipeline",                   "active": False},
     "120778282":   {"name": "Onboarding Pipeline",                  "active": False},
@@ -739,7 +743,6 @@ CRM_OWNER_MAP = {  # & ALL entries — owner IDs and emails
     "alessandro.cardinale@factorial.co": {"id": "89052244", "name": "Alessandro Cardinale"},
     "alex.martinez@factorial.co": {"id": "79352699", "name": "Alex Martinez"},
     "alexander.ulrich@factorial.co": {"id": "86686795", "name": "Alexander Ulrich"},
-    "alvaro.figuerola@factorial.co": {"id": "32980189", "name": "Álvaro Figuerola Ocáriz"},
     "amadeo.cuellar@factorial.co": {"id": "82431537", "name": "Amadeo Cuellar"},
     "andre.reis@factorial.co": {"id": "83619876", "name": "André Reis Pombinho"},
     "andrea.alonso@factorial.co": {"id": "85923597", "name": "Andrea Alonso de Paz"},
@@ -789,6 +792,7 @@ CRM_OWNER_MAP = {  # & ALL entries — owner IDs and emails
     "giuditta.giunta@factorial.co": {"id": "77159727", "name": "Giuditta Giunta"},
     "gloria.nunez@factorial.co": {"id": "81399037", "name": "Gloria Nuñez"},
     "guillermo.ferrer@factorial.co": {"id": "168739388", "name": "Guillermo Ferrer"},
+    "gustavo.torres@factorial.co": {"id": "188140936", "name": "Gustavo Torres"},
     "iban.cordobes@factorial.co": {"id": "84370034", "name": "Iban Cordobés"},
     "ignacio.catasus@factorial.co": {"id": "150984090", "name": "Ignacio Catasús"},
     "ignacio.otero@factorial.co": {"id": "34450774", "name": "Ignacio Otero"},
@@ -801,7 +805,6 @@ CRM_OWNER_MAP = {  # & ALL entries — owner IDs and emails
     "johanna.henrich@factorial.co": {"id": "82431659", "name": "Johanna Henrich"},
     "jon.azconobieta@factorial.co": {"id": "78463284", "name": "Jon Azconobieta"},
     "jonas.tretter@factorial.co": {"id": "34213545", "name": "Jonas Tretter"},
-    "jordi.miravet@factorial.co": {"id": "85521548", "name": "Jordi Miravet"},
     "jordi.reina@factorial.co": {"id": "83619860", "name": "Jordi Reina Garcia"},
     "jose.donis@factorial.co": {"id": "554650010", "name": "Jose Donis"},
     "josep.fora@factorial.co": {"id": "78736698", "name": "Josep Fora"},
@@ -815,12 +818,13 @@ CRM_OWNER_MAP = {  # & ALL entries — owner IDs and emails
     "lorena.tapia@factorial.co": {"id": "84016824", "name": "Lorena Tapia Arroyo"},
     "lucia.detorres@factorial.co": {"id": "32708231", "name": "Lucia De Torres Alcalde"},
     "lucia.garana@factorial.co": {"id": "33081553", "name": "Lucia Garaña"},
-    "m.gracia@factorial.co": {"id": "734068887", "name": "María Gracia Guerra"},
     "manuel.conesa@factorial.co": {"id": "84984311", "name": "Manuel Conesa"},
+    "maximiliano.velasco@factorial.co": {"id": "35659596", "name": "Max Velasco"},
     "marco.falaschetti@factorial.co": {"id": "187721367", "name": "Marco Falaschetti"},
     "maria.masoliver@factorial.co": {"id": "32147470", "name": "María Masoliver"},
     "maria.reina@factorial.co": {"id": "1358098012", "name": "Maria Reina Caballero"},
     "marta.ruiz@factorial.co": {"id": "554655901", "name": "Marta Ruiz Sánchez"},
+    "meritxell.goikoetxea@factorial.co": {"id": "35660040", "name": "Meritxell Goikoetxea"},
     "miljan.nojkic@factorial.co": {"id": "34212992", "name": "Miljan Nojkic"},
     "miquel.criado@factorial.co": {"id": "32708305", "name": "Miquel Criado"},
     "mireia.bach@factorial.co": {"id": "103459488", "name": "Mireia Bach"},
@@ -828,15 +832,18 @@ CRM_OWNER_MAP = {  # & ALL entries — owner IDs and emails
     "nicolas.gonzalez@factorial.co": {"id": "84394154", "name": "Nicolás González-Tarrío"},
     "nil.oleaga@factorial.co": {"id": "82847426", "name": "Nil Oleaga"},
     "nunzio.fumo@factorial.co": {"id": "343525024", "name": "Nunzio Fumo"},
+    "pablo.andres@factorial.co": {"id": "95103446", "name": "Pablo Andrés Ruiz"},
     "nuria.delacerda@factorial.co": {"id": "80763157", "name": "Nuria De La Cerda Sánchez"},
     "nuria.gisbert@factorial.co": {"id": "78959985", "name": "Nuria Gisbert Martínez"},
     "oriol.gubau@factorial.co": {"id": "673801091", "name": "Oriol Gubau"},
+    "oriol.pesa@factorial.co": {"id": "447489166", "name": "Oriol Pesa"},
     "paula.gil@factorial.co": {"id": "81867010", "name": "Paula Gil"},
     "pilar.elizaga@factorial.co": {"id": "86980707", "name": "Maria del Pilar Elizaga"},
     "pol.bartolome@factorial.co": {"id": "105443852", "name": "Pol Bartolomé"},
     "roberto.moran@factorial.co": {"id": "105445464", "name": "Roberto Morán"},
     "ruben.mariscal@factorial.co": {"id": "490300827", "name": "Rubén Mariscal"},
     "sabri.blaybel@factorial.co": {"id": "121160834", "name": "Sabri Blaybel"},
+    "santiago.tintore@factorial.co": {"id": "81399946", "name": "Santiago Tintoré"},
     "sebastian.boudet@factorial.co": {"id": "84394220", "name": "Sebastian Boudet"},
     "sonia.jimenez@factorial.co": {"id": "82431538", "name": "Sonia Jimenez Ruiz"},
     "stefan.platt@factorial.co": {"id": "86980969", "name": "Stefan Platt"},
@@ -848,6 +855,11 @@ CRM_OWNER_MAP = {  # & ALL entries — owner IDs and emails
 }
 
 CRM_ACCOUNT_ID = "4960096"  # &
+CRM_NAME = "HubSpot"  # &
+CRM_SHORT = "HS"  # &
+ORG_NAME = "Factorial"  # &
+
+CRM_FORECAST_CATEGORIES = ["Commit", "Upside", "Pipeline", "Omit"]  # &
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1292,6 +1304,7 @@ SLACK_EB_ALERT_EMOJI = {  # & ALL entries — emoji per team
 PARTNERS_ORGCHART = {  # & ALL entries — people, teams, emails
     "Telefonica": {
         "active": True,
+        "pipeline_ids": ["11834984", "684767384"],
         "leadership": {
             "tl_pae": {"email": "carlos.sanchez@factorial.co", "name": "Carlos Sanchez", "role": "PAE Team Leader Telefónica"},
             "tl_pbd": {"email": "carlos.acosta@factorial.co", "name": "Carlos Acosta", "role": "Partner Business Developer Manager"},
@@ -1309,6 +1322,7 @@ PARTNERS_ORGCHART = {  # & ALL entries — people, teams, emails
     },
     "TIM": {
         "active": True,
+        "pipeline_ids": ["824790797", "3612610753"],
         "leadership": {
             "director": {"email": "andrea.galimberti@factorial.co", "name": "Andrea Galimberti", "role": "Director of Partnerships Italy"},
             "tl_pae": {"email": "nunzio.fumo@factorial.co", "name": "Nunzio Fumo", "role": "Partner Sales Team Lead"},
@@ -1327,6 +1341,7 @@ PARTNERS_ORGCHART = {  # & ALL entries — people, teams, emails
     },
     "TELEKOM": {
         "active": True,
+        "pipeline_ids": ["824790797", "3612610753"],
         "leadership": {
             "director": {"email": "laura.proefrock@factorial.co", "name": "Laura Proefrock", "role": "Partnerships Director DACH"},
             "tl_pae": {"email": "gabriel.lichtenstein@factorial.co", "name": "Gabriel Lichtenstein", "role": "Team Lead Partner Sales DACH"},
@@ -1346,21 +1361,25 @@ PARTNERS_ORGCHART = {  # & ALL entries — people, teams, emails
     },
     "Mexico": {
         "active": True,
+        "pipeline_ids": ["default", "9048177"],
         "leadership": {
+            "head": {"email": "oriol.pesa@factorial.co", "name": "Oriol Pesa", "role": "Head of Mexico"},
             "director_1": {"email": "francesc.terns@factorial.co", "name": "Francesc Terns", "role": "Channel Manager Mexico"},
             "director_2": {"email": "ernesto.blanco@factorial.co", "name": "Ernesto Blanco Sierra", "role": "Director Mexico"},
+            "tl": {"email": "meritxell.goikoetxea@factorial.co", "name": "Meritxell Goikoetxea", "role": "Team Lead Mexico"},
+            "pdm": {"email": "fabiola.villalobos@factorial.co", "name": "Fabiola Villalobos Damian", "role": "PDM Mexico"},
         },
         "pbd": {"diego.hernandez@factorial.co", "marta.ruiz@factorial.co"},
         "pae": {
-            "diana.bernal@factorial.co", "ernesto.blanco@factorial.co",
-            "cristian.ramos@factorial.co", "daniela.orozco@factorial.co",
-            "diego.hernandez@factorial.co",
-            "eduardo.mahr@factorial.co", "fabiola.villalobos@factorial.co",
+            "diana.bernal@factorial.co", "daniela.orozco@factorial.co",
+            "cristian.ramos@factorial.co", "maximiliano.velasco@factorial.co",
+            "gustavo.torres@factorial.co", "eduardo.mahr@factorial.co",
         },
     },
 }
 
 DIRECT_SALES = {  # & ALL entries — people, teams, emails
+    "pipeline_ids": ["default", "9048177", "831558698"],
     "teams": {
         "DS Joan Balaña": {
             "active": True,
@@ -1379,16 +1398,18 @@ DIRECT_SALES = {  # & ALL entries — people, teams, emails
                                     "tl": "ruben.mariscal@factorial.co", "tl_name": "Rubén Mariscal",
                                     "ae": {"blanca.orti@factorial.co", "arnau.palos@factorial.co", "nil.oleaga@factorial.co",
                                            "iban.cordobes@factorial.co", "camila.aldana@factorial.co", "miquel.criado@factorial.co",
-                                           "tatiana.baltatescu@factorial.co"},
+                                           "guillermo.ferrer@factorial.co", "andreu.aloguin@factorial.co"},
                                 },
                                 "DS Andrea C": {
                                     "active": True,
                                     "tl": "andrea.castanar@factorial.co", "tl_name": "Andrea Castañar Esteban",
-                                    "ae": {"m.gracia@factorial.co", "gerard.tarradas@factorial.co", "nuria.gisbert@factorial.co",
-                                           "abel.exposito@factorial.co", "denis.peramos@factorial.co"},
+                                    "ae": {"gerard.tarradas@factorial.co", "nuria.gisbert@factorial.co",
+                                           "abel.exposito@factorial.co", "denis.peramos@factorial.co",
+                                           "tatiana.baltatescu@factorial.co", "carlota.alvarez@factorial.co",
+                                           "alejandro.moreno@factorial.co", "pablo.andres@factorial.co"},
                                 },
                             },
-                            "ae": {"josep.fora@factorial.co", "andreu.aloguin@factorial.co"},
+                            "ae": {"josep.fora@factorial.co"},
                         },
                         "DS Roberto": {
                             "active": True,
@@ -1399,28 +1420,27 @@ DIRECT_SALES = {  # & ALL entries — people, teams, emails
                         "DS Tania": {
                             "active": True,
                             "tl": "tania.diaz@factorial.co", "tl_name": "Tania Diaz Soto",
-                            "ae": {"alejandro.moreno@factorial.co", "carlota.alvarez@factorial.co", "edgar.ybarguengoitia@factorial.co",
-                                   "guillermo.ferrer@factorial.co", "sabri.blaybel@factorial.co", "sonia.jimenez@factorial.co"},
+                            "ae": {"edgar.ybarguengoitia@factorial.co", "sonia.jimenez@factorial.co"},
                         },
                         "DS Luis": {
                             "active": True,
                             "tl": "l.rodriguez@factorial.co", "tl_name": "Luis Rodriguez de Luz",
                             "ae": {"jordi.reina@factorial.co", "daniela.hernandez@factorial.co", "iker.gordo@factorial.co",
                                    "irene.orra@factorial.co", "maria.reina@factorial.co", "nuria.delacerda@factorial.co",
-                                   "amadeo.cuellar@factorial.co", "alvaro.figuerola@factorial.co"},
+                                   "amadeo.cuellar@factorial.co"},
                         },
                         "DS Pilar": {
                             "active": True,
                             "tl": "pilar.elizaga@factorial.co", "tl_name": "Maria del Pilar Elizaga",
                             "ae": {"alejandra.denobregas@factorial.co", "andrea.alonso@factorial.co", "cristina.tarres@factorial.co",
                                    "david.donaire@factorial.co", "julia.flaque@factorial.co", "lucia.detorres@factorial.co",
-                                   "manuel.conesa@factorial.co"},
+                                   "manuel.conesa@factorial.co", "santiago.tintore@factorial.co"},
                         },
                         "DS Caterina": {
                             "active": True,
                             "tl": "caterina.peraire@factorial.co", "tl_name": "Caterina Peraire Lores",
                             "ae": {"alberto.toboso@factorial.co", "ignacio.catasus@factorial.co",
-                                   "jordi.miravet@factorial.co", "teresa.santamaria@factorial.co"},
+                                   "teresa.santamaria@factorial.co", "sabri.blaybel@factorial.co"},
                         },
                     },
                 },
@@ -1436,6 +1456,7 @@ DIRECT_SALES = {  # & ALL entries — people, teams, emails
 
 XL_SALES = {  # & ALL entries — people, emails
     "active": True,
+    "pipeline_ids": ["685413816", "3576083668"],
     "country_manager": {"email": "ariadna.isla@factorial.co", "name": "Ariadna Isla Dominguez"},
     "ae": {
         "ariadna.isla@factorial.co", "lorena.tapia@factorial.co", "gerard.ghneim@factorial.co",

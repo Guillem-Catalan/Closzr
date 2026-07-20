@@ -10,6 +10,7 @@ Zero Claude calls. Pure HubSpot → Supabase sync.
 Uses only internal names (schema + org + config2).
 """
 
+import json
 from datetime import datetime, timezone, timedelta
 
 from src import schema, org
@@ -167,13 +168,22 @@ def _fetch_owners() -> dict[str, dict]:
 
 def _batch_read_deals(deal_ids: list[str]) -> list[dict]:
     results = []
-    for i in range(0, len(deal_ids), 100):
+    total = len(deal_ids)
+    for i in range(0, total, 100):
         batch = deal_ids[i:i + 100]
-        data = hubspot.post(
-            org.API_ENDPOINTS["deal_batch_read"],
-            {"inputs": [{"id": did} for did in batch], "properties": org.CRM_ALL_DEAL_PROPS},
-        )
-        results.extend(data.get("results", []))
+        try:
+            data = hubspot.post(
+                org.API_ENDPOINTS["deal_batch_read"],
+                {"inputs": [{"id": did} for did in batch], "properties": org.CRM_ALL_DEAL_PROPS},
+            )
+            if data:
+                results.extend(data.get("results", []))
+            else:
+                print(f"    WARN: batch {i//100+1} returned None, skipping {len(batch)} deals")
+        except Exception as exc:
+            print(f"    WARN: batch {i//100+1} failed ({exc}), skipping {len(batch)} deals")
+        if (i // 100 + 1) % 50 == 0:
+            print(f"    ... {i + len(batch)}/{total} deals fetched")
     return results
 
 
@@ -198,8 +208,8 @@ def _fetch_company_associations(deal_ids: list[str]) -> dict[str, str]:
     return company_map
 
 
-def _fetch_partner_associations(deal_ids: list[str]) -> dict[str, str]:
-    partner_map: dict[str, str] = {}
+def _fetch_partner_associations(deal_ids: list[str]) -> dict[str, list[str]]:
+    partner_map: dict[str, list[str]] = {}
     for i in range(0, len(deal_ids), 100):
         batch = deal_ids[i:i + 100]
         try:
@@ -213,7 +223,7 @@ def _fetch_partner_associations(deal_ids: list[str]) -> dict[str, str]:
                 did = str(result.get("from", {}).get("id", ""))
                 to_list = result.get("to", [])
                 if did and to_list:
-                    partner_map[did] = str(to_list[0].get("toObjectId", ""))
+                    partner_map[did] = [str(t.get("toObjectId", "")) for t in to_list]
         except Exception as e:
             print(f"    Partner assoc batch {i // 100 + 1} failed: {e}")
     return partner_map
@@ -313,9 +323,14 @@ def _resolve_deal(
     deal_id = row.get(COL_DEAL_ID, "")
     row[COL_TEAM] = get_deal_team(owner_email)
 
-    partner_id = partner_map.get(deal_id)
-    if partner_id and partner_id in _PARTNER_OBJECTS:
-        row[COL_PARTNER] = _PARTNER_OBJECTS[partner_id]["display"]
+    partner_ids = partner_map.get(deal_id, [])
+    partner_names = [
+        _PARTNER_OBJECTS[pid]["display"]
+        for pid in partner_ids
+        if pid in _PARTNER_OBJECTS
+    ]
+    if partner_names:
+        row[COL_PARTNER] = json.dumps(partner_names, ensure_ascii=False)
 
     # Company association → crm_id
     row[COL_CRM_ID] = company_map.get(deal_id)

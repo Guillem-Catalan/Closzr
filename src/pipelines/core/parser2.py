@@ -80,6 +80,8 @@ _D_CRM_ID     = schema.col("crm_id")           # "crm_id"
 _D_EMPLOYEES  = schema.col("num_employees")    # "num_employees"
 _D_EMP_CUSTOM = schema.col("num_employees_custom")  # "num_employees_custom"
 _D_PIPELINE   = schema.col("pipeline")         # "pipeline_name"
+_D_DEMO_DATE  = schema.col("after_demo_date")  # "after_demo_date"
+_D_DEMO_FU    = schema.col("after_demo_followup")  # "after_demo_followup_date"
 
 _UPSERT_KEY = schema.upsert_key("deal_ui")     # "deal_id"
 
@@ -603,6 +605,8 @@ def _build_sync_row(deal: dict) -> dict | None:
         "atlas_revenue": str(int(mrr * 12)) if mrr else "0",
         "createdate": deal.get(_D_CREATE),
         "pipeline_name": deal.get(_D_PIPELINE) or "",
+        "after_demo_date": deal.get(_D_DEMO_DATE),
+        "after_demo_followup_date": deal.get(_D_DEMO_FU),
     }
 
     if stage in schema.WON:

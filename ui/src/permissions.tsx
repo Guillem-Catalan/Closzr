@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "./data/supabase";
+import { DEFAULT_ROLE } from "./display";
 
 export type TabScope = { enabled: boolean; scope: "all" | "team" | "self" | "custom"; reps?: string[] };
 
@@ -75,7 +76,7 @@ export function PermissionsProvider({ userId, children }: { userId: string | nul
         name: data.name || "",
         team: data.team || "",
         subteam: data.subteam || "",
-        role: data.role || "PAE",
+        role: data.role || DEFAULT_ROLE,
         visibleTeams: data.visible_teams || [],
         visibleReps: data.visible_reps || [],
         tabPermissions: { ...DEFAULT_PERMISSIONS, ...tabPerms },

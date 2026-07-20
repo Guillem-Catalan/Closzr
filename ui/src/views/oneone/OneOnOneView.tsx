@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, Fragment } from "react";
 import { Icon, Chip, StageChip, Avatar, getInitials, fmtMRR, TONE } from "../components";
 import { usePermissions } from "../../permissions";
-import { stageAbbr } from "../../display";
+import { stageAbbr, CLOSED_LOST_STAGES, LOST_LABEL } from "../../display";
 import { WEEKS, getWeekType, getMondayOfWeek, currentYearMonth, PROBLEM_LABELS, type Section, type CheckItem } from "./weeks";
 import { useOneOnOne, type OODeal, type OOEntry, type OOSession } from "./useOneOnOne";
 
@@ -50,25 +50,25 @@ function actionsFor(query: string | undefined): ActionDef[] {
     case "past_close":
       return [
         { mode: "change", label: "Cambiar fecha", icon: "calendar", tone: "change" },
-        { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        { mode: "lost", label: `Mover a ${LOST_LABEL}`, icon: "x", tone: "lost" },
       ];
     case "same_stage_30d":
     case "stale_7d":
     case "m0_at_risk":
       return [
         { mode: "action", label: "Definir acción", icon: "flag", tone: "keep" },
-        { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        { mode: "lost", label: `Mover a ${LOST_LABEL}`, icon: "x", tone: "lost" },
       ];
     case "demo_6w":
       return [
         { mode: "action", label: "Acelerar o limpiar", icon: "flag", tone: "keep" },
-        { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        { mode: "lost", label: `Mover a ${LOST_LABEL}`, icon: "x", tone: "lost" },
       ];
     case "past_close_or_stale":
       return [
         { mode: "change", label: "Cambiar fecha", icon: "calendar", tone: "change" },
         { mode: "action", label: "Definir acción", icon: "flag", tone: "keep" },
-        { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        { mode: "lost", label: `Mover a ${LOST_LABEL}`, icon: "x", tone: "lost" },
       ];
     case "m1_m2_pusheable":
       return [
@@ -79,13 +79,13 @@ function actionsFor(query: string | undefined): ActionDef[] {
       return [
         { mode: "keep", label: "Confirmar cierre", icon: "check", tone: "keep" },
         { mode: "change", label: "Cambiar fecha", icon: "calendar", tone: "change" },
-        { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        { mode: "lost", label: `Mover a ${LOST_LABEL}`, icon: "x", tone: "lost" },
       ];
     default:
       return [
         { mode: "keep", label: "Mantener fecha", icon: "check", tone: "keep" },
         { mode: "change", label: "Cambiar fecha", icon: "calendar", tone: "change" },
-        { mode: "lost", label: "Mover a Lost", icon: "x", tone: "lost" },
+        { mode: "lost", label: `Mover a ${LOST_LABEL}`, icon: "x", tone: "lost" },
       ];
   }
 }
@@ -161,7 +161,7 @@ function DealActionPanel({ deal, section, session, onEntry, query }: {
         note: reason.trim() });
     } else if (mode === "lost") {
       onEntry({ deal_id: deal.deal_id, deal_name: name, section, type: "change",
-        field: "stage", old_val: deal.stage || "—", new_val: "Closed Lost",
+        field: "stage", old_val: deal.stage || "—", new_val: CLOSED_LOST_STAGES[0],
         note: reason.trim() });
     }
     setMode(null);
@@ -208,7 +208,7 @@ function DealActionPanel({ deal, section, session, onEntry, query }: {
           ))}
           {lostAction && (
             <button className="cz-oo-lost-link" onClick={() => setMode("lost")}>
-              <Icon name="x" size={13} />Mover a Lost
+              <Icon name="x" size={13} />Mover a {LOST_LABEL}
             </button>
           )}
         </div>

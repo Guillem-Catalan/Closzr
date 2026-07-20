@@ -198,6 +198,11 @@ STALE_THRESHOLDS = {
 }
 STALE_DEFAULT = 14
 
+LOST_REASONS = [
+    "Budget / Pricing", "Lost to competitor", "No decision / No response",
+    "Timing not right", "Product fit", "Internal change", "Other",
+]
+
 MOMENTUM_ARROWS = {
     "accelerating": "▲",
     "stable":       "→",
@@ -396,8 +401,9 @@ FORECAST = {
     "max_similar_won":     5,
     "max_similar_lost":    5,
     "max_trajectory_snapshots": 15,
-    "max_patterns_team":   5,
-    "max_patterns_global": 5,
+    "max_patterns_team":     5,
+    "max_patterns_pipeline": 5,
+    "max_patterns_global":   5,
     "max_calibration":     5,
     "max_deal_context_chars": 5000,
     "activity_decay": {

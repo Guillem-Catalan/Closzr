@@ -3,6 +3,7 @@
    ============================================================ */
 import { useState, useEffect } from "react";
 import { Icon, SectionLabel, Chip, Avatar, TONE } from "../components";
+import { CRM_NAME } from "../../display";
 
 /* =========================================================
    ATLAS  — company / account intelligence
@@ -13,7 +14,7 @@ function AtlasView({ d, goTo: _goTo }: { d: any; goTo: (tab: string) => void }) 
 
   const isDomain = (t: string) => /^[^\s]+\.[^\s]+$/.test(t);
   const company = a.company || d.name || "—";
-  const crm = a.crm || "HubSpot";
+  const crm = a.crm || CRM_NAME;
   const description = a.description || "Sin información de empresa.";
   const historyNote = a.historyNote || "";
   const tags = a.tags || [];
@@ -283,7 +284,7 @@ function NextView({ d, goTo: _goTo }: { d: any; goTo: (tab: string) => void }) {
           {/* Notes + comments */}
           <div className="cz-twocol">
             <div className="cz-card">
-              <SectionLabel letter="N" tone="amber" right={<span className="cz-mini-meta"><Icon name="route" size={12}/> se creará en HubSpot</span>}>Notas</SectionLabel>
+              <SectionLabel letter="N" tone="amber" right={<span className="cz-mini-meta"><Icon name="route" size={12}/> se creará en {CRM_NAME}</span>}>Notas</SectionLabel>
               <textarea className="cz-textarea" rows={4} value={note} onChange={e=>setNote(e.target.value)} placeholder="Escribe una nota sobre este deal…"/>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:10}}>
                 <span style={{fontSize:12,color:"var(--amber-ink)"}}>Requiere login</span>
@@ -398,7 +399,7 @@ function EmailModal({ em, onClose }: { em: any; onClose: () => void }) {
           </button>
           <button className="cz-btn-soft" onClick={onClose}>Editar borrador</button>
           <span style={{flex:1}}/>
-          <span className="cz-mail-note"><Icon name="route" size={13}/> Se registrará en HubSpot</span>
+          <span className="cz-mail-note"><Icon name="route" size={13}/> Se registrará en {CRM_NAME}</span>
         </div>
       </div>
     </div>

@@ -7,19 +7,13 @@
    ============================================================ */
 
 import type { DealRow, ActionItem } from "./store";
-
-// ---- Team hierarchy (parent includes children) ----
-const TEAM_CHILDREN: Record<string, string[]> = {
-  "DS Joan Balaña": ["DS Antoni Grau", "DS Zafra"],
-  "DS Antoni Grau": ["DS Mireia", "DS Roberto", "DS Tania", "DS Luis", "DS Pilar", "DS Caterina"],
-  "DS Mireia": ["DS Rubén", "DS Andrea C"],
-};
+import { TEAM_HIERARCHY, ORG_DOMAINS } from "../display";
 
 export function expandTeam(team: string): Set<string> {
   const result = new Set<string>();
   const walk = (t: string) => {
     result.add(t);
-    for (const child of (TEAM_CHILDREN[t] || [])) walk(child);
+    for (const child of (TEAM_HIERARCHY[t] || [])) walk(child);
   };
   walk(team);
   return result;
@@ -38,7 +32,7 @@ export function normalize(s: string): string {
 }
 
 export function repNameToEmail(name: string): string {
-  return normalize(name).replace(/ /g, ".") + "@factorial.co";
+  return normalize(name).replace(/ /g, ".") + "@" + ORG_DOMAINS[0];
 }
 
 // ---- Derive options from data ----

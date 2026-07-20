@@ -49,7 +49,7 @@ def post(path: str, body: dict) -> dict:
         _throttle()
         _total_requests += 1
         resp = requests.post(url, headers=_HEADERS, json=body, timeout=HUBSPOT_REQUEST_TIMEOUT)
-        if resp.status_code == 200:
+        if resp.status_code in (200, 201, 202, 207):
             return resp.json()
         if resp.status_code in HUBSPOT_RETRYABLE_CODES:
             wait = 2 ** attempt

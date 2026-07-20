@@ -453,34 +453,37 @@ def _flatten_ds_teams(teams: dict) -> list[tuple[str, dict]]:
     return result
 
 
+def _collect_partner_emails(node: dict) -> set[str]:
+    """Collect all emails from a partner team (supports both old pbd/pae and DS-style tl/ae formats)."""
+    emails: set[str] = set()
+    emails |= node.get("pbd", set())
+    emails |= node.get("pae", set())
+    emails |= node.get("ae", set())
+    if "tl" in node and isinstance(node["tl"], str):
+        emails.add(node["tl"])
+    for role in node.get("leadership", {}).values():
+        if isinstance(role, dict) and role.get("email"):
+            emails.add(role["email"])
+    for sub in node.get("subteams", {}).values():
+        emails |= _collect_partner_emails(sub)
+    return emails
+
+
 for _name, _team in org.PARTNERS_ORGCHART.items():
     ALL_PBD_EMAILS |= _team.get("pbd", set())
     ALL_PAE_EMAILS |= _team.get("pae", set())
-    ALL_REP_EMAILS |= _team.get("pbd", set()) | _team.get("pae", set())
+    _all_partner = _collect_partner_emails(_team)
+    ALL_REP_EMAILS |= _all_partner
     pi = org.PARTNER_IDENTITY.get(_name, {})
     ALL_PARTNER_NAMES |= pi.get("partner_names", set())
     ALL_PARTNER_DOMAINS |= pi.get("partner_domains", set())
     for email in _team.get("pbd", set()) | _team.get("pae", set()):
         _EMAIL_TO_TEAM[email] = _name
         _EMAIL_TO_TEAMS.setdefault(email, []).append(_name)
-    for _sub in _team.get("subteams", {}).values():
-        for email in _sub.get("pbd", set()) | _sub.get("pae", set()):
-            ALL_REP_EMAILS.add(email)
-            if email not in _EMAIL_TO_TEAM:
-                _EMAIL_TO_TEAM[email] = _name
-            _EMAIL_TO_TEAMS.setdefault(email, []).append(_name)
-        for _role in _sub.get("leadership", {}).values():
-            _ld_email = _role.get("email")
-            if _ld_email and _ld_email not in _EMAIL_TO_TEAM:
-                _EMAIL_TO_TEAM[_ld_email] = _name
-                _EMAIL_TO_TEAMS.setdefault(_ld_email, []).append(_name)
-                ALL_REP_EMAILS.add(_ld_email)
-    for _role in _team.get("leadership", {}).values():
-        _ld_email = _role.get("email")
-        if _ld_email and _ld_email not in _EMAIL_TO_TEAM:
-            _EMAIL_TO_TEAM[_ld_email] = _name
-            _EMAIL_TO_TEAMS.setdefault(_ld_email, []).append(_name)
-            ALL_REP_EMAILS.add(_ld_email)
+    for email in _all_partner - _team.get("pbd", set()) - _team.get("pae", set()):
+        if email not in _EMAIL_TO_TEAM:
+            _EMAIL_TO_TEAM[email] = _name
+        _EMAIL_TO_TEAMS.setdefault(email, []).append(_name)
 
 for _name, _ds_team in _flatten_ds_teams(org.DIRECT_SALES.get("teams", {})):
     direct_emails = set(_ds_team.get("ae", set()))
@@ -668,8 +671,7 @@ def get_deal_team(owner_email: str | None) -> str | None:
 
 def get_owner_ids_for_team(team_name: str) -> list[str]:
     if team_name in org.PARTNERS_ORGCHART:
-        emails = (org.PARTNERS_ORGCHART[team_name].get("pbd", set())
-                  | org.PARTNERS_ORGCHART[team_name].get("pae", set()))
+        emails = _collect_partner_emails(org.PARTNERS_ORGCHART[team_name])
     elif _find_ds_team(team_name):
         emails = _collect_ae_emails(_find_ds_team(team_name))
     elif team_name == "XL":

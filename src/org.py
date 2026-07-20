@@ -1362,18 +1362,26 @@ PARTNERS_ORGCHART = {  # & ALL entries — people, teams, emails
     "Mexico": {
         "active": True,
         "pipeline_ids": ["default", "9048177"],
-        "leadership": {
-            "head": {"email": "oriol.pesa@factorial.co", "name": "Oriol Pesa", "role": "Head of Mexico"},
-            "director_1": {"email": "francesc.terns@factorial.co", "name": "Francesc Terns", "role": "Channel Manager Mexico"},
-            "director_2": {"email": "ernesto.blanco@factorial.co", "name": "Ernesto Blanco Sierra", "role": "Director Mexico"},
-            "tl": {"email": "meritxell.goikoetxea@factorial.co", "name": "Meritxell Goikoetxea", "role": "Team Lead Mexico"},
-            "pdm": {"email": "fabiola.villalobos@factorial.co", "name": "Fabiola Villalobos Damian", "role": "PDM Mexico"},
-        },
-        "pbd": {"diego.hernandez@factorial.co", "marta.ruiz@factorial.co"},
-        "pae": {
-            "diana.bernal@factorial.co", "daniela.orozco@factorial.co",
-            "cristian.ramos@factorial.co", "maximiliano.velasco@factorial.co",
-            "gustavo.torres@factorial.co", "eduardo.mahr@factorial.co",
+        "tl": "oriol.pesa@factorial.co", "tl_name": "Oriol Pesa",
+        "subteams": {
+            "Mexico Francesc": {
+                "active": True,
+                "tl": "francesc.terns@factorial.co", "tl_name": "Francesc Terns",
+                "subteams": {
+                    "Mexico Meritxell": {
+                        "active": True,
+                        "tl": "meritxell.goikoetxea@factorial.co", "tl_name": "Meritxell Goikoetxea",
+                        "ae": {"daniela.orozco@factorial.co", "diana.bernal@factorial.co",
+                               "cristian.ramos@factorial.co", "maximiliano.velasco@factorial.co"},
+                    },
+                },
+                "ae": {"diego.hernandez@factorial.co", "marta.ruiz@factorial.co", "fabiola.villalobos@factorial.co"},
+            },
+            "Mexico Ernesto": {
+                "active": True,
+                "tl": "ernesto.blanco@factorial.co", "tl_name": "Ernesto Blanco Sierra",
+                "ae": {"gustavo.torres@factorial.co", "eduardo.mahr@factorial.co"},
+            },
         },
     },
 }

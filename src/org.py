@@ -1409,18 +1409,13 @@ DIRECT_SALES = {  # & ALL entries — people, teams, emails
                                            "alejandro.moreno@factorial.co", "pablo.andres@factorial.co"},
                                 },
                             },
-                            "ae": {"josep.fora@factorial.co"},
+                            "ae": {"sonia.jimenez@factorial.co", "edgar.ybarguengoitia@factorial.co"},
                         },
                         "DS Roberto": {
                             "active": True,
                             "tl": "roberto.moran@factorial.co", "tl_name": "Roberto Morán",
                             "ae": {"xavier.fortuny@factorial.co", "jose.donis@factorial.co", "pol.bartolome@factorial.co",
                                    "beatriz.bravo@factorial.co", "joan.lorenzo@factorial.co"},
-                        },
-                        "DS Tania": {
-                            "active": True,
-                            "tl": "tania.diaz@factorial.co", "tl_name": "Tania Diaz Soto",
-                            "ae": {"edgar.ybarguengoitia@factorial.co", "sonia.jimenez@factorial.co"},
                         },
                         "DS Luis": {
                             "active": True,
@@ -1433,8 +1428,7 @@ DIRECT_SALES = {  # & ALL entries — people, teams, emails
                             "active": True,
                             "tl": "pilar.elizaga@factorial.co", "tl_name": "Maria del Pilar Elizaga",
                             "ae": {"alejandra.denobregas@factorial.co", "andrea.alonso@factorial.co", "cristina.tarres@factorial.co",
-                                   "david.donaire@factorial.co", "julia.flaque@factorial.co", "lucia.detorres@factorial.co",
-                                   "manuel.conesa@factorial.co", "santiago.tintore@factorial.co"},
+                                   "david.donaire@factorial.co", "julia.flaque@factorial.co", "manuel.conesa@factorial.co"},
                         },
                         "DS Caterina": {
                             "active": True,
@@ -1448,6 +1442,11 @@ DIRECT_SALES = {  # & ALL entries — people, teams, emails
                     "active": True,
                     "tl": "eduardo.zafra@factorial.co", "tl_name": "Eduardo Zafra",
                     "ae": {"daniel.terrasa@factorial.co", "belen.lombardia@factorial.co", "yolanda.tello@factorial.co"},
+                },
+                "DS Monica": {
+                    "active": True,
+                    "tl": "monica.ortiz@factorial.co", "tl_name": "Monica Ortiz",
+                    "ae": {"carlos.sanchez@factorial.co", "joane.fuldain@factorial.co"},
                 },
             },
         },

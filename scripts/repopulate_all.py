@@ -49,7 +49,6 @@ from src.pipelines.core.sync2 import (
     _fetch_company_associations,
     _fetch_partner_associations,
     _resolve_deal,
-    _detect_stale,
     _upsert_deals,
 )
 
@@ -120,37 +119,14 @@ def phase_sync():
             skipped += 1
     print(f"   {len(rows)} resolved, {skipped} excluded (bad pipeline/stage)")
 
-    # 6. Split: stale-eligible (open + active team) vs rest
-    stale_rows = [
-        r for r in rows
-        if r.get(COL_STAGE) not in schema.CLOSED
-        and r.get(COL_TEAM) in ACTIVE_TEAMS
-    ]
-    rest_rows = [
-        r for r in rows
-        if r.get(COL_STAGE) in schema.CLOSED
-        or r.get(COL_TEAM) not in ACTIVE_TEAMS
-    ]
-    closed_count = sum(1 for r in rest_rows if r.get(COL_STAGE) in schema.CLOSED)
-    no_team_count = len(rest_rows) - closed_count
-    print(f"\n6. Split: {len(stale_rows)} stale-eligible (open + active team), "
-          f"{closed_count} closed, {no_team_count} no active team")
-
-    # 7. Stale detection ONLY on stale-eligible rows
-    print("\n7. Detecting activity changes (open + active team only)...")
-    stale_rows = _detect_stale(stale_rows)
-    stale_count = sum(1 for r in stale_rows if r.get(COL_STALE))
-    print(f"   {stale_count} deals → context_stale=True")
-
-    # 8. Strip stale columns from rest (closed + no active team)
-    for row in rest_rows:
+    # 6. Strip stale columns — repopulate never touches stale
+    for row in rows:
         row.pop(COL_STALE, None)
         row.pop(COL_STALE_CHECKED, None)
 
-    # 9. Upsert all
-    all_rows = stale_rows + rest_rows
-    print(f"\n8. Upserting {len(all_rows)} deals ({len(stale_rows)} stale-eligible + {len(rest_rows)} rest)...")
-    written = _upsert_deals(all_rows)
+    # 7. Upsert all
+    print(f"\n6. Upserting {len(rows)} deals...")
+    written = _upsert_deals(rows)
     print(f"   {written} deals upserted")
 
     print(f"\n   HubSpot API requests: {hubspot.total_requests()}")

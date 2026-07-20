@@ -404,10 +404,27 @@ def _detect_stale(rows: list[dict]) -> list[dict]:
 
 # ── Step 6: Upsert to Supabase ────────────────────────────────────────────
 
+_INT_COLUMNS = {
+    schema.col(k) for k, v in schema.DEAL_FIELDS.items()
+    if v.get("type") == "numeric"
+}
+
+
+def _sanitize_row(row: dict) -> dict:
+    for col in _INT_COLUMNS:
+        val = row.get(col)
+        if val is not None:
+            try:
+                row[col] = int(float(val))
+            except (ValueError, TypeError):
+                row[col] = None
+    return row
+
+
 def _upsert_deals(rows: list[dict]) -> int:
     written = 0
     for i in range(0, len(rows), UPSERT_BATCH_SIZE):
-        batch = rows[i:i + UPSERT_BATCH_SIZE]
+        batch = [_sanitize_row(r) for r in rows[i:i + UPSERT_BATCH_SIZE]]
         result = (
             supabase.table(DEALS_TABLE)
             .upsert(batch, on_conflict=DEALS_UPSERT_KEY)

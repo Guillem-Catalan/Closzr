@@ -26,6 +26,30 @@ export function expandTeams(teams: Set<string>): Set<string> | null {
   return result;
 }
 
+// ---- Team hierarchy (parent includes children) ----
+const TEAM_CHILDREN: Record<string, string[]> = {
+  "DS Joan Balaña": ["DS Antoni Grau", "DS Zafra"],
+  "DS Antoni Grau": ["DS Mireia", "DS Roberto", "DS Tania", "DS Luis", "DS Pilar", "DS Caterina"],
+  "DS Mireia": ["DS Rubén", "DS Andrea C"],
+};
+
+export function expandTeam(team: string): Set<string> {
+  const result = new Set<string>();
+  const walk = (t: string) => {
+    result.add(t);
+    for (const child of (TEAM_CHILDREN[t] || [])) walk(child);
+  };
+  walk(team);
+  return result;
+}
+
+export function expandTeams(teams: Set<string>): Set<string> | null {
+  if (teams.size === 0) return null;
+  const result = new Set<string>();
+  for (const t of teams) for (const child of expandTeam(t)) result.add(child);
+  return result;
+}
+
 // ---- Normalize for accent-insensitive comparison ----
 export function normalize(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");

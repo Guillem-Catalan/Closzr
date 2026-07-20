@@ -1,0 +1,43 @@
+name: Repopulate All (v2)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Run mode: both, sync-only, parse-only'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - sync-only
+          - parse-only
+
+jobs:
+  repopulate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run repopulate
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
+        run: |
+          if [ "${{ inputs.mode }}" = "sync-only" ]; then
+            python scripts/repopulate_all.py --sync-only
+          elif [ "${{ inputs.mode }}" = "parse-only" ]; then
+            python scripts/repopulate_all.py --parse-only
+          else
+            python scripts/repopulate_all.py
+          fi

@@ -405,7 +405,7 @@ def _detect_stale(rows: list[dict]) -> list[dict]:
 # ── Step 6: Upsert to Supabase ────────────────────────────────────────────
 
 _INT_COLUMNS = {
-    schema.col(k) for k, v in schema.DEAL_FIELDS.items()
+    schema.col(k) for k, v in schema.FIELDS.items()
     if v.get("type") == "numeric"
 }
 

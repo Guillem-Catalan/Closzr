@@ -60,12 +60,47 @@ _ACTIVE_STAGES = list(schema.ACTIVE)
 
 _PRIORITY_PIPELINES = frozenset({"Sales Pipeline", "Partners Distribution"})
 
+# DB has a mix of internal names ("discovery") and display labels ("Discovery").
+# schema.stage_category() only knows internal names. This fallback covers display labels.
+_LABEL_CATEGORY = {}
+for _k, _v in schema.STAGES.items():
+    _LABEL_CATEGORY[_k] = _v["category"]
+    _LABEL_CATEGORY[_v["short"].lower()] = _v["category"]
+# Manual overrides for labels that don't match schema short names
+_LABEL_CATEGORY.update({
+    "associating the partner": "prospecting",
+    "factorial project alignment started": "evaluation",
+    "meddpicc criteria validation started": "evaluation",
+    "new qualified opportunity": "prospecting",
+    "pre-qualified": "prospecting",
+    "pricing and packaging": "closing",
+    "pricing & packaging": "closing",
+    "research & outreach": "prospecting",
+    "connected - not engaged": "prospecting",
+    "attempting to contact": "prospecting",
+    "opportunity detected": "prospecting",
+    "opportunity lost": "lost",
+    "customer management actions (ongoing)": "excluded",
+    "kick-off & alignment": "excluded",
+    "post-launch review": "excluded",
+    "closed - pending finance validation": "won",
+    "closed pending payment": "won",
+    "economical alignment started": "closing",
+    "closed won": "won",
+    "closed lost": "lost",
+})
+
 _SELECT_COLS = ", ".join([_D_UUID, _D_ID, _D_NAME, _D_STAGE, _D_CRM_ID, _D_TEAM, _D_PAE, _D_PBD, _D_ATLAS_ID, _D_PIPELINE])
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # HELPERS
 # ═══════════════════════════════════════════════════════════════════════════
+
+def _stage_cat(stage: str) -> str | None:
+    """Resolve stage category handling both internal names and display labels."""
+    return _LABEL_CATEGORY.get(stage) or _LABEL_CATEGORY.get(stage.lower())
+
 
 def _deal_priority(deal: dict) -> int:
     """Lower number = processed first.
@@ -78,7 +113,7 @@ def _deal_priority(deal: dict) -> int:
     """
     pipeline = deal.get(_D_PIPELINE) or ""
     stage = deal.get(_D_STAGE) or ""
-    cat = schema.stage_category(stage)
+    cat = _stage_cat(stage)
 
     if pipeline in _PRIORITY_PIPELINES:
         if cat == "closing":    return 0

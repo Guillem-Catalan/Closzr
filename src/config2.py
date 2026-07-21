@@ -45,7 +45,7 @@ MODEL_GPT_54_MINI = "claudio-gpt-5.4-mini"
 # ── Pipeline limits ──
 MAX_DEALS_PER_CYCLE = 100
 CORE_TIMEOUT_MINUTES = 55
-CORE_WORKERS = 2
+CORE_WORKERS = 3
 UPSERT_BATCH_SIZE = 500
 
 # ── Transcript ──

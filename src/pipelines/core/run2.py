@@ -17,7 +17,7 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from src import schema
+from src import org, schema
 from src.config2 import (
     MAX_DEALS_PER_CYCLE,
     CORE_TIMEOUT_MINUTES,
@@ -49,6 +49,7 @@ _D_PAE        = schema.col("pae")               # "pae"
 _D_PBD        = schema.col("pbd")               # "pbd"
 _D_STALE      = schema.col("context_stale")     # "context_stale"
 _D_ATLAS_ID   = schema.col("atlas_ref")         # "atlas_id"
+_D_PIPELINE   = schema.col("pipeline")          # "pipeline_name"
 
 _A_FK_CRM     = schema.upsert_key("atlas")           # "crm_id"
 _A_LAST_GEN   = schema.ATLAS_COLS["last_generated"]  # "last_generated"
@@ -57,28 +58,77 @@ _D_UPDATED_AT = schema.SYSTEM_COLS["updated_at"]  # Supabase system column
 
 _ACTIVE_STAGES = list(schema.ACTIVE)
 
-_SELECT_COLS = ", ".join([_D_UUID, _D_ID, _D_NAME, _D_STAGE, _D_CRM_ID, _D_TEAM, _D_PAE, _D_PBD, _D_ATLAS_ID])
+_PRIORITY_PIPELINES = frozenset({"Sales Pipeline", "Partners Distribution"})
+
+# DB has a mix of internal names ("discovery") and display labels ("Discovery").
+# Resolve both via org.CRM_STAGE_LABEL_TO_INTERNAL → schema.STAGES.
+_STAGE_TO_CATEGORY: dict[str, str] = {}
+for _internal, _meta in schema.STAGES.items():
+    _STAGE_TO_CATEGORY[_internal] = _meta["category"]
+for _label, _internal in org.CRM_STAGE_LABEL_TO_INTERNAL.items():
+    _cat = schema.STAGES.get(_internal, {}).get("category")
+    if _cat:
+        _STAGE_TO_CATEGORY[_label] = _cat
+
+_SELECT_COLS = ", ".join([_D_UUID, _D_ID, _D_NAME, _D_STAGE, _D_CRM_ID, _D_TEAM, _D_PAE, _D_PBD, _D_ATLAS_ID, _D_PIPELINE])
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # HELPERS
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _stage_cat(stage: str) -> str | None:
+    """Resolve stage category handling both internal names and display labels."""
+    return _STAGE_TO_CATEGORY.get(stage) or _STAGE_TO_CATEGORY.get(stage.strip())
+
+
+def _deal_priority(deal: dict) -> int:
+    """Lower number = processed first.
+
+    0  Sales/Partners + closing
+    1  Sales/Partners + evaluation
+    2  Sales/Partners + demo
+    3  Sales/Partners + pre-demo (prospecting/nurturing)
+    4  Other pipelines
+    """
+    pipeline = deal.get(_D_PIPELINE) or ""
+    stage = deal.get(_D_STAGE) or ""
+    cat = _stage_cat(stage)
+
+    if pipeline in _PRIORITY_PIPELINES:
+        if cat == "closing":    return 0
+        if cat == "evaluation": return 1
+        if cat == "demo":       return 2
+        return 3
+    return 4
+
+
 def _fetch_stale_deals(limit: int) -> list[dict]:
-    resp = (
-        supabase.table(_TBL_DEALS)
-        .select(_SELECT_COLS)
-        .eq(_D_STALE, True)
-        .in_(_D_STAGE, _ACTIVE_STAGES)
-        .order(_D_UPDATED_AT, desc=False)
-        .limit(limit)
-        .execute()
-    )
-    deals = resp.data or []
-    return [
-        d for d in deals
+    all_deals: list[dict] = []
+    offset = 0
+    while True:
+        resp = (
+            supabase.table(_TBL_DEALS)
+            .select(_SELECT_COLS)
+            .eq(_D_STALE, True)
+            .in_(_D_STAGE, _ACTIVE_STAGES)
+            .range(offset, offset + 999)
+            .execute()
+        )
+        batch = resp.data or []
+        all_deals.extend(batch)
+        if len(batch) < 1000:
+            break
+        offset += 1000
+
+    all_deals = [
+        d for d in all_deals
         if not any(pat in (d.get(_D_NAME) or "").lower() for pat in DEAL_NAME_EXCLUDE_PATTERNS)
     ]
+
+    all_deals.sort(key=lambda d: (_deal_priority(d), d.get(_D_UPDATED_AT) or ""))
+
+    return all_deals[:limit]
 
 
 def _needs_atlas(deal: dict) -> bool:

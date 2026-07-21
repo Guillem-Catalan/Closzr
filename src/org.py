@@ -1705,6 +1705,7 @@ CRM_STAGE_LABEL_TO_INTERNAL = {
     "Hot Nurturing":                        "hot_nurturing",
     "Long Nurturing":                       "long_nurturing",
     "Sales Nurturing":                      "sales_nurturing",
+    "Opportunity detected":                 "opportunity_detected",
 }
 
 SLACK_ACTIVE = {email for email, ch in SLACK_PERSON_CHANNELS.items() if ch}

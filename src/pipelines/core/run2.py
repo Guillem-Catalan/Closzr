@@ -17,7 +17,7 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from src import schema
+from src import org, schema
 from src.config2 import (
     MAX_DEALS_PER_CYCLE,
     CORE_TIMEOUT_MINUTES,
@@ -61,34 +61,14 @@ _ACTIVE_STAGES = list(schema.ACTIVE)
 _PRIORITY_PIPELINES = frozenset({"Sales Pipeline", "Partners Distribution"})
 
 # DB has a mix of internal names ("discovery") and display labels ("Discovery").
-# schema.stage_category() only knows internal names. This fallback covers display labels.
-_LABEL_CATEGORY = {}
-for _k, _v in schema.STAGES.items():
-    _LABEL_CATEGORY[_k] = _v["category"]
-    _LABEL_CATEGORY[_v["short"].lower()] = _v["category"]
-# Manual overrides for labels that don't match schema short names
-_LABEL_CATEGORY.update({
-    "associating the partner": "prospecting",
-    "factorial project alignment started": "evaluation",
-    "meddpicc criteria validation started": "evaluation",
-    "new qualified opportunity": "prospecting",
-    "pre-qualified": "prospecting",
-    "pricing and packaging": "closing",
-    "pricing & packaging": "closing",
-    "research & outreach": "prospecting",
-    "connected - not engaged": "prospecting",
-    "attempting to contact": "prospecting",
-    "opportunity detected": "prospecting",
-    "opportunity lost": "lost",
-    "customer management actions (ongoing)": "excluded",
-    "kick-off & alignment": "excluded",
-    "post-launch review": "excluded",
-    "closed - pending finance validation": "won",
-    "closed pending payment": "won",
-    "economical alignment started": "closing",
-    "closed won": "won",
-    "closed lost": "lost",
-})
+# Resolve both via org.CRM_STAGE_LABEL_TO_INTERNAL → schema.STAGES.
+_STAGE_TO_CATEGORY: dict[str, str] = {}
+for _internal, _meta in schema.STAGES.items():
+    _STAGE_TO_CATEGORY[_internal] = _meta["category"]
+for _label, _internal in org.CRM_STAGE_LABEL_TO_INTERNAL.items():
+    _cat = schema.STAGES.get(_internal, {}).get("category")
+    if _cat:
+        _STAGE_TO_CATEGORY[_label] = _cat
 
 _SELECT_COLS = ", ".join([_D_UUID, _D_ID, _D_NAME, _D_STAGE, _D_CRM_ID, _D_TEAM, _D_PAE, _D_PBD, _D_ATLAS_ID, _D_PIPELINE])
 
@@ -99,7 +79,7 @@ _SELECT_COLS = ", ".join([_D_UUID, _D_ID, _D_NAME, _D_STAGE, _D_CRM_ID, _D_TEAM,
 
 def _stage_cat(stage: str) -> str | None:
     """Resolve stage category handling both internal names and display labels."""
-    return _LABEL_CATEGORY.get(stage) or _LABEL_CATEGORY.get(stage.lower())
+    return _STAGE_TO_CATEGORY.get(stage) or _STAGE_TO_CATEGORY.get(stage.strip())
 
 
 def _deal_priority(deal: dict) -> int:

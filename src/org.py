@@ -1303,22 +1303,8 @@ SLACK_EB_ALERT_EMOJI = {  # & ALL entries — emoji per team
 
 PARTNERS_ORGCHART = {  # & ALL entries — people, teams, emails
     "Telefonica": {
-        "active": True,
+        "active": False,
         "pipeline_ids": ["11834984", "684767384"],
-        "leadership": {
-            "tl_pae": {"email": "carlos.sanchez@factorial.co", "name": "Carlos Sanchez", "role": "PAE Team Leader Telefónica"},
-            "tl_pbd": {"email": "carlos.acosta@factorial.co", "name": "Carlos Acosta", "role": "Partner Business Developer Manager"},
-        },
-        "pbd": {
-            "carlos.acosta@factorial.co", "angel.hernandez@factorial.co",
-            "jon.azconobieta@factorial.co", "maria.masoliver@factorial.co",
-            "alejandro.soto@factorial.co",
-        },
-        "pae": {
-            "carlos.sanchez@factorial.co",
-            "david.clemente@factorial.co", "nerea.urien@factorial.co",
-            "alejandro.soto@factorial.co",
-        },
     },
     "TIM": {
         "active": True,
@@ -1454,7 +1440,8 @@ DIRECT_SALES = {  # & ALL entries — people, teams, emails
                 "DS Monica": {
                     "active": True,
                     "tl": "monica.ortiz@factorial.co", "tl_name": "Monica Ortiz",
-                    "ae": {"carlos.sanchez@factorial.co", "joane.fuldain@factorial.co"},
+                    "ae": {"david.clemente@factorial.co", "nerea.urien@factorial.co",
+                           "alejandro.soto@factorial.co", "joane.fuldain@factorial.co"},
                 },
             },
         },

@@ -26,6 +26,7 @@ const DEFAULT_PERMISSIONS: Record<string, TabScope> = {
   benchmark: { enabled: true, scope: "all" },
   alerts: { enabled: true, scope: "all" },
   uplift: { enabled: true, scope: "all" },
+  orgchart: { enabled: true, scope: "team" },
 };
 
 const PermCtx = createContext<{ profile: UserProfile | null; loading: boolean }>({ profile: null, loading: true });

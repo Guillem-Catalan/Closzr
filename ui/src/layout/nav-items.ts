@@ -35,6 +35,7 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { key: "forecast", label: "Forecast", icon: "target", slug: "forecast" },
       { key: "oneone", label: "1:1", icon: "message", slug: "oneone" },
+      { key: "orgchart", label: "Orgchart", icon: "users", slug: "orgchart" },
       { key: "uplift", label: "Uplift", icon: "sparkle", slug: "uplift", soon: true },
     ],
   },

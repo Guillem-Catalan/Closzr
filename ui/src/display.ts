@@ -184,4 +184,5 @@ export const ALL_TABS = [
   { key: "forecast", label: "Forecast" },
   { key: "oneone", label: "1:1" },
   { key: "uplift", label: "Uplift" },
+  { key: "orgchart", label: "Orgchart" },
 ];

@@ -1114,3 +1114,267 @@
   .cz-md-tiles { grid-template-columns: repeat(3,1fr); }
   .cz-pm-lessons-list { grid-template-columns: 1fr; }
 }
+
+/* ---- Team / Orgchart view ---- */
+.cz-team-view { display: flex; flex-direction: column; height: 100%; }
+.cz-team-view__body { display: flex; flex: 1; overflow: hidden; }
+.cz-team-view__tree { flex: 1; overflow: hidden; cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none; }
+.cz-team-view__tree:active { cursor: grabbing; }
+.cz-team-view__canvas { padding: 40px 48px 120px; display: inline-block; min-width: 100%; }
+.cz-team-view__panel { width: 340px; flex: none; border-left: 1px solid var(--line); overflow-y: auto; }
+
+/* Horizontal org tree */
+.cz-ot-wrap { display: flex; gap: 56px; align-items: flex-start; }
+.cz-ot-group { display: flex; flex-direction: column; align-items: center; }
+.cz-ot-group__title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin: 0 0 16px; }
+.cz-ot-roots { display: flex; gap: 48px; align-items: flex-start; }
+
+/* Each branch = card + optional collapse + children */
+.cz-ot-branch { display: flex; flex-direction: column; align-items: center; position: relative; }
+
+/* Card (pill node) */
+.cz-ot-card { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px 7px 7px; background: var(--card); border: 1.5px solid var(--line); border-radius: var(--r-pill); cursor: pointer; white-space: nowrap; font-size: 13px; transition: border-color .2s, box-shadow .2s, transform .2s, opacity .2s, background .2s; user-select: none; }
+.cz-ot-card:hover { border-color: var(--ink-3); }
+.cz-ot-card--sel { border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(59,75,216,.12); }
+.cz-ot-card--off { opacity: .4; }
+.cz-ot-card__name { font-weight: 600; color: var(--ink); max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+
+/* Count badge (collapsed) + collapse button (expanded) — shared circle style */
+.cz-ot-badge, .cz-ot-collapse { width: 26px; height: 26px; border-radius: 50%; background: var(--card); border: 1.5px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--ink-3); cursor: pointer; transition: border-color .12s, color .12s; position: relative; }
+.cz-ot-badge:hover, .cz-ot-collapse:hover { border-color: var(--indigo); color: var(--indigo); }
+
+/* Badge: stem up from card */
+.cz-ot-badge { margin-top: 10px; }
+.cz-ot-badge::before { content: ''; position: absolute; bottom: 100%; left: 50%; width: 2px; height: 10px; background: var(--line); transform: translateX(-50%); }
+
+/* Collapse button: stems up (to card) and down (to children connector) */
+.cz-ot-collapse { margin: 2px 0; z-index: 1; }
+.cz-ot-collapse::before { content: ''; position: absolute; bottom: 100%; left: 50%; width: 2px; height: 14px; background: var(--line); transform: translateX(-50%); }
+.cz-ot-collapse::after  { content: ''; position: absolute; top: 100%; left: 50%; width: 2px; height: 14px; background: var(--line); transform: translateX(-50%); }
+
+/* Children row */
+.cz-ot-children { display: flex; }
+
+/* Connector lines per child branch */
+.cz-ot-children > .cz-ot-branch { padding: 26px 14px 0; position: relative; }
+
+/* Left half: horizontal connector (border-top) + vertical drop (border-right at center) */
+.cz-ot-children > .cz-ot-branch::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 50%; height: 26px;
+  border-top: 2px solid var(--line); border-right: 2px solid var(--line);
+  transition: opacity .3s;
+}
+/* Right half: horizontal connector continuing right */
+.cz-ot-children > .cz-ot-branch::after {
+  content: ''; position: absolute; top: 0; left: 50%; right: 0; height: 0;
+  border-top: 2px solid var(--line);
+  transition: opacity .3s;
+}
+/* First child: no horizontal line going left */
+.cz-ot-children > .cz-ot-branch:first-child::before { border-top: none; }
+/* Last child: no horizontal line going right */
+.cz-ot-children > .cz-ot-branch:last-child::after { border-top: none; }
+/* Only child: just vertical drop */
+.cz-ot-children > .cz-ot-branch:only-child::before { border-top: none; }
+.cz-ot-children > .cz-ot-branch:only-child::after { display: none; }
+
+/* Person panel */
+.cz-person-panel { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+.cz-person-panel__header { display: flex; align-items: flex-start; justify-content: space-between; }
+.cz-person-panel__close { width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.cz-person-panel__fields { display: flex; flex-direction: column; gap: 14px; }
+.cz-person-panel__actions { display: flex; align-items: center; gap: 12px; }
+.cz-person-panel__saved { font-size: 12.5px; color: var(--green); font-weight: 600; }
+
+/* Field atoms */
+.cz-field { display: flex; flex-direction: column; gap: 4px; }
+.cz-field__label { font-size: 11.5px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.cz-field__input { font-size: 13.5px; padding: 7px 10px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+.cz-field__input:disabled { background: var(--card-2); color: var(--ink-3); cursor: default; }
+.cz-field__input:focus { outline: none; border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(59,75,216,.12); }
+.cz-field__row { display: flex; align-items: center; gap: 8px; }
+.cz-field__hint { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.cz-field--toggle { flex-direction: row; align-items: center; justify-content: space-between; }
+
+/* Toggle switch */
+.cz-toggle { width: 40px; height: 22px; border-radius: 11px; background: var(--line); border: none; cursor: pointer; position: relative; transition: background .15s; padding: 0; }
+.cz-toggle--on { background: var(--green); }
+.cz-toggle__knob { width: 16px; height: 16px; border-radius: 50%; background: #fff; position: absolute; top: 3px; left: 3px; transition: transform .15s; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.cz-toggle--on .cz-toggle__knob { transform: translateX(18px); }
+
+/* Edit mode */
+.cz-toolbar--editing {
+  background: var(--indigo-tint-2);
+  border-bottom: 2px solid var(--indigo-300);
+  transition: background .25s, border-color .25s;
+}
+.cz-edit-actions {
+  display: flex; align-items: center; gap: 10px; margin-left: auto;
+}
+.cz-edit-badge {
+  font-size: 12px; font-weight: 700; color: var(--indigo);
+  background: var(--indigo-tint); padding: 4px 12px;
+  border-radius: var(--r-pill); white-space: nowrap;
+}
+.cz-ot-card--editable {
+  cursor: grab;
+  transition: box-shadow .2s, transform .2s, border-color .2s;
+}
+.cz-ot-card--editable:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.10);
+  transform: translateY(-1px);
+}
+.cz-ot-card--editable:active { cursor: grabbing; }
+
+/* Card being dragged */
+.cz-ot-card--dragging {
+  opacity: 0.15;
+  transform: scale(0.92);
+  transition: opacity .2s, transform .2s;
+  cursor: grabbing !important;
+}
+
+/* Disconnected node */
+.cz-ot-branch--disconnected::before,
+.cz-ot-branch--disconnected::after {
+  opacity: 0 !important;
+  transition: opacity .3s ease;
+}
+.cz-ot-card--disconnected {
+  opacity: 0.45; border: 1.5px dashed var(--red) !important;
+  background: var(--red-tint) !important;
+  cursor: grab !important;
+  transition: opacity .3s, border-color .3s;
+}
+.cz-ot-card--disconnected:hover {
+  opacity: 0.7;
+  border-color: var(--red) !important;
+  box-shadow: 0 2px 8px rgba(216,68,47,.15) !important;
+}
+
+/* Plus button */
+.cz-ot-plus {
+  width: 20px; height: 20px; border-radius: 50%; position: relative;
+  background: var(--indigo-tint); border: 1.5px solid var(--indigo-300);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--indigo); cursor: pointer; z-index: 3;
+  margin-top: 3px; opacity: 0;
+  transition: opacity .15s, background .15s, border-color .15s, transform .15s, color .15s;
+}
+.cz-ot-branch:hover > .cz-ot-plus { opacity: 1; }
+.cz-ot-plus:hover {
+  background: var(--indigo); color: #fff;
+  border-color: var(--indigo); transform: scale(1.2);
+}
+
+/* Ghost card (follows cursor during drag) */
+.cz-ot-ghost {
+  position: fixed; pointer-events: none; z-index: 101;
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 14px 6px 6px;
+  background: var(--card); border-radius: var(--r-pill);
+  box-shadow: 0 8px 28px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08);
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  white-space: nowrap;
+  animation: cz-ghost-in .15s ease both;
+}
+.cz-ot-ghost__avatar {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--indigo-tint); color: var(--indigo);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; letter-spacing: .02em;
+  flex-shrink: 0;
+}
+.cz-ot-ghost__name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+@keyframes cz-ghost-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Children dialog */
+.cz-edit-dialog {
+  background: var(--card); border-radius: var(--r-lg);
+  padding: 28px 32px; max-width: 420px; width: 100%;
+  box-shadow: var(--sh-lg); border: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; gap: 12px;
+  animation: cz-scale-in .2s ease both;
+}
+.cz-edit-dialog__icon {
+  width: 48px; height: 48px; border-radius: var(--r-md);
+  background: var(--amber-tint); color: var(--amber-ink);
+  display: flex; align-items: center; justify-content: center;
+}
+.cz-edit-dialog__title {
+  font-size: 17px; font-weight: 700; margin: 0;
+}
+.cz-edit-dialog__text {
+  font-size: 14px; color: var(--ink-2); margin: 0;
+}
+.cz-edit-dialog__actions {
+  display: flex; flex-direction: column; gap: 8px;
+  width: 100%; margin-top: 8px;
+}
+.cz-edit-dialog__btn {
+  width: 100%; padding: 10px 16px; border-radius: var(--r-sm);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--line-ink); background: var(--card);
+  color: var(--ink-2); transition: all .15s;
+}
+.cz-edit-dialog__btn:hover { border-color: var(--ink-3); background: var(--card-2); }
+.cz-edit-dialog__btn--primary {
+  background: var(--indigo); color: #fff; border-color: var(--indigo);
+}
+.cz-edit-dialog__btn--primary:hover { background: var(--indigo-700); }
+.cz-edit-dialog__btn--warn {
+  background: var(--red-tint); color: var(--red-ink); border-color: var(--red);
+}
+.cz-edit-dialog__btn--warn:hover { background: var(--red); color: #fff; }
+
+/* Add person form dialog */
+.cz-edit-dialog--form { text-align: left; align-items: stretch; max-width: 400px; }
+.cz-edit-dialog--form .cz-edit-dialog__title { text-align: center; }
+.cz-edit-dialog--form .cz-edit-dialog__text { text-align: center; margin-bottom: 4px; }
+.cz-edit-dialog__fields { display: flex; flex-direction: column; gap: 12px; }
+.cz-edit-dialog__error {
+  font-size: 13px; color: var(--red-ink); background: var(--red-tint);
+  padding: 10px 14px; border-radius: var(--r-sm); line-height: 1.45;
+  border: 1px solid var(--red);
+}
+.cz-edit-dialog__actions--row { flex-direction: row; gap: 10px; }
+.cz-edit-dialog__actions--row .cz-edit-dialog__btn { flex: 1; text-align: center; }
+
+.cz-edit-dialog__icon--indigo {
+  background: var(--indigo-tint); color: var(--indigo);
+}
+
+/* Drop target highlight */
+.cz-ot-card--drop-target {
+  outline: 2.5px solid var(--indigo) !important;
+  outline-offset: 3px;
+  transform: scale(1.05) !important;
+  transition: transform .15s, outline .15s, box-shadow .15s;
+  box-shadow: 0 0 20px rgba(59,75,216,.2), 0 4px 12px rgba(59,75,216,.12) !important;
+}
+
+/* SVG drag line overlay */
+.cz-drag-svg {
+  position: fixed; top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  pointer-events: none; z-index: 100;
+}
+.cz-drag-line {
+  fill: none; stroke: var(--indigo);
+  stroke-width: 2; stroke-dasharray: 6 4;
+  stroke-linecap: round;
+  animation: cz-dash .5s linear infinite;
+  opacity: 0.7;
+}
+@keyframes cz-dash {
+  to { stroke-dashoffset: -10; }
+}
+
+@media (max-width: 900px) {
+  .cz-team-view__body { flex-direction: column; }
+  .cz-team-view__panel { width: 100%; border-left: none; border-top: 1px solid var(--line); max-height: 50vh; }
+}

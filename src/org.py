@@ -758,6 +758,7 @@ CRM_OWNER_MAP = {  # & ALL entries — owner IDs and emails
     "blanca.orti@factorial.co": {"id": "343529996", "name": "Blanca Orti Morillo"},
     "carlos.acosta@factorial.co": {"id": "77159731", "name": "Carlos Acosta"},
     "carlos.sanchez@factorial.co": {"id": "2078231828", "name": "Carlos Sanchez"},
+    "camila.vento@factorial.co": {"id": "84984313", "name": "Camila Vento"},
     "carlota.alvarez@factorial.co": {"id": "77922017", "name": "Carlota Álvarez"},
     "caterina.peraire@factorial.co": {"id": "34212948", "name": "Caterina Peraire"},
     "cecilia.rinaldo@factorial.co": {"id": "32832928", "name": "Cecilia Rinaldo"},
@@ -1391,7 +1392,7 @@ DIRECT_SALES = {  # & ALL entries — people, teams, emails
                                     "active": True,
                                     "tl": "ruben.mariscal@factorial.co", "tl_name": "Rubén Mariscal",
                                     "ae": {"blanca.orti@factorial.co", "arnau.palos@factorial.co", "nil.oleaga@factorial.co",
-                                           "iban.cordobes@factorial.co", "camila.aldana@factorial.co", "miquel.criado@factorial.co",
+                                           "iban.cordobes@factorial.co", "camila.vento@factorial.co", "miquel.criado@factorial.co",
                                            "guillermo.ferrer@factorial.co", "andreu.aloguin@factorial.co"},
                                 },
                                 "DS Andrea C": {

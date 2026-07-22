@@ -1,11 +1,15 @@
-name: Backfill Team
+name: Backfill
 
 on:
   workflow_dispatch:
     inputs:
       team:
-        description: 'Team name (e.g., XL, Mexico, Santander)'
-        required: true
+        description: 'Team name (e.g., DS Rubén, XL, TIM). Leave empty if using email.'
+        required: false
+        type: string
+      email:
+        description: 'Individual email (e.g., camila.vento@factorial.co). Leave empty if using team.'
+        required: false
         type: string
       limit:
         description: 'Max deals to process (default: 500)'
@@ -38,6 +42,8 @@ jobs:
           MODJO_API_KEY: ${{ secrets.MODJO_API_KEY }}
         run: |
           python -c "
-          from src.pipelines.backfill.run import run
-          run('${{ inputs.team }}', limit=int('${{ inputs.limit }}'))
+          from src.pipelines.backfill.run2 import run
+          team = '${{ inputs.team }}' or None
+          email = '${{ inputs.email }}' or None
+          run(team=team, email=email, limit=int('${{ inputs.limit }}'))
           "

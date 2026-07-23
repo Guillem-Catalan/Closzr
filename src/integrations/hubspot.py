@@ -59,6 +59,23 @@ def post(path: str, body: dict) -> dict:
     resp.raise_for_status()
 
 
+def patch(path: str, body: dict) -> dict:
+    global _total_requests
+    url = f"{API_ENDPOINTS['hubspot']}{path}" if path.startswith("/") else path
+    for attempt in range(HUBSPOT_MAX_RETRIES):
+        _throttle()
+        _total_requests += 1
+        resp = requests.patch(url, headers=_HEADERS, json=body, timeout=HUBSPOT_REQUEST_TIMEOUT)
+        if resp.status_code in (200, 201, 202):
+            return resp.json()
+        if resp.status_code in HUBSPOT_RETRYABLE_CODES:
+            wait = 2 ** attempt
+            time.sleep(wait)
+            continue
+        resp.raise_for_status()
+    resp.raise_for_status()
+
+
 def total_requests() -> int:
     return _total_requests
 

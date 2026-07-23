@@ -15,6 +15,7 @@ import TodoView from "./views/todo/TodoView";
 import BenchmarkView from "./views/benchmark/BenchmarkView";
 import ComingSoon from "./views/ComingSoon";
 const AdminView = lazy(() => import("./views/admin/AdminView"));
+const TeamView = lazy(() => import("./views/team/TeamView"));
 
 function SidebarToggle() {
   const { toggle, expanded } = useSidebar();
@@ -75,7 +76,8 @@ function App() {
           {view === "oneone" && <OneOnOneView onOpen={handleOpen}/>}
           {view === "admin" && <Suspense fallback={<p style={{color:"var(--ink-3)"}}>Cargando...</p>}><AdminView/></Suspense>}
           {view === "benchmark" && <BenchmarkView onOpen={handleOpen}/>}
-          {["general","alerts","uplift"].includes(view) && <ComingSoon label={view.charAt(0).toUpperCase() + view.slice(1)}/>}
+          {view === "orgchart" && <Suspense fallback={<p style={{color:"var(--ink-3)"}}>Cargando...</p>}><TeamView/></Suspense>}
+          {["general","performance","team-analytics","uplift","insights","partner-pipeline","partner-forecast","partner-analytics"].includes(view) && <ComingSoon label={view.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}/>}
         </main>
         {detailLoading && (
           <div className="cz-overlay" style={{background:"rgba(28,24,16,.25)"}}>

@@ -22,10 +22,10 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Execution",
     icon: "route",
     children: [
-      { key: "todos", label: "To Do's", icon: "check", slug: "todos" },
+      { key: "alerts", label: "Alerts", icon: "alert", slug: "todos" },
       { key: "pipeline", label: "Pipeline", icon: "layers", slug: "deals" },
       { key: "benchmark", label: "Benchmark", icon: "trendUp", slug: "benchmark" },
-      { key: "alerts", label: "Alerts", icon: "alert", slug: "alerts", soon: true },
+      { key: "performance", label: "Performance", icon: "award", slug: "performance", soon: true },
     ],
   },
   {
@@ -35,7 +35,27 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { key: "forecast", label: "Forecast", icon: "target", slug: "forecast" },
       { key: "oneone", label: "1:1", icon: "message", slug: "oneone" },
+      { key: "analytics", label: "Analytics", icon: "trendUp", slug: "team-analytics", soon: true },
+      { key: "orgchart", label: "Orgchart", icon: "users", slug: "orgchart" },
+    ],
+  },
+  {
+    key: "product",
+    label: "Product",
+    icon: "sparkle",
+    children: [
       { key: "uplift", label: "Uplift", icon: "sparkle", slug: "uplift", soon: true },
+      { key: "insights", label: "Insights", icon: "book", slug: "insights", soon: true },
+    ],
+  },
+  {
+    key: "partners",
+    label: "Partners",
+    icon: "building",
+    children: [
+      { key: "partner-pipeline", label: "Pipeline", icon: "layers", slug: "partner-pipeline", soon: true },
+      { key: "partner-forecast", label: "Forecast", icon: "target", slug: "partner-forecast", soon: true },
+      { key: "partner-analytics", label: "Analytics", icon: "trendUp", slug: "partner-analytics", soon: true },
     ],
   },
 ];

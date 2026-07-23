@@ -177,11 +177,17 @@ export const ADMIN_SCOPES = [
 ];
 export const ALL_TABS = [
   { key: "general", label: "General" },
-  { key: "todos", label: "To Do's" },
+  { key: "todos", label: "Alerts" },
   { key: "deals", label: "Pipeline" },
   { key: "benchmark", label: "Benchmark" },
-  { key: "alerts", label: "Alerts" },
+  { key: "performance", label: "Performance" },
   { key: "forecast", label: "Forecast" },
   { key: "oneone", label: "1:1" },
+  { key: "team-analytics", label: "Analytics" },
+  { key: "orgchart", label: "Orgchart" },
   { key: "uplift", label: "Uplift" },
+  { key: "insights", label: "Insights" },
+  { key: "partner-pipeline", label: "Pipeline" },
+  { key: "partner-forecast", label: "Forecast" },
+  { key: "partner-analytics", label: "Analytics" },
 ];

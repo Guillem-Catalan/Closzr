@@ -77,7 +77,7 @@ function App() {
           {view === "admin" && <Suspense fallback={<p style={{color:"var(--ink-3)"}}>Cargando...</p>}><AdminView/></Suspense>}
           {view === "benchmark" && <BenchmarkView onOpen={handleOpen}/>}
           {view === "orgchart" && <Suspense fallback={<p style={{color:"var(--ink-3)"}}>Cargando...</p>}><TeamView/></Suspense>}
-          {["general","alerts","uplift"].includes(view) && <ComingSoon label={view.charAt(0).toUpperCase() + view.slice(1)}/>}
+          {["general","performance","team-analytics","uplift","insights","partner-pipeline","partner-forecast","partner-analytics"].includes(view) && <ComingSoon label={view.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}/>}
         </main>
         {detailLoading && (
           <div className="cz-overlay" style={{background:"rgba(28,24,16,.25)"}}>

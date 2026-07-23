@@ -14,6 +14,8 @@ function HNode({
   dragEmail,
   onCardPointerDown,
   onAddClick,
+  onCutClick,
+  isChild,
 }: {
   node: OrgNode;
   selectedEmail: string | null;
@@ -26,6 +28,8 @@ function HNode({
   dragEmail?: string | null;
   onCardPointerDown?: (e: React.PointerEvent, email: string) => void;
   onAddClick?: (parentEmail: string) => void;
+  onCutClick?: (email: string) => void;
+  isChild?: boolean;
 }) {
   const isSelected = selectedEmail === node.email;
   const hasChildren = node.children.length > 0;
@@ -34,6 +38,7 @@ function HNode({
   const isDisconnected = disconnected?.has(node.email);
   const isDragging = dragEmail === node.email;
   const showPlus = editing && isEditable && !isDisconnected;
+  const showCut = editing && isEditable && !isDisconnected && isChild;
 
   const branchClass = [
     "cz-ot-branch",
@@ -51,6 +56,13 @@ function HNode({
 
   return (
     <div className={branchClass}>
+      {showCut && (
+        <button
+          className="cz-ot-cut"
+          onClick={(e) => { e.stopPropagation(); onCutClick?.(node.email); }}
+          title="Sacar del equipo"
+        >✂️</button>
+      )}
       <div
         className={cardClass}
         onClick={() => !editing && onSelect(node)}
@@ -100,6 +112,8 @@ function HNode({
                 dragEmail={dragEmail}
                 onCardPointerDown={onCardPointerDown}
                 onAddClick={onAddClick}
+                onCutClick={onCutClick}
+                isChild
               />
             ))}
           </div>
@@ -120,6 +134,7 @@ export default function OrgTree({
   dragEmail,
   onCardPointerDown,
   onAddClick,
+  onCutClick,
 }: {
   groups: OrgGroup[];
   selectedEmail: string | null;
@@ -131,6 +146,7 @@ export default function OrgTree({
   dragEmail?: string | null;
   onCardPointerDown?: (e: React.PointerEvent, email: string) => void;
   onAddClick?: (parentEmail: string) => void;
+  onCutClick?: (email: string) => void;
 }) {
   const initialized = useRef(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -185,6 +201,7 @@ export default function OrgTree({
                 dragEmail={dragEmail}
                 onCardPointerDown={onCardPointerDown}
                 onAddClick={onAddClick}
+                onCutClick={onCutClick}
               />
             ))}
           </div>

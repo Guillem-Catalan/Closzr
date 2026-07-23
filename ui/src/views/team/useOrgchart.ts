@@ -234,11 +234,20 @@ export function useOrgchart(userEmail: string, userRole: string) {
 
   const movePerson = useCallback((email: string, newReportsTo: string, reassignDeals = true) => {
     setAllRows(prev => {
+      const subtree = collectSubtreeEmails(prev, email);
+      if (subtree.has(newReportsTo)) return prev;
+
       const person = prev.find(r => r.email === email);
       const oldReportsTo = person?.reports_to || null;
-      const next = prev.map(r =>
-        r.email === email ? { ...r, reports_to: newReportsTo } : r
-      );
+      const newParent = prev.find(r => r.email === newReportsTo);
+      const newTeam = newParent?.team_name || person?.team_name || "";
+      const newChannel = newParent?.channel || person?.channel || "";
+
+      const next = prev.map(r => {
+        if (r.email === email) return { ...r, reports_to: newReportsTo, team_name: newTeam, channel: newChannel };
+        if (subtree.has(r.email)) return { ...r, team_name: newTeam, channel: newChannel };
+        return r;
+      });
       rebuildGroups(next);
       setPendingChanges(pc => [
         ...pc,
@@ -285,6 +294,109 @@ export function useOrgchart(userEmail: string, userRole: string) {
     });
   }, [rebuildGroups]);
 
+  const commitChanges = useCallback(async () => {
+    if (!pendingChanges.length) return false;
+    setSaving(true);
+
+    const snap = snapshotRef.current;
+    const snapMap = new Map(snap.map(r => [r.email, r]));
+
+    // Recalculate hierarchy_level from tree depth
+    const parentMap = new Map(allRows.map(r => [r.email, r.reports_to]));
+    function getDepth(email: string, visited = new Set<string>()): number {
+      if (visited.has(email)) return 0;
+      visited.add(email);
+      const parent = parentMap.get(email);
+      if (!parent) return 0;
+      return 1 + getDepth(parent, visited);
+    }
+    const rows = allRows.map(r => ({ ...r, hierarchy_level: getDepth(r.email) }));
+
+    try {
+      const newEmails = new Set(rows.map(r => r.email));
+      const oldEmails = new Set(snap.map(r => r.email));
+      const teamChangedEmails: { email: string; newTeam: string }[] = [];
+
+      for (const row of rows) {
+        const old = snapMap.get(row.email);
+        if (!old) {
+          const { error } = await supabase.from("orgchart").insert({
+            email: row.email,
+            full_name: row.full_name,
+            role: row.role,
+            channel: row.channel,
+            team_name: row.team_name,
+            reports_to: row.reports_to,
+            hs_owner_id: row.hs_owner_id,
+            hierarchy_level: row.hierarchy_level,
+            is_active: row.is_active,
+            target_mrr: row.target_mrr,
+            additional_teams: row.additional_teams,
+          });
+          if (error) throw error;
+        } else {
+          const updates: Record<string, unknown> = {};
+          if (row.reports_to !== old.reports_to) updates.reports_to = row.reports_to;
+          if (row.team_name !== old.team_name) updates.team_name = row.team_name;
+          if (row.channel !== old.channel) updates.channel = row.channel;
+          if (row.role !== old.role) updates.role = row.role;
+          if (row.full_name !== old.full_name) updates.full_name = row.full_name;
+          if (row.is_active !== old.is_active) updates.is_active = row.is_active;
+          if (row.hierarchy_level !== old.hierarchy_level) updates.hierarchy_level = row.hierarchy_level;
+
+          if (Object.keys(updates).length > 0) {
+            const { error } = await supabase
+              .from("orgchart")
+              .update(updates)
+              .eq("email", row.email);
+            if (error) throw error;
+          }
+
+          if (row.team_name !== old.team_name) {
+            teamChangedEmails.push({ email: row.email, newTeam: row.team_name });
+          }
+        }
+      }
+
+      for (const email of oldEmails) {
+        if (!newEmails.has(email)) {
+          const { error } = await supabase
+            .from("orgchart")
+            .update({ is_active: false })
+            .eq("email", email);
+          if (error) throw error;
+        }
+      }
+
+      // Update deals + deal_ui team for people who changed teams
+      for (const { email, newTeam } of teamChangedEmails) {
+        await supabase.functions.invoke("orgchart-ops", {
+          body: { action: "update_team", email, new_team: newTeam },
+        });
+      }
+
+      const { data } = await supabase
+        .from("orgchart")
+        .select("*")
+        .order("hierarchy_level");
+      if (data) {
+        const refreshed = data as OrgPerson[];
+        setAllRows(refreshed);
+        rebuildGroups(refreshed);
+      }
+
+      setEditing(false);
+      setPendingChanges([]);
+      setDisconnected(new Set());
+      setSaving(false);
+      return true;
+    } catch (err) {
+      console.error("commitChanges failed:", err);
+      setSaving(false);
+      return false;
+    }
+  }, [pendingChanges, allRows, rebuildGroups]);
+
   return {
     groups,
     loading,
@@ -297,6 +409,7 @@ export function useOrgchart(userEmail: string, userRole: string) {
     editing,
     startEditing,
     discardChanges,
+    commitChanges,
     movePerson,
     removePerson,
     addPerson,

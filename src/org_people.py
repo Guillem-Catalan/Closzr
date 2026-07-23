@@ -497,14 +497,14 @@ PARTNERS_ORGCHART = {
         'active': True,
         'pipeline_ids': ['824790797', '3612610753'],
         'leadership': {
-            'tl_pbd': {
-                'email': 'giacomo.torresi@factorial.co',
-                'name': 'Giacomo Torresi',
-                'role': 'TL',
-            },
             'tl_pae': {
                 'email': 'nunzio.fumo@factorial.co',
                 'name': 'Nunzio Fumo',
+                'role': 'TL',
+            },
+            'tl_pbd': {
+                'email': 'giacomo.torresi@factorial.co',
+                'name': 'Giacomo Torresi',
                 'role': 'TL',
             },
             'director': {
@@ -566,6 +566,12 @@ PARTNERS_ORGCHART = {
         'tl': 'oriol.pesa@factorial.co',
         'tl_name': 'Oriol Pesa',
         'subteams': {
+            'Mexico Ernesto': {
+                'active': True,
+                'tl': 'ernesto.blanco@factorial.co',
+                'tl_name': 'Ernesto Blanco Sierra',
+                'ae': {"eduardo.mahr@factorial.co", "gustavo.torres@factorial.co"},
+            },
             'Mexico Francesc': {
                 'active': True,
                 'tl': 'francesc.terns@factorial.co',
@@ -588,12 +594,6 @@ PARTNERS_ORGCHART = {
                     "fabiola.villalobos@factorial.co",
                     "marta.ruiz@factorial.co",
                 },
-            },
-            'Mexico Ernesto': {
-                'active': True,
-                'tl': 'ernesto.blanco@factorial.co',
-                'tl_name': 'Ernesto Blanco Sierra',
-                'ae': {"eduardo.mahr@factorial.co", "gustavo.torres@factorial.co"},
             },
         },
         'pipeline_ids': ['default', '9048177'],
@@ -761,6 +761,7 @@ MANAGER_EMAILS = {
     "marc.macia@factorial.co",
     "marc.sorensen@factorial.co",
     "oriol.delmoral@factorial.co",
+    "pau.cruz@factorial.co",
     "samuel.fernandez@factorial.co",
 }
 

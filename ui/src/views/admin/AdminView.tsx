@@ -1,198 +1,215 @@
 import { useState, useEffect } from "react";
 import { Icon, Chip, Avatar, getInitials } from "../components";
 import { supabase } from "../../data/supabase";
-import type { TabScope } from "../../permissions";
-import { ALL_TABS, ADMIN_ROLES, ADMIN_SCOPES, getAllTeamNames } from "../../display";
+import { ALL_TABS, ALL_ROLES, ROLE_LABELS, ACCESS_LEVELS, SCOPE_OPTIONS, KNOWN_PARTNERS } from "../../display";
+import type { Scope } from "../../permissions";
 
-type UserRow = {
-  id: string;
+type OrgRow = {
   email: string;
-  name: string;
-  team: string;
+  full_name: string;
   role: string;
-  visible_teams: string[];
-  visible_reps: string[];
-  tab_permissions: Record<string, TabScope>;
-  last_login: string | null;
+  access_level: string;
+  team_name: string;
+  channel: string;
+  visible_partners: string[];
+  scope_general: Scope;
+  scope_alerts: Scope;
+  scope_pipeline: Scope;
+  scope_benchmark: Scope;
+  scope_performance: Scope;
+  scope_forecast: Scope;
+  scope_one_one: Scope;
+  scope_team_analytics: Scope;
+  scope_orgchart: Scope;
+  scope_uplift: Scope;
+  scope_insights: Scope;
+  scope_admin: Scope;
+  scope_partners: Scope;
+  updated_at: string | null;
 };
 
-const ROLES = ADMIN_ROLES;
-const SCOPES = ADMIN_SCOPES;
-const CONFIG_TEAMS = getAllTeamNames();
+const SCOPE_COLS = ALL_TABS.map(t => `scope_${t.key}` as const);
 
-function UserEditor({ user, onSave, onCancel }: { user: UserRow; onSave: (u: UserRow) => void; onCancel: () => void }) {
-  const [u, setU] = useState<UserRow>({ ...user, visible_teams: [...new Set(user.visible_teams || [])] });
+const ACCESS_TONE: Record<string, string> = {
+  admin: "indigo", manager: "violet", visitor: "amber", tree: "ink",
+};
 
-  const setField = (k: keyof UserRow, v: any) => setU(prev => ({ ...prev, [k]: v }));
-  const setTabPerm = (tab: string, field: string, value: any) => {
-    setU(prev => ({
-      ...prev,
-      tab_permissions: {
-        ...prev.tab_permissions,
-        [tab]: { ...(prev.tab_permissions[tab] || { enabled: true, scope: "all" }), [field]: value },
-      },
-    }));
-  };
+function PersonEditor({ person, onSave, onCancel }: { person: OrgRow; onSave: (p: OrgRow) => void; onCancel: () => void }) {
+  const [p, setP] = useState<OrgRow>({ ...person });
 
-  const toggleTeam = (team: string) => {
-    const teams = u.visible_teams || [];
-    setField("visible_teams", teams.includes(team) ? teams.filter(t => t !== team) : [...teams, team]);
+  const set = (k: keyof OrgRow, v: any) => setP(prev => ({ ...prev, [k]: v }));
+
+  const togglePartner = (partner: string) => {
+    const current = p.visible_partners || [];
+    set("visible_partners", current.includes(partner) ? current.filter(x => x !== partner) : [...current, partner]);
   };
 
   return (
     <div style={{ padding: "20px 22px", background: "var(--card-2)", borderBottom: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Row 1: Access level + Role */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <div>
-          <span className="eyebrow" style={{ display: "block", marginBottom: 4 }}>Nombre</span>
-          <input value={u.name} onChange={e => setField("name", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1px solid var(--line-ink)", borderRadius: "var(--r-sm)", fontSize: 14 }} />
+          <span className="eyebrow" style={{ display: "block", marginBottom: 4 }}>Access Level</span>
+          <select value={p.access_level} onChange={e => set("access_level", e.target.value)} className="cz-native-select" style={{ width: "100%" }}>
+            {Object.entries(ACCESS_LEVELS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+          </select>
         </div>
         <div>
           <span className="eyebrow" style={{ display: "block", marginBottom: 4 }}>Rol</span>
-          <select value={u.role} onChange={e => setField("role", e.target.value)} className="cz-native-select" style={{ width: "100%" }}>
-            {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+          <select value={p.role} onChange={e => set("role", e.target.value)} className="cz-native-select" style={{ width: "100%" }}>
+            {ALL_ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>)}
           </select>
         </div>
       </div>
 
+      {/* Row 2: Partners */}
       <div>
-        <span className="eyebrow" style={{ display: "block", marginBottom: 6 }}>Equipos visibles</span>
+        <span className="eyebrow" style={{ display: "block", marginBottom: 6 }}>Partners visibles</span>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {CONFIG_TEAMS.map(t => (
-            <button key={t} onClick={() => toggleTeam(t)} style={{
-              padding: "5px 12px", borderRadius: "var(--r-pill)", fontSize: 13, fontWeight: 600,
-              border: "1px solid " + ((u.visible_teams || []).includes(t) ? "var(--indigo)" : "var(--line-ink)"),
-              background: (u.visible_teams || []).includes(t) ? "var(--indigo-tint)" : "white",
-              color: (u.visible_teams || []).includes(t) ? "var(--indigo)" : "var(--ink-2)",
-              cursor: "pointer",
-            }}>{t}</button>
-          ))}
+          {KNOWN_PARTNERS.map(partner => {
+            const active = (p.visible_partners || []).includes(partner);
+            return (
+              <button key={partner} onClick={() => togglePartner(partner)} style={{
+                padding: "5px 12px", borderRadius: "var(--r-pill)", fontSize: 13, fontWeight: 600,
+                border: "1px solid " + (active ? "var(--indigo)" : "var(--line-ink)"),
+                background: active ? "var(--indigo-tint)" : "white",
+                color: active ? "var(--indigo)" : "var(--ink-2)",
+                cursor: "pointer",
+              }}>{partner}</button>
+            );
+          })}
         </div>
       </div>
 
+      {/* Row 3: Scopes per view */}
       <div>
-        <span className="eyebrow" style={{ display: "block", marginBottom: 6 }}>Permisos por pestaña</span>
+        <span className="eyebrow" style={{ display: "block", marginBottom: 6 }}>Scope por vista</span>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
           {ALL_TABS.map(tab => {
-            const perm = u.tab_permissions?.[tab.key] || { enabled: true, scope: "all" };
+            const col = `scope_${tab.key}` as keyof OrgRow;
+            const val = (p[col] as string) || "none";
             return (
               <div key={tab.key} className="cz-card" style={{ padding: "12px 14px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>{tab.label}</span>
-                  <button onClick={() => setTabPerm(tab.key, "enabled", !perm.enabled)} style={{
-                    width: 36, height: 20, borderRadius: 99, border: "none", cursor: "pointer",
-                    background: perm.enabled ? "var(--green)" : "var(--line-ink)",
-                    position: "relative",
-                  }}>
-                    <span style={{
-                      position: "absolute", top: 2, left: perm.enabled ? 18 : 2,
-                      width: 16, height: 16, borderRadius: 99, background: "white",
-                      transition: "left .15s", boxShadow: "var(--sh-xs)",
-                    }} />
-                  </button>
-                </div>
-                {perm.enabled && (
-                  <select value={perm.scope} onChange={e => setTabPerm(tab.key, "scope", e.target.value)} className="cz-native-select" style={{ width: "100%", fontSize: 12 }}>
-                    {SCOPES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
-                )}
+                <span style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6 }}>{tab.label}</span>
+                <select value={val} onChange={e => set(col, e.target.value)} className="cz-native-select" style={{ width: "100%", fontSize: 12 }}>
+                  {SCOPE_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
               </div>
             );
           })}
         </div>
       </div>
 
+      {/* Actions */}
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
         <button className="cz-btn-soft" onClick={onCancel}>Cancelar</button>
-        <button className="cz-btn-primary" onClick={() => onSave({ ...u, visible_teams: [...new Set(u.visible_teams || [])] })}>Guardar</button>
+        <button className="cz-btn-primary" onClick={() => onSave(p)}>Guardar</button>
       </div>
     </div>
   );
 }
 
 export default function AdminView() {
-  const [users, setUsers] = useState<UserRow[]>([]);
+  const [people, setPeople] = useState<OrgRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingEmail, setEditingEmail] = useState<string | null>(null);
   const [filterRole, setFilterRole] = useState("");
   const [filterTeam, setFilterTeam] = useState("");
+  const [filterAccess, setFilterAccess] = useState("");
 
   useEffect(() => {
-    supabase.from("users").select("*").order("created_at").then(({ data }) => {
-      setUsers((data || []).map((u: any) => ({ ...u, visible_teams: [...new Set(u.visible_teams || [])] })));
-      setLoading(false);
-    });
+    supabase
+      .from("orgchart")
+      .select("email,full_name,role,access_level,team_name,channel,visible_partners," + SCOPE_COLS.join(",") + ",updated_at")
+      .order("full_name")
+      .then(({ data }) => {
+        setPeople((data || []) as OrgRow[]);
+        setLoading(false);
+      });
   }, []);
 
-  const handleSave = async (u: UserRow) => {
-    const { error } = await supabase.from("users").update({
-      name: u.name,
-      role: u.role,
-      visible_teams: [...new Set(u.visible_teams || [])],
-      visible_reps: u.visible_reps,
-      tab_permissions: u.tab_permissions,
-    }).eq("id", u.id);
+  const handleSave = async (p: OrgRow) => {
+    const updates: Record<string, unknown> = {
+      role: p.role,
+      access_level: p.access_level,
+      visible_partners: p.visible_partners || [],
+    };
+    for (const col of SCOPE_COLS) {
+      updates[col] = (p as any)[col] || "none";
+    }
 
+    const { error } = await supabase.from("orgchart").update(updates).eq("email", p.email);
     if (!error) {
-      setUsers(prev => prev.map(p => p.id === u.id ? u : p));
-      setEditingId(null);
+      setPeople(prev => prev.map(x => x.email === p.email ? p : x));
+      setEditingEmail(null);
     }
   };
 
-  const filtered = users.filter(u => {
-    if (filterRole && u.role !== filterRole) return false;
-    if (filterTeam && !(u.visible_teams || []).includes(filterTeam)) return false;
+  const teams = [...new Set(people.map(p => p.team_name))].sort();
+
+  const filtered = people.filter(p => {
+    if (filterRole && p.role !== filterRole) return false;
+    if (filterTeam && p.team_name !== filterTeam) return false;
+    if (filterAccess && p.access_level !== filterAccess) return false;
     return true;
   });
 
-  if (loading) return <p style={{ color: "var(--ink-3)", padding: 40 }}>Cargando usuarios...</p>;
+  if (loading) return <p style={{ color: "var(--ink-3)", padding: 40 }}>Cargando personas...</p>;
 
   return (
     <div className="cz-fc">
       <div className="cz-toolbar" style={{ marginBottom: 16 }}>
         <div className="cz-tb-title">
           <h2 className="display">Admin</h2>
-          <span className="cz-tb-meta">{filtered.length} de {users.length} usuarios</span>
+          <span className="cz-tb-meta">{filtered.length} de {people.length} personas</span>
         </div>
         <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+          <select value={filterAccess} onChange={e => setFilterAccess(e.target.value)} className="cz-native-select" style={{ fontSize: 13 }}>
+            <option value="">Todos los niveles</option>
+            {Object.entries(ACCESS_LEVELS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+          </select>
           <select value={filterRole} onChange={e => setFilterRole(e.target.value)} className="cz-native-select" style={{ fontSize: 13 }}>
             <option value="">Todos los roles</option>
-            {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+            {ALL_ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>)}
           </select>
           <select value={filterTeam} onChange={e => setFilterTeam(e.target.value)} className="cz-native-select" style={{ fontSize: 13 }}>
             <option value="">Todos los equipos</option>
-            {CONFIG_TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
+            {teams.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
       </div>
 
       <div className="cz-card" style={{ padding: 0, overflow: "hidden" }}>
-        {filtered.map(u => (
-          <div key={u.id}>
+        {filtered.map(p => (
+          <div key={p.email}>
             <div style={{
-              display: "grid", gridTemplateColumns: "40px 1fr 100px 1fr 90px 40px",
+              display: "grid", gridTemplateColumns: "40px 1fr 90px 90px 1fr 40px",
               gap: 12, padding: "12px 18px", alignItems: "center",
               borderBottom: "1px solid var(--line-2)", cursor: "pointer",
-              background: editingId === u.id ? "var(--indigo-tint-2)" : "transparent",
-            }} onClick={() => setEditingId(editingId === u.id ? null : u.id)}>
-              <Avatar initials={getInitials(u.name || u.email)} size={32} name={u.name} />
+              background: editingEmail === p.email ? "var(--indigo-tint-2)" : "transparent",
+            }} onClick={() => setEditingEmail(editingEmail === p.email ? null : p.email)}>
+              <Avatar initials={getInitials(p.full_name || p.email)} size={32} name={p.full_name} />
               <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{u.name || u.email}</div>
-                <div style={{ fontSize: 12, color: "var(--ink-3)" }}>{u.email}</div>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{p.full_name || p.email}</div>
+                <div style={{ fontSize: 12, color: "var(--ink-3)" }}>{p.email}</div>
               </div>
-              <div><Chip tone={u.role === "Admin" ? "indigo" : u.role === "Manager" ? "violet" : u.role === "Director" ? "violet" : u.role === "TL" ? "blue" : "ink"}>{u.role}</Chip></div>
+              <div><Chip tone={ACCESS_TONE[p.access_level] || "ink"}>{ACCESS_LEVELS[p.access_level] || p.access_level}</Chip></div>
+              <div><Chip tone="ink">{ROLE_LABELS[p.role] || p.role}</Chip></div>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                {(u.visible_teams || []).map(t => <Chip key={t} tone="ink" style={{ fontSize: 10, padding: "1px 6px" }}>{t}</Chip>)}
+                <Chip tone="ink" style={{ fontSize: 10, padding: "1px 6px" }}>{p.team_name}</Chip>
+                {(p.visible_partners || []).map(partner => (
+                  <Chip key={partner} tone="blue" style={{ fontSize: 10, padding: "1px 6px" }}>{partner}</Chip>
+                ))}
               </div>
-              <div style={{ fontSize: 11, color: "var(--ink-3)" }}>{u.last_login ? new Date(u.last_login).toLocaleDateString("es-ES") : "nunca"}</div>
-              <div><Icon name="chevDown" size={14} style={{ color: "var(--ink-3)", transform: editingId === u.id ? "none" : "rotate(-90deg)", transition: "transform .18s" }} /></div>
+              <div><Icon name="chevDown" size={14} style={{ color: "var(--ink-3)", transform: editingEmail === p.email ? "none" : "rotate(-90deg)", transition: "transform .18s" }} /></div>
             </div>
-            {editingId === u.id && (
-              <UserEditor user={u} onSave={handleSave} onCancel={() => setEditingId(null)} />
+            {editingEmail === p.email && (
+              <PersonEditor person={p} onSave={handleSave} onCancel={() => setEditingEmail(null)} />
             )}
           </div>
         ))}
         {filtered.length === 0 && (
-          <p style={{ padding: 20, color: "var(--ink-3)", textAlign: "center" }}>No hay usuarios con estos filtros</p>
+          <p style={{ padding: 20, color: "var(--ink-3)", textAlign: "center" }}>No hay personas con estos filtros</p>
         )}
       </div>
     </div>

@@ -10,7 +10,6 @@ function HNode({
   onToggle,
   editing,
   editScope,
-  disconnected,
   dragEmail,
   onCardPointerDown,
   onAddClick,
@@ -24,7 +23,7 @@ function HNode({
   onToggle: (email: string) => void;
   editing: boolean;
   editScope?: Set<string>;
-  disconnected?: Set<string>;
+
   dragEmail?: string | null;
   onCardPointerDown?: (e: React.PointerEvent, email: string) => void;
   onAddClick?: (parentEmail: string) => void;
@@ -35,27 +34,20 @@ function HNode({
   const hasChildren = node.children.length > 0;
   const isExpanded = expanded.has(node.email);
   const isEditable = editing && editScope?.has(node.email);
-  const isDisconnected = disconnected?.has(node.email);
   const isDragging = dragEmail === node.email;
-  const showPlus = editing && isEditable && !isDisconnected;
-  const showCut = editing && isEditable && !isDisconnected && isChild;
-
-  const branchClass = [
-    "cz-ot-branch",
-    isDisconnected ? "cz-ot-branch--disconnected" : "",
-  ].filter(Boolean).join(" ");
+  const showPlus = editing && isEditable;
+  const showCut = editing && isEditable && isChild;
 
   const cardClass = [
     "cz-ot-card",
     isSelected ? "cz-ot-card--sel" : "",
     !node.is_active ? "cz-ot-card--off" : "",
     isEditable ? "cz-ot-card--editable" : "",
-    isDisconnected ? "cz-ot-card--disconnected" : "",
     isDragging ? "cz-ot-card--dragging" : "",
   ].filter(Boolean).join(" ");
 
   return (
-    <div className={branchClass}>
+    <div className="cz-ot-branch">
       {showCut && (
         <button
           className="cz-ot-cut"
@@ -108,7 +100,7 @@ function HNode({
                 onToggle={onToggle}
                 editing={editing}
                 editScope={editScope}
-                disconnected={disconnected}
+
                 dragEmail={dragEmail}
                 onCardPointerDown={onCardPointerDown}
                 onAddClick={onAddClick}
@@ -130,7 +122,6 @@ export default function OrgTree({
   editing = false,
   editScope,
   defaultExpanded: defaultExpandedProp,
-  disconnected,
   dragEmail,
   onCardPointerDown,
   onAddClick,
@@ -142,7 +133,7 @@ export default function OrgTree({
   editing?: boolean;
   editScope?: Set<string>;
   defaultExpanded?: Set<string> | null;
-  disconnected?: Set<string>;
+
   dragEmail?: string | null;
   onCardPointerDown?: (e: React.PointerEvent, email: string) => void;
   onAddClick?: (parentEmail: string) => void;
@@ -197,7 +188,7 @@ export default function OrgTree({
                 onToggle={toggle}
                 editing={editing}
                 editScope={editScope}
-                disconnected={disconnected}
+
                 dragEmail={dragEmail}
                 onCardPointerDown={onCardPointerDown}
                 onAddClick={onAddClick}

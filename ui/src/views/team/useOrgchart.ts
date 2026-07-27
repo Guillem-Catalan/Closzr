@@ -21,9 +21,8 @@ export type OrgGroup = { label: string; roots: OrgNode[] };
 
 export type PendingChange =
   | { type: "move"; email: string; oldReportsTo: string | null; newReportsTo: string; reassignDeals: boolean }
-  | { type: "remove"; email: string; reassignTo?: string }
-  | { type: "add"; person: Partial<OrgPerson> }
-  | { type: "disconnect"; email: string };
+  | { type: "remove"; email: string; fullName: string; teamName: string }
+  | { type: "add"; person: Partial<OrgPerson> };
 
 function countDescendants(node: OrgNode): number {
   let count = 0;
@@ -91,7 +90,7 @@ function groupRoots(roots: OrgNode[]): OrgGroup[] {
   return order.filter(k => buckets[k]).map(k => ({ label: k, roots: buckets[k] }));
 }
 
-export function useOrgchart(userEmail: string, userRole: string) {
+export function useOrgchart(userEmail: string, accessLevel: string) {
   const [allRows, setAllRows] = useState<OrgPerson[]>([]);
   const [groups, setGroups] = useState<OrgGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,23 +98,23 @@ export function useOrgchart(userEmail: string, userRole: string) {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
-  const [disconnected, setDisconnected] = useState<Set<string>>(new Set());
   const snapshotRef = useRef<OrgPerson[]>([]);
 
-  const isAdmin = userRole === "Admin" || userRole === "Manager";
+  const isAdmin = accessLevel === "admin";
+  const seesAll = accessLevel === "admin" || accessLevel === "manager" || accessLevel === "visitor";
+  const canModify = accessLevel === "admin";
 
   const editScope = useMemo(() => {
     if (!allRows.length || !userEmail) return new Set<string>();
-    if (isAdmin) return new Set(allRows.map(r => r.email));
-    const subtree = collectSubtreeEmails(allRows, userEmail);
-    for (const email of disconnected) subtree.add(email);
-    return subtree;
-  }, [allRows, userEmail, isAdmin, disconnected]);
+    if (canModify) return new Set(allRows.map(r => r.email));
+    if (accessLevel === "manager" || accessLevel === "visitor") return new Set<string>();
+    return collectSubtreeEmails(allRows, userEmail);
+  }, [allRows, userEmail, canModify, accessLevel]);
 
-  const canEdit = editScope.size > 1;
+  const canEdit = canModify || editScope.size > 1;
 
   const rebuildGroups = useCallback((rows: OrgPerson[]) => {
-    if (isAdmin) {
+    if (seesAll) {
       const tree = buildTree(rows);
       setGroups(groupRoots(tree));
     } else {
@@ -128,7 +127,7 @@ export function useOrgchart(userEmail: string, userRole: string) {
       const tree = buildTree(channelRows);
       setGroups(groupRoots(tree));
     }
-  }, [isAdmin, userEmail]);
+  }, [seesAll, userEmail]);
 
   useEffect(() => {
     (async () => {
@@ -147,12 +146,12 @@ export function useOrgchart(userEmail: string, userRole: string) {
       rebuildGroups(rows);
       setLoading(false);
     })();
-  }, [userEmail, userRole, rebuildGroups]);
+  }, [userEmail, accessLevel, rebuildGroups]);
 
   const defaultExpanded = useMemo(() => {
-    if (isAdmin) return null;
+    if (seesAll) return null;
     return editScope;
-  }, [isAdmin, editScope]);
+  }, [seesAll, editScope]);
 
   const updatePerson = useCallback(
     async (email: string, changes: Partial<OrgPerson>) => {
@@ -182,7 +181,6 @@ export function useOrgchart(userEmail: string, userRole: string) {
     snapshotRef.current = allRows.map(r => ({ ...r }));
     setEditing(true);
     setPendingChanges([]);
-    setDisconnected(new Set());
     setSelected(null);
   }, [allRows]);
 
@@ -191,54 +189,15 @@ export function useOrgchart(userEmail: string, userRole: string) {
     rebuildGroups(snapshotRef.current);
     setEditing(false);
     setPendingChanges([]);
-    setDisconnected(new Set());
-  }, [rebuildGroups]);
-
-  const disconnectPerson = useCallback((email: string) => {
-    setAllRows(prev => {
-      const next = prev.map(r =>
-        r.email === email ? { ...r, reports_to: null } : r
-      );
-      rebuildGroups(next);
-      return next;
-    });
-    setDisconnected(prev => new Set(prev).add(email));
-    setPendingChanges(pc => [...pc, { type: "disconnect", email }]);
-  }, [rebuildGroups]);
-
-  const disconnectSubtree = useCallback((rootEmail: string) => {
-    const emails = collectSubtreeEmails(allRows, rootEmail);
-    setDisconnected(prev => {
-      const next = new Set(prev);
-      for (const e of emails) next.add(e);
-      return next;
-    });
-    setPendingChanges(pc => [...pc, { type: "disconnect", email: rootEmail }]);
-  }, [allRows]);
-
-  const reconnectChildren = useCallback((parentEmail: string) => {
-    setAllRows(prev => {
-      const parent = prev.find(r => r.email === parentEmail);
-      const grandparent = parent?.reports_to || null;
-      const next = prev.map(r => {
-        if (r.email === parentEmail) return { ...r, reports_to: null };
-        if (r.reports_to === parentEmail) return { ...r, reports_to: grandparent };
-        return r;
-      });
-      rebuildGroups(next);
-      return next;
-    });
-    setDisconnected(prev => new Set(prev).add(parentEmail));
-    setPendingChanges(pc => [...pc, { type: "disconnect", email: parentEmail }]);
   }, [rebuildGroups]);
 
   const movePerson = useCallback((email: string, newReportsTo: string, reassignDeals = true) => {
+    const person = allRows.find(r => r.email === email);
+    const oldReportsTo = person?.reports_to || null;
     setAllRows(prev => {
       const subtree = collectSubtreeEmails(prev, email);
       if (subtree.has(newReportsTo)) return prev;
 
-      const person = prev.find(r => r.email === email);
-      const oldReportsTo = person?.reports_to || null;
       const newParent = prev.find(r => r.email === newReportsTo);
       const newTeam = newParent?.team_name || person?.team_name || "";
       const newChannel = newParent?.channel || person?.channel || "";
@@ -249,49 +208,64 @@ export function useOrgchart(userEmail: string, userRole: string) {
         return r;
       });
       rebuildGroups(next);
-      setPendingChanges(pc => [
-        ...pc,
-        { type: "move", email, oldReportsTo, newReportsTo, reassignDeals },
-      ]);
       return next;
     });
-    setDisconnected(prev => {
-      if (!prev.has(email)) return prev;
-      const next = new Set(prev);
-      next.delete(email);
-      return next;
-    });
-  }, [rebuildGroups]);
+    setPendingChanges(pc => [
+      ...pc,
+      { type: "move", email, oldReportsTo, newReportsTo, reassignDeals },
+    ]);
+  }, [allRows, rebuildGroups]);
 
-  const removePerson = useCallback((email: string, reassignTo?: string) => {
+  const removePerson = useCallback((email: string) => {
+    const person = allRows.find(r => r.email === email);
     setAllRows(prev => {
-      const next = prev.filter(r => r.email !== email);
+      const removedRow = prev.find(r => r.email === email);
+      const grandparent = removedRow?.reports_to || null;
+      const gpRow = grandparent ? prev.find(r => r.email === grandparent) : null;
+      const next = prev
+        .map(r => {
+          if (r.reports_to === email) {
+            return {
+              ...r,
+              reports_to: grandparent,
+              team_name: gpRow?.team_name || r.team_name,
+              channel: gpRow?.channel || r.channel,
+            };
+          }
+          return r;
+        })
+        .filter(r => r.email !== email);
       rebuildGroups(next);
-      setPendingChanges(pc => [...pc, { type: "remove", email, reassignTo }]);
       return next;
     });
-  }, [rebuildGroups]);
+    setPendingChanges(pc => [...pc, {
+      type: "remove",
+      email,
+      fullName: person?.full_name || email,
+      teamName: person?.team_name || "",
+    }]);
+  }, [allRows, rebuildGroups]);
 
   const addPerson = useCallback((person: Partial<OrgPerson>) => {
+    const full: OrgPerson = {
+      email: person.email || "",
+      full_name: person.full_name || "",
+      hs_owner_id: person.hs_owner_id || null,
+      role: person.role || "ae",
+      channel: person.channel || "",
+      team_name: person.team_name || "",
+      reports_to: person.reports_to || null,
+      hierarchy_level: person.hierarchy_level || 99,
+      is_active: true,
+      target_mrr: person.target_mrr || 0,
+      additional_teams: person.additional_teams || [],
+    };
     setAllRows(prev => {
-      const full: OrgPerson = {
-        email: person.email || "",
-        full_name: person.full_name || "",
-        hs_owner_id: person.hs_owner_id || null,
-        role: person.role || "AE",
-        channel: person.channel || "",
-        team_name: person.team_name || "",
-        reports_to: person.reports_to || null,
-        hierarchy_level: person.hierarchy_level || 99,
-        is_active: true,
-        target_mrr: person.target_mrr || 0,
-        additional_teams: person.additional_teams || [],
-      };
       const next = [...prev, full];
       rebuildGroups(next);
-      setPendingChanges(pc => [...pc, { type: "add", person: full }]);
       return next;
     });
+    setPendingChanges(pc => [...pc, { type: "add", person: full }]);
   }, [rebuildGroups]);
 
   const commitChanges = useCallback(async () => {
@@ -362,17 +336,17 @@ export function useOrgchart(userEmail: string, userRole: string) {
         if (!newEmails.has(email)) {
           const { error } = await supabase
             .from("orgchart")
-            .update({ is_active: false })
+            .delete()
             .eq("email", email);
           if (error) throw error;
         }
       }
 
-      // Update deals + deal_ui team for people who changed teams
       for (const { email, newTeam } of teamChangedEmails) {
-        await supabase.functions.invoke("orgchart-ops", {
+        const { error: fnError } = await supabase.functions.invoke("orgchart-ops", {
           body: { action: "update_team", email, new_team: newTeam },
         });
+        if (fnError) console.error(`orgchart-ops update_team failed for ${email}:`, fnError);
       }
 
       const { data } = await supabase
@@ -387,7 +361,6 @@ export function useOrgchart(userEmail: string, userRole: string) {
 
       setEditing(false);
       setPendingChanges([]);
-      setDisconnected(new Set());
       setSaving(false);
       return true;
     } catch (err) {
@@ -416,9 +389,5 @@ export function useOrgchart(userEmail: string, userRole: string) {
     pendingChanges,
     editScope,
     defaultExpanded,
-    disconnected,
-    disconnectPerson,
-    disconnectSubtree,
-    reconnectChildren,
   };
 }

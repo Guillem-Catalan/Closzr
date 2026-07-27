@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import type { OrgPerson } from "./useOrgchart";
 import { Avatar, getInitials, fmtMRR } from "../components";
+import { ALL_ROLES, ROLE_LABELS } from "../../display";
 
-const ROLES = ["Manager", "Country_Manager", "Head", "Director", "TL", "AE", "PAE", "PBD", "PDM", "SDR"];
+const ROLES = ALL_ROLES;
 
 export default function PersonPanel({
   person,
@@ -71,7 +72,7 @@ export default function PersonPanel({
           <select className="cz-native-select" value={role} onChange={e => setRole(e.target.value)}>
             {ROLES.map(r => (
               <option key={r} value={r}>
-                {r}
+                {ROLE_LABELS[r] || r}
               </option>
             ))}
           </select>

@@ -16,7 +16,7 @@ const DRAG_THRESHOLD = 4;
 export default function TeamView() {
   const { profile } = usePermissions();
   const email = profile?.email || "";
-  const role = profile?.role || "PAE";
+  const accessLevel = profile?.accessLevel || "tree";
 
   const {
     groups,
@@ -33,13 +33,11 @@ export default function TeamView() {
     editScope,
     defaultExpanded,
     allRows,
-    disconnected,
-    disconnectPerson,
-    reconnectChildren,
+    removePerson,
     addPerson,
     movePerson,
     commitChanges,
-  } = useOrgchart(email, role);
+  } = useOrgchart(email, accessLevel);
 
   const [addParent, setAddParent] = useState<string | null>(null);
   const [addForm, setAddForm] = useState({ email: "", full_name: "", hs_owner_id: "" });
@@ -60,7 +58,7 @@ export default function TeamView() {
     const { data, count } = await supabase
       .from("deal_ui")
       .select("deal_id", { count: "exact", head: true })
-      .eq("pae", person.full_name)
+      .or(`pae.eq.${person.full_name},pbd.eq.${person.full_name}`)
       .in("macro_stage", ["demo", "evaluating", "closing"]);
 
     setCutDialog(prev => prev ? { ...prev, dealCount: count ?? 0, loading: false } : null);
@@ -68,9 +66,9 @@ export default function TeamView() {
 
   const handleCutConfirm = useCallback(() => {
     if (!cutDialog) return;
-    disconnectPerson(cutDialog.email);
+    removePerson(cutDialog.email);
     setCutDialog(null);
-  }, [cutDialog, disconnectPerson]);
+  }, [cutDialog, removePerson]);
 
   const handleCutReassign = useCallback(() => {
     if (!cutDialog) return;
@@ -147,7 +145,7 @@ export default function TeamView() {
     addPerson({
       email: trimmedEmail,
       full_name: name,
-      role: "AE",
+      role: "ae",
       hs_owner_id: addForm.hs_owner_id || null,
       channel: parent?.channel || "",
       team_name: parent?.team_name || "",
@@ -181,10 +179,8 @@ export default function TeamView() {
   const handleDragEnd = useCallback((result: DragResult) => {
     if (result.type === "move" && result.targetEmail) {
       setMoveDialog({ targetEmail: result.email, newParentEmail: result.targetEmail });
-    } else if (result.type === "disconnect" && result.email) {
-      reconnectChildren(result.email);
     }
-  }, [reconnectChildren]);
+  }, []);
 
   const { drag, onPointerDown } = useDragCard(handleDragEnd);
 
@@ -310,20 +306,15 @@ export default function TeamView() {
 
         {editing && (
           <div className="cz-edit-actions">
-            <button className="cz-btn-soft" onClick={discardChanges}>
+            <button className="cz-edit-cancel" onClick={discardChanges}>
               Cancelar
             </button>
-            {pendingChanges.length > 0 && (
-              <span className="cz-edit-badge">
-                {pendingChanges.length} cambio{pendingChanges.length > 1 ? "s" : ""}
-              </span>
-            )}
             <button
-              className="cz-btn-primary"
+              className="cz-edit-confirm"
               disabled={pendingChanges.length === 0 || saving}
               onClick={handleSaveClick}
             >
-              {saving ? "Aplicando..." : "Confirmar"}
+              {saving ? "Aplicando..." : `Confirmar${pendingChanges.length > 0 ? ` (${pendingChanges.length})` : ""}`}
             </button>
           </div>
         )}
@@ -353,7 +344,6 @@ export default function TeamView() {
               editing={editing}
               editScope={editScope}
               defaultExpanded={defaultExpanded}
-              disconnected={disconnected}
               dragEmail={drag?.email || null}
               onCardPointerDown={onPointerDown}
               onAddClick={handleAddClick}
@@ -487,7 +477,7 @@ export default function TeamView() {
 
       {saveDialog && (() => {
         const moves = pendingChanges.filter(c => c.type === "move") as { type: "move"; email: string; oldReportsTo: string | null; newReportsTo: string }[];
-        const disconnects = pendingChanges.filter(c => c.type === "disconnect") as { type: "disconnect"; email: string }[];
+        const removes = pendingChanges.filter(c => c.type === "remove") as { type: "remove"; email: string; fullName: string; teamName: string }[];
         const adds = pendingChanges.filter(c => c.type === "add") as { type: "add"; person: Partial<OrgPerson> }[];
         const getName = (e: string) => allRows.find((r: OrgPerson) => r.email === e)?.full_name || e;
         const getTeam = (e: string) => allRows.find((r: OrgPerson) => r.email === e)?.team_name || "";
@@ -497,6 +487,14 @@ export default function TeamView() {
             <div className="cz-edit-dialog cz-edit-dialog--briefing" onClick={e => e.stopPropagation()}>
               <h3 className="cz-edit-dialog__title">Resumen de cambios</h3>
               <div className="cz-confirm-briefing">
+                {removes.map((r, i) => (
+                  <div key={`r${i}`} className="cz-confirm-item">
+                    <span className="cz-confirm-item__icon cz-confirm-item__icon--remove">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </span>
+                    <span><strong>{r.fullName}</strong> se elimina de <strong>{r.teamName}</strong></span>
+                  </div>
+                ))}
                 {moves.map((m, i) => (
                   <div key={`m${i}`} className="cz-confirm-item">
                     <span className="cz-confirm-item__icon cz-confirm-item__icon--move">
@@ -513,20 +511,12 @@ export default function TeamView() {
                     <span><strong>{a.person.full_name || a.person.email}</strong> se añade a <strong>{a.person.team_name}</strong></span>
                   </div>
                 ))}
-                {disconnects.map((d, i) => (
-                  <div key={`d${i}`} className="cz-confirm-item">
-                    <span className="cz-confirm-item__icon cz-confirm-item__icon--remove">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    </span>
-                    <span><strong>{getName(d.email)}</strong> deja el equipo</span>
-                  </div>
-                ))}
               </div>
               {saveError && <div className="cz-edit-dialog__error">{saveError}</div>}
               <div className="cz-edit-dialog__actions cz-edit-dialog__actions--row">
                 <button className="cz-edit-dialog__btn" onClick={() => setSaveDialog(false)}>Cancelar</button>
                 <button className="cz-edit-dialog__btn cz-edit-dialog__btn--primary" onClick={() => setSaveConfirmStep("confirm")}>
-                  Confirmar cambios
+                  Aplicar cambios
                 </button>
               </div>
             </div>

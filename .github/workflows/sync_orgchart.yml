@@ -1,0 +1,35 @@
+name: Sync Orgchart → org_people.py
+
+on:
+  repository_dispatch:
+    types: [orgchart_sync]
+
+concurrency:
+  group: orgchart-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r requirements.txt
+
+      - name: Sync orgchart → org_people.py
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m src.pipelines.orgchart.sync_orgchart
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/org_people.py
+          git diff --cached --quiet || git commit -m "chore: auto-sync org_people.py from orgchart"
+          git push

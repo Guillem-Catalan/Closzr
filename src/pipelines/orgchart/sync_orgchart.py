@@ -51,7 +51,11 @@ def _build_crm_owner_map(rows: list[dict]) -> dict:
 
 
 def _build_manager_emails(rows: list[dict]) -> set[str]:
-    return {r["email"] for r in rows if r.get("role") == "Manager"}
+    return {r["email"] for r in rows if r.get("role") == "manager"}
+
+
+def _is_tl(role: str | None) -> bool:
+    return role in ("tl", "pae_tl", "pbd_tl")
 
 
 _LANG_OVERRIDE_FALLBACK = {
@@ -84,11 +88,11 @@ def _build_old_partner_team(team_name: str, people: list[dict], all_rows: list[d
     pbd: set[str] = set()
     pae: set[str] = set()
 
-    tls = [p for p in people if p["role"] == "TL"]
+    tls = [p for p in people if _is_tl(p["role"])]
     for tl in tls:
         reports = _children_of(tl["email"], all_rows)
-        pae_count = sum(1 for r in reports if r["role"] == "PAE")
-        pbd_count = sum(1 for r in reports if r["role"] == "PBD")
+        pae_count = sum(1 for r in reports if r["role"] == "pae")
+        pbd_count = sum(1 for r in reports if r["role"] == "pbd")
         if pbd_count > pae_count:
             leadership["tl_pbd"] = {"email": tl["email"], "name": tl["full_name"], "role": tl["role"]}
         else:
@@ -96,15 +100,15 @@ def _build_old_partner_team(team_name: str, people: list[dict], all_rows: list[d
 
     for p in people:
         role = p["role"]
-        if role == "Head":
+        if role == "head":
             leadership["head"] = {"email": p["email"], "name": p["full_name"], "role": role}
-        elif role == "Director":
+        elif role == "director":
             leadership["director"] = {"email": p["email"], "name": p["full_name"], "role": role}
-        elif role == "PDM":
+        elif role == "pdm":
             leadership["pdm"] = {"email": p["email"], "name": p["full_name"], "role": role}
-        elif role == "PAE":
+        elif role == "pae":
             pae.add(p["email"])
-        elif role == "PBD":
+        elif role == "pbd":
             pbd.add(p["email"])
 
     if leadership:
@@ -130,7 +134,7 @@ def _build_ds_node(tl_row: dict, all_rows: list[dict]) -> dict:
     subteams: dict = {}
 
     for child in children:
-        child_is_tl = child["role"] == "TL"
+        child_is_tl = _is_tl(child["role"])
         has_reports = bool(_children_of(child["email"], all_rows))
         if child_is_tl or has_reports:
             sub_node = _build_ds_node(child, all_rows)
@@ -236,9 +240,9 @@ def build_xl_sales(rows: list[dict]) -> dict:
     cfg = TEAM_PIPELINE_CONFIG.get("XL", {})
     xl_rows = [r for r in rows if r.get("channel") == "xl"]
 
-    cm_rows = [r for r in xl_rows if r.get("role") == "Country_Manager"]
-    ae_emails = {r["email"] for r in xl_rows if r.get("role") in ("AE", "Country_Manager")}
-    sdr_emails = {r["email"] for r in xl_rows if r.get("role") == "SDR"}
+    cm_rows = [r for r in xl_rows if r.get("role") == "country_manager"]
+    ae_emails = {r["email"] for r in xl_rows if r.get("role") in ("ae", "country_manager")}
+    sdr_emails = {r["email"] for r in xl_rows if r.get("role") == "sdr"}
 
     result: dict = {
         "active": cfg.get("active", True),

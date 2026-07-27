@@ -1217,14 +1217,18 @@
 .cz-edit-actions {
   display: flex; align-items: center; gap: 10px; margin-left: auto;
 }
-.cz-edit-badge {
-  font-size: 12px; font-weight: 700; color: #fff;
-  background: rgba(255,255,255,.18); padding: 4px 12px;
-  border-radius: var(--r-pill); white-space: nowrap;
+.cz-edit-cancel {
+  padding: 7px 16px; border-radius: var(--r-pill); font-size: 13px; font-weight: 600;
+  color: rgba(255,255,255,.8); background: transparent; border: 1.5px solid rgba(255,255,255,.25);
+  cursor: pointer; transition: all .15s;
 }
-.cz-toolbar--editing .cz-btn-primary { background: #fff; color: var(--indigo); }
-.cz-toolbar--editing .cz-btn-primary:hover { background: rgba(255,255,255,.9); }
-.cz-toolbar--editing .cz-btn-primary:disabled { background: rgba(255,255,255,.3); color: rgba(255,255,255,.5); }
+.cz-edit-cancel:hover { color: #fff; border-color: rgba(255,255,255,.5); background: rgba(255,255,255,.08); }
+.cz-edit-confirm {
+  padding: 7px 18px; border-radius: var(--r-pill); font-size: 13px; font-weight: 700;
+  color: var(--indigo); background: #fff; border: none; cursor: pointer; transition: all .15s;
+}
+.cz-edit-confirm:hover { background: rgba(255,255,255,.88); }
+.cz-edit-confirm:disabled { background: rgba(255,255,255,.2); color: rgba(255,255,255,.4); cursor: not-allowed; }
 .cz-ot-card--editable {
   cursor: grab;
   transition: box-shadow .2s, transform .2s, border-color .2s;

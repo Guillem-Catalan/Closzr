@@ -355,8 +355,9 @@ def _build_friday(team_info: dict, today: date) -> dict:
     except Exception as e:
         print(f"    lost_deals failed: {e}")
 
-    # ── coaching_flags: from pae_audits this week for team's deals ──
+    # ── coaching_flags: from pae_audits this week, filtered to team members only ──
     coaching_flags = []
+    ae_names_lower = [n.lower() for n in ae_names]
     try:
         ae_deals_resp = (
             supabase.table("deal_ui")
@@ -378,6 +379,9 @@ def _build_friday(team_info: dict, today: date) -> dict:
                     .execute()
                 )
                 for a in (audits_resp.data or []):
+                    owner = (a.get("owner_name") or "").lower()
+                    if not any(name in owner for name in ae_names_lower):
+                        continue
                     coaching_flags.append({
                         "ae": a.get("owner_name") or "",
                         "flag": a.get("top_coaching_flag") or "",

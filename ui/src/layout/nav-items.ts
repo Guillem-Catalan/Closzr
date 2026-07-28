@@ -38,4 +38,12 @@ export const NAV_ITEMS: NavItem[] = [
       { key: "uplift", label: "Uplift", icon: "sparkle", slug: "uplift", soon: true },
     ],
   },
+  {
+    key: "metrics",
+    label: "Metrics",
+    icon: "calculator",
+    children: [
+      { key: "repstats", label: "Rep Stats", icon: "trendUp", slug: "rep-stats" },
+    ],
+  },
 ];

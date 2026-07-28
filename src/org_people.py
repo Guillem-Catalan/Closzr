@@ -102,6 +102,10 @@ CRM_OWNER_MAP = {
         'id': '343529996',
         'name': 'Blanca Orti Morillo',
     },
+    'camila.vento@factorial.co': {
+        'id': '84984313',
+        'name': 'Camila Vento',
+    },
     'carlos.acosta@factorial.co': {
         'id': '77159731',
         'name': 'Carlos Acosta',
@@ -109,10 +113,6 @@ CRM_OWNER_MAP = {
     'carlos.sanchez@factorial.co': {
         'id': '2078231828',
         'name': 'Carlos Sanchez',
-    },
-    'camila.vento@factorial.co': {
-        'id': '84984313',
-        'name': 'Camila Vento',
     },
     'carlota.alvarez@factorial.co': {
         'id': '77922017',
@@ -177,10 +177,6 @@ CRM_OWNER_MAP = {
     'diego.hernandez@factorial.co': {
         'id': '133287347',
         'name': 'Diego Osvaldo Hernandez Vicuña',
-    },
-    'edgar.ybarguengoitia@factorial.co': {
-        'id': '85521152',
-        'name': 'Edgar Ybargüengoitia',
     },
     'edoardo.rapezzi@factorial.co': {
         'id': '86687949',
@@ -501,20 +497,20 @@ PARTNERS_ORGCHART = {
         'active': True,
         'pipeline_ids': ['824790797', '3612610753'],
         'leadership': {
-            'tl_pae': {
-                'email': 'nunzio.fumo@factorial.co',
-                'name': 'Nunzio Fumo',
-                'role': 'TL',
-            },
             'tl_pbd': {
                 'email': 'giacomo.torresi@factorial.co',
                 'name': 'Giacomo Torresi',
-                'role': 'TL',
+                'role': 'pbd_tl',
+            },
+            'tl_pae': {
+                'email': 'nunzio.fumo@factorial.co',
+                'name': 'Nunzio Fumo',
+                'role': 'pae_tl',
             },
             'director': {
                 'email': 'andrea.galimberti@factorial.co',
                 'name': 'Andrea Galimberti',
-                'role': 'Director',
+                'role': 'director',
             },
         },
         'pbd': {
@@ -535,20 +531,20 @@ PARTNERS_ORGCHART = {
         'active': True,
         'pipeline_ids': ['824790797', '3612610753'],
         'leadership': {
-            'tl_pbd': {
-                'email': 'fiona.durr@factorial.co',
-                'name': 'Fiona Dürr',
-                'role': 'TL',
-            },
             'tl_pae': {
                 'email': 'gabriel.lichtenstein@factorial.co',
                 'name': 'Gabriel Lichtenstein',
-                'role': 'TL',
+                'role': 'pae_tl',
+            },
+            'tl_pbd': {
+                'email': 'fiona.durr@factorial.co',
+                'name': 'Fiona Dürr',
+                'role': 'pbd_tl',
             },
             'director': {
                 'email': 'laura.proefrock@factorial.co',
                 'name': 'Laura Proefrock',
-                'role': 'Director',
+                'role': 'director',
             },
         },
         'pbd': {
@@ -612,27 +608,6 @@ DIRECT_SALES = {
             'tl': 'joan.balana@factorial.co',
             'tl_name': 'Joan Balaña',
             'subteams': {
-                'DS Zafra': {
-                    'active': True,
-                    'tl': 'eduardo.zafra@factorial.co',
-                    'tl_name': 'Eduardo Zafra',
-                    'ae': {
-                        "belen.lombardia@factorial.co",
-                        "daniel.terrasa@factorial.co",
-                        "yolanda.tello@factorial.co",
-                    },
-                },
-                'DS Monica': {
-                    'active': True,
-                    'tl': 'monica.ortiz@factorial.co',
-                    'tl_name': 'Monica Ortiz',
-                    'ae': {
-                        "alejandro.soto@factorial.co",
-                        "david.clemente@factorial.co",
-                        "joane.fuldain@factorial.co",
-                        "nerea.urien@factorial.co",
-                    },
-                },
                 'DS Antoni Grau': {
                     'active': True,
                     'tl': 'antoni.grau@factorial.co',
@@ -674,7 +649,7 @@ DIRECT_SALES = {
                                     },
                                 },
                             },
-                            'ae': {"edgar.ybarguengoitia@factorial.co", "sonia.jimenez@factorial.co"},
+                            'ae': {"sonia.jimenez@factorial.co"},
                         },
                         'DS Roberto': {
                             'active': True,
@@ -728,6 +703,27 @@ DIRECT_SALES = {
                         },
                     },
                 },
+                'DS Monica': {
+                    'active': True,
+                    'tl': 'monica.ortiz@factorial.co',
+                    'tl_name': 'Monica Ortiz',
+                    'ae': {
+                        "alejandro.soto@factorial.co",
+                        "david.clemente@factorial.co",
+                        "joane.fuldain@factorial.co",
+                        "nerea.urien@factorial.co",
+                    },
+                },
+                'DS Zafra': {
+                    'active': True,
+                    'tl': 'eduardo.zafra@factorial.co',
+                    'tl_name': 'Eduardo Zafra',
+                    'ae': {
+                        "belen.lombardia@factorial.co",
+                        "daniel.terrasa@factorial.co",
+                        "yolanda.tello@factorial.co",
+                    },
+                },
             },
         },
     },
@@ -766,7 +762,6 @@ MANAGER_EMAILS = {
     "marc.sorensen@factorial.co",
     "oriol.delmoral@factorial.co",
     "pau.cruz@factorial.co",
-    "samuel.fernandez@factorial.co",
 }
 
 PERSON_LANG_OVERRIDE: dict[str, str] = {

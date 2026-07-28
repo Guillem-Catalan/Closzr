@@ -4,6 +4,9 @@ on:
   repository_dispatch:
     types: [orgchart_sync]
 
+permissions:
+  contents: write
+
 concurrency:
   group: orgchart-sync
   cancel-in-progress: true

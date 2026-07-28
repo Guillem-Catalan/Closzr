@@ -409,7 +409,7 @@ function applyPermissions(data: CZData, profile: UserProfile | null, scope: Scop
     return subtreeSet!.has(email);
   };
   const filterRow = (r: DealRow): boolean => matchesScope(r.owner || "");
-  const filterFc = (d: ForecastDeal): boolean => filterRow(d as any);
+  const filterFc = (d: { owner?: string; mrr?: number | null }): boolean => matchesScope(d.owner || "");
   const filterByOwner = (d: { team?: string; dealOwner?: string; owner?: string }): boolean => {
     if ("dealOwner" in d && d.dealOwner) return matchesScope(d.dealOwner);
     if ("owner" in d && d.owner) return matchesScope(d.owner);

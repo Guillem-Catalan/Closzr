@@ -100,7 +100,6 @@ export function useOrgchart(userEmail: string, accessLevel: string) {
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const snapshotRef = useRef<OrgPerson[]>([]);
 
-  const isAdmin = accessLevel === "admin";
   const seesAll = accessLevel === "admin" || accessLevel === "manager" || accessLevel === "visitor";
   const canModify = accessLevel === "admin";
 

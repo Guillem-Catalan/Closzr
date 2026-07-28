@@ -123,7 +123,7 @@ export default function AdminView() {
       .select("email,full_name,role,access_level,team_name,channel,visible_partners," + SCOPE_COLS.join(",") + ",updated_at")
       .order("full_name")
       .then(({ data }) => {
-        setPeople((data || []) as OrgRow[]);
+        setPeople((data || []) as unknown as OrgRow[]);
         setLoading(false);
       });
   }, []);

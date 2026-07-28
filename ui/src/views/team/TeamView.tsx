@@ -55,7 +55,7 @@ export default function TeamView() {
     if (!person) return;
     setCutDialog({ email: personEmail, fullName: person.full_name, dealCount: -1, loading: true });
 
-    const { data, count } = await supabase
+    const { count } = await supabase
       .from("deal_ui")
       .select("deal_id", { count: "exact", head: true })
       .or(`pae.eq.${person.full_name},pbd.eq.${person.full_name}`)

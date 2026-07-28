@@ -15,6 +15,7 @@ import TodoView from "./views/todo/TodoView";
 import BenchmarkView from "./views/benchmark/BenchmarkView";
 import ComingSoon from "./views/ComingSoon";
 import MetricsRepView from "./views/metrics/MetricsRepView";
+import ExecSummaryView from "./views/metrics/ExecSummaryView";
 const AdminView = lazy(() => import("./views/admin/AdminView"));
 
 function SidebarToggle() {
@@ -76,6 +77,7 @@ function App() {
           {view === "oneone" && <OneOnOneView onOpen={handleOpen}/>}
           {view === "admin" && <Suspense fallback={<p style={{color:"var(--ink-3)"}}>Cargando...</p>}><AdminView/></Suspense>}
           {view === "benchmark" && <BenchmarkView onOpen={handleOpen}/>}
+          {view === "execsummary" && <ExecSummaryView />}
           {view === "repstats" && <MetricsRepView />}
           {["general","alerts","uplift"].includes(view) && <ComingSoon label={view.charAt(0).toUpperCase() + view.slice(1)}/>}
         </main>

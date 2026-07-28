@@ -26,6 +26,7 @@ const DEFAULT_PERMISSIONS: Record<string, TabScope> = {
   benchmark: { enabled: true, scope: "all" },
   alerts: { enabled: true, scope: "all" },
   uplift: { enabled: true, scope: "all" },
+  "exec-summary": { enabled: true, scope: "all" },
   "rep-stats": { enabled: true, scope: "all" },
 };
 

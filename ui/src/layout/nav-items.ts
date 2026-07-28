@@ -43,6 +43,7 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Metrics",
     icon: "calculator",
     children: [
+      { key: "execsummary", label: "Exec Summary", icon: "presentation", slug: "exec-summary" },
       { key: "repstats", label: "Rep Stats", icon: "trendUp", slug: "rep-stats" },
     ],
   },

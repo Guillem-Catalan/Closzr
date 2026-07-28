@@ -110,6 +110,10 @@ CRM_OWNER_MAP = {
         'id': '2078231828',
         'name': 'Carlos Sanchez',
     },
+    'camila.vento@factorial.co': {
+        'id': '84984313',
+        'name': 'Camila Vento',
+    },
     'carlota.alvarez@factorial.co': {
         'id': '77922017',
         'name': 'Carlota Álvarez',
@@ -647,7 +651,7 @@ DIRECT_SALES = {
                                         "andreu.aloguin@factorial.co",
                                         "arnau.palos@factorial.co",
                                         "blanca.orti@factorial.co",
-                                        "camila.aldana@factorial.co",
+                                        "camila.vento@factorial.co",
                                         "guillermo.ferrer@factorial.co",
                                         "iban.cordobes@factorial.co",
                                         "miquel.criado@factorial.co",

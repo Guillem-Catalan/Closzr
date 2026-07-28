@@ -45,7 +45,7 @@ function HsLogo({ size = 14 }: { size?: number }) {
   );
 }
 
-const MANAGEMENT_ROLES = new Set(["Admin", "Manager", "Director", "TL"]);
+const CAN_EDIT_TARGET_ACCESS = new Set(["admin", "manager"]);
 
 type Panel = "m0" | "m1" | "m2" | "closed";
 
@@ -300,7 +300,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
     return () => document.removeEventListener("mousedown", h);
   }, [openMenu]);
 
-  const canEditTarget = profile ? MANAGEMENT_ROLES.has(profile.role) : false;
+  const canEditTarget = profile ? CAN_EDIT_TARGET_ACCESS.has(profile.accessLevel) : false;
   const pipelines = useMemo(() => distinctPipelines(F.allDeals), [F.allDeals]);
   const teams = useMemo(() => distinctTeams(F.allDeals), [F.allDeals]);
   const reps = useMemo(() => distinctOwners(F.allDeals, teamFilters.size === 1 ? [...teamFilters][0] : undefined), [F.allDeals, teamFilters]);

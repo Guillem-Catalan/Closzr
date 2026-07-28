@@ -9,9 +9,9 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { DataContext, type CZData, type DealRow, type FunnelStage, type ForecastDeal, type ForecastData, type ClosedDeal, type ActionItem, type BenchmarkDeal } from "./store";
 import { supabase } from "./supabase";
-import { usePermissions, type UserProfile } from "../permissions";
+import { usePermissions, type UserProfile, type Scope } from "../permissions";
 import { PIPELINE_FUNNEL, PIPELINE_ASIDE, stageAbbr, shortStage, CLOSED_WON_STAGES, CLOSED_LOST_STAGES, STAGE_TONES, MEDDIC_AXES, WON_DISPLAY_LABEL, LOST_DISPLAY_LABEL } from "../display";
-import { repNameToEmail, expandTeam } from "./filters";
+import { repNameToEmail } from "./filters";
 
 // ---- Paginated fetch ----
 async function fetchPaged<T>(table: string, cols: string, filter?: (q: any) => any): Promise<T[]> {
@@ -392,46 +392,51 @@ async function loadData(): Promise<CZData> {
 }
 
 // ---- Permission-based filtering ----
-function applyPermissions(data: CZData, profile: UserProfile | null): CZData {
-  if (!profile) return data;
-  const teams = profile.visibleTeams || [];
-  if (!teams.length && profile.role !== "Admin") return data;
-  const scope = profile.tabPermissions?.deals?.scope || "all";
-  if (scope === "all" && profile.role === "Admin") return data;
+// Uses orgchart scopes + reports_to subtree. No more visibleTeams.
+function applyPermissions(data: CZData, profile: UserProfile | null, scope: Scope): CZData {
+  if (!profile) return { ...EMPTY_DATA, loading: false };
+  if (profile.accessLevel !== "tree") return data;
+  if (scope === "all") return data;
+  if (scope === "none") {
+    return { ...data, groups: [], pipeline: [], pipelineAside: [], todos: [], benchmark: { won: [], lost: [] }, forecast: { ...data.forecast, hsDeals: [], closzrDeals: [], nextMonthDeals: [], pushableDeals: [], closedDeals: [], lostDeals: [], allDeals: [], m0Deals: [], m1Deals: [], m2Deals: [] } };
+  }
 
-  const teamSet = new Set<string>();
-  for (const t of teams) for (const et of expandTeam(t)) teamSet.add(et);
   const ownerEmail = profile.email.toLowerCase();
-  const matchesSelf = (name: string) => repNameToEmail(name) === ownerEmail;
-  const filterRow = (r: DealRow): boolean => {
-    if (scope === "self") return matchesSelf(r.owner || "");
-    if (teamSet.size === 0) return true;
-    return teamSet.has(r.team || "");
+  const subtreeSet = scope === "team" ? new Set(profile.subtreeEmails.map(e => e.toLowerCase())) : null;
+  const matchesScope = (name: string): boolean => {
+    const email = repNameToEmail(name);
+    if (scope === "self") return email === ownerEmail;
+    return subtreeSet!.has(email);
   };
+  const filterRow = (r: DealRow): boolean => matchesScope(r.owner || "");
   const filterFc = (d: ForecastDeal): boolean => filterRow(d as any);
-  const filterByTeam = (d: { team?: string }) => teamSet.size === 0 || teamSet.has(d.team || "");
+  const filterByOwner = (d: { team?: string; dealOwner?: string; owner?: string }): boolean => {
+    if ("dealOwner" in d && d.dealOwner) return matchesScope(d.dealOwner);
+    if ("owner" in d && d.owner) return matchesScope(d.owner);
+    return true;
+  };
 
   return {
     ...data,
     groups: data.groups.map(g => ({ ...g, rows: g.rows.filter(filterRow) })).filter(g => g.rows.length > 0),
     pipeline: data.pipeline.map(s => { const rows = s.rows.filter(filterRow); return { ...s, rows, count: rows.length, value: rows.reduce((a, r) => a + (r.mrr || 0), 0), stale: rows.filter(r => r.stale).length }; }),
     pipelineAside: data.pipelineAside.map(s => { const rows = s.rows.filter(filterRow); return { ...s, rows, count: rows.length, value: rows.reduce((a, r) => a + (r.mrr || 0), 0), stale: rows.filter(r => r.stale).length }; }),
-    todos: data.todos.filter(a => { if (scope === "self") return matchesSelf(a.dealOwner || ""); return filterByTeam(a); }),
-    benchmark: { won: data.benchmark.won.filter(filterByTeam), lost: data.benchmark.lost.filter(filterByTeam) },
+    todos: data.todos.filter(a => matchesScope(a.dealOwner || "")),
+    benchmark: { won: data.benchmark.won.filter(filterByOwner), lost: data.benchmark.lost.filter(filterByOwner) },
     forecast: {
       ...data.forecast,
       hsTotal: Math.round(data.forecast.hsDeals.filter(filterFc).reduce((s, d) => s + (d.mrr || 0), 0)),
       closzrTotal: Math.round(data.forecast.closzrDeals.filter(filterFc).reduce((s, d) => s + (d.mrr || 0), 0)),
       nextMonthTotal: Math.round(data.forecast.nextMonthDeals.filter(filterFc).reduce((s, d) => s + (d.mrr || 0), 0)),
       pushableCount: data.forecast.pushableDeals.filter(filterFc).length,
-      closedTotal: Math.round(data.forecast.closedDeals.filter(filterByTeam).reduce((s, d) => s + (d.mrr || 0), 0)),
-      lostTotal: Math.round(data.forecast.lostDeals.filter(filterByTeam).reduce((s, d) => s + (d.mrr || 0), 0)),
+      closedTotal: Math.round(data.forecast.closedDeals.filter(filterFc).reduce((s, d) => s + (d.mrr || 0), 0)),
+      lostTotal: Math.round(data.forecast.lostDeals.filter(filterFc).reduce((s, d) => s + (d.mrr || 0), 0)),
       hsDeals: data.forecast.hsDeals.filter(filterFc),
       closzrDeals: data.forecast.closzrDeals.filter(filterFc),
       nextMonthDeals: data.forecast.nextMonthDeals.filter(filterFc),
       pushableDeals: data.forecast.pushableDeals.filter(filterFc),
-      closedDeals: data.forecast.closedDeals.filter(filterByTeam),
-      lostDeals: data.forecast.lostDeals.filter(filterByTeam),
+      closedDeals: data.forecast.closedDeals.filter(filterFc),
+      lostDeals: data.forecast.lostDeals.filter(filterFc),
       allDeals: data.forecast.allDeals.filter(filterFc),
       m0Deals: data.forecast.m0Deals.filter(filterFc),
       m1Deals: data.forecast.m1Deals.filter(filterFc),
@@ -455,5 +460,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => { clearTimeout(t); supabase.removeChannel(ch); };
   }, []);
 
-  return <DataContext.Provider value={raw ? applyPermissions(raw, profile) : EMPTY_DATA}>{children}</DataContext.Provider>;
+  const NON_DEAL_SCOPES = new Set(["general", "orgchart", "admin"]);
+  const effectiveScope: Scope = !profile || profile.accessLevel !== "tree" ? "all"
+    : (() => {
+        const dealScopes = Object.entries(profile.scopes)
+          .filter(([key]) => !NON_DEAL_SCOPES.has(key))
+          .map(([, s]) => s);
+        if (dealScopes.includes("all")) return "all" as Scope;
+        if (dealScopes.includes("team")) return "team" as Scope;
+        if (dealScopes.includes("self")) return "self" as Scope;
+        return "none" as Scope;
+      })();
+
+  return <DataContext.Provider value={raw ? applyPermissions(raw, profile, effectiveScope) : EMPTY_DATA}>{children}</DataContext.Provider>;
 }

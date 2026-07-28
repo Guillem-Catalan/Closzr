@@ -1,5 +1,5 @@
 /* ============================================================
-   CLOSZR — TO-DOs: daily action list for reps
+   CLOSZR — Alerts: daily action list for reps
    4 sections: Meetings · Actions today · Overdue · Done
    ============================================================ */
 import { useState, useMemo } from "react";
@@ -327,7 +327,7 @@ export default function TodoView({ onOpen }: { onOpen: (row: any, tab: string) =
     <div className="cz-fc">
       {/* Toolbar */}
       <div className="cz-toolbar" style={{ marginBottom: 4 }}>
-        <div className="cz-tb-title"><h2 className="display">TO-DOs</h2></div>
+        <div className="cz-tb-title"><h2 className="display">Alerts</h2></div>
         <div className="cz-seg">
           {([["hoy", "Hoy"], ["semana", "Semana"], ["next_week", "Next week"], ["mes", "Mes"]] as const).map(([k, l]) => (
             <button key={k} className={timeFilter === k ? "on" : ""} onClick={() => setTimeFilter(k)}>{l}</button>

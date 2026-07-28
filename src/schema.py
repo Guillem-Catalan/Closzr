@@ -255,6 +255,9 @@ TABLES = {
     "product_stats":        {"name": "product_stats",        "upsert_key": "id"},
     "slides":               {"name": "slides",               "upsert_key": "id"},
     "users":                {"name": "users",                "upsert_key": "id"},
+
+    # ── Factus ──
+    "team_snapshots":       {"name": "team_snapshots",       "upsert_key": "team,iso_week,snapshot_day"},
 }
 
 

@@ -5,12 +5,15 @@ Monday (snapshot_day=1): demos_booked, closing_expected, mr_expected, consecuci�
 Friday (snapshot_day=2): demos_held, mr_closed, lost_deals + postmortem, learnings, coaching_flags
 
 Sources: deal_ui, deals (meetings), deal_analysis (postmortem), forecast_targets, orgchart
+
+Note: deal_ui.pae/pbd store NAMES (not emails). deal_ui.stage stores internal names
+(from schema.py), deals.deal_stage stores a mix of internal and display labels.
 """
 
 import traceback
 from datetime import date, timedelta
 
-from src.config import STAGE_DEMO, STAGE_CLOSING
+from src.schema import CLOSING, DEMO
 from src.db.client import supabase
 
 
@@ -30,8 +33,8 @@ def _first_of_month(today: date) -> date:
 
 def _resolve_teams() -> list[dict]:
     """
-    Orgchart → list of {tl_email, team, ae_emails}.
-    Includes TLs with direct AE reports and directors with recursive AE subtrees.
+    Orgchart → list of {tl_email, team, ae_names, ae_emails}.
+    deal_ui filters by NAME (pae/pbd), orgchart resolves email↔name.
     """
     resp = supabase.table("orgchart").select(
         "email, full_name, role, team_name, reports_to"
@@ -46,13 +49,13 @@ def _resolve_teams() -> list[dict]:
 
     ae_roles = {"ae", "pae", "pbd", "sdr", "pdm", "pre_sales"}
 
-    def collect_ae_emails(email: str) -> list[str]:
+    def collect_aes(email: str) -> list[dict]:
         result = []
         for child in children_of.get(email, []):
             if (child.get("role") or "").lower() in ae_roles:
-                result.append(child["email"])
+                result.append({"name": child["full_name"], "email": child["email"]})
             else:
-                result.extend(collect_ae_emails(child["email"]))
+                result.extend(collect_aes(child["email"]))
         return result
 
     tl_roles = {"tl", "pae_tl", "pbd_tl", "director", "head", "country_manager"}
@@ -64,14 +67,21 @@ def _resolve_teams() -> list[dict]:
         role = (p.get("role") or "").lower()
         if role not in tl_roles or email in seen:
             continue
-        ae_emails = collect_ae_emails(email)
-        if not ae_emails:
+
+        aes = collect_aes(email)
+        if not aes:
             continue
         seen.add(email)
+
+        # Include TL themselves (they can own deals too)
+        tl_name = p.get("full_name") or ""
+        ae_names = [a["name"] for a in aes] + ([tl_name] if tl_name else [])
+
         teams.append({
             "tl_email": email,
-            "team": p.get("team_name") or p.get("full_name") or email,
-            "ae_emails": ae_emails,
+            "tl_name": tl_name,
+            "team": p.get("team_name") or tl_name or email,
+            "ae_names": ae_names,
         })
 
     return teams
@@ -82,39 +92,47 @@ def _resolve_teams() -> list[dict]:
 # ─────────────────────────────────────────────────────────────
 
 def _build_monday(team_info: dict, today: date) -> dict:
-    ae_emails = team_info["ae_emails"]
+    ae_names = team_info["ae_names"]
     monday, sunday = _week_boundaries(today)
-    monday_utc = f"{monday.isoformat()}T00:00:00Z"
-    sunday_utc = f"{sunday.isoformat()}T23:59:59Z"
     month_start = _first_of_month(today).isoformat()
 
-    # ── demos_booked: deals in demo stages with meeting this week ──
+    # ── demos_booked: deal_ui stage in DEMO, then check deals for meeting this week ──
     demos_booked = 0
     try:
-        resp = (
-            supabase.table("deals")
-            .select("id, pae, pbd")
-            .in_("deal_stage", list(STAGE_DEMO))
-            .gte("hs_next_meeting_start_time", monday_utc)
-            .lte("hs_next_meeting_start_time", sunday_utc)
+        demo_resp = (
+            supabase.table("deal_ui")
+            .select("deal_id, pae")
+            .in_("stage", list(DEMO))
+            .in_("pae", ae_names)
             .execute()
         )
-        for d in (resp.data or []):
-            owner = d.get("pae") or d.get("pbd") or ""
-            if owner in ae_emails:
-                demos_booked += 1
+        demo_deal_ids = [d["deal_id"] for d in (demo_resp.data or [])]
+        if demo_deal_ids:
+            monday_utc = f"{monday.isoformat()}T00:00:00Z"
+            sunday_utc = f"{sunday.isoformat()}T23:59:59Z"
+            for i in range(0, len(demo_deal_ids), 200):
+                batch = demo_deal_ids[i:i + 200]
+                meetings_resp = (
+                    supabase.table("deals")
+                    .select("id")
+                    .in_("id", batch)
+                    .gte("hs_next_meeting_start_time", monday_utc)
+                    .lte("hs_next_meeting_start_time", sunday_utc)
+                    .execute()
+                )
+                demos_booked += len(meetings_resp.data or [])
     except Exception as e:
         print(f"    demos_booked failed: {e}")
 
-    # ── closing_expected: closing stage deals with close_date_hs this week ──
+    # ── closing_expected: deal_ui stage in CLOSING, close_date_hs this week ──
     closing_expected = []
     mr_expected = 0.0
     try:
         resp = (
             supabase.table("deal_ui")
             .select("deal_id, deal_name_full, stage, mrr, close_probability, close_date_hs, pae, deal_momentum")
-            .in_("stage", list(STAGE_CLOSING))
-            .in_("pae", ae_emails)
+            .in_("stage", list(CLOSING))
+            .in_("pae", ae_names)
             .gte("close_date_hs", monday.isoformat())
             .lte("close_date_hs", sunday.isoformat())
             .execute()
@@ -143,7 +161,7 @@ def _build_monday(team_info: dict, today: date) -> dict:
             supabase.table("deal_ui")
             .select("mrr")
             .eq("outcome", "won")
-            .in_("pae", ae_emails)
+            .in_("pae", ae_names)
             .gte("close_date_hs", month_start)
             .execute()
         )
@@ -170,13 +188,16 @@ def _build_monday(team_info: dict, today: date) -> dict:
     consecucion = round(won_mrr / target_mrr * 100, 1) if target_mrr > 0 else 0
 
     # ── whales: top 5 active deals by MRR ──
+    active_macro = ["prospecting", "qualifying", "demo", "evaluating", "closing", "nurturing"]
     whales = []
     try:
         resp = (
             supabase.table("deal_ui")
             .select("deal_name_full, mrr, action_signal, pae, deal_momentum")
-            .in_("pae", ae_emails)
-            .is_("outcome", "null")
+            .in_("pae", ae_names)
+            .in_("macro_stage", active_macro)
+            .not_.is_("mrr", "null")
+            .gt("mrr", 0)
             .order("mrr", desc=True)
             .limit(5)
             .execute()
@@ -212,7 +233,7 @@ def _build_monday(team_info: dict, today: date) -> dict:
 # ─────────────────────────────────────────────────────────────
 
 def _build_friday(team_info: dict, today: date) -> dict:
-    ae_emails = team_info["ae_emails"]
+    ae_names = team_info["ae_names"]
     monday, _ = _week_boundaries(today)
     monday_ts = f"{monday.isoformat()}T00:00:00"
     friday_ts = f"{today.isoformat()}T23:59:59"
@@ -224,7 +245,7 @@ def _build_friday(team_info: dict, today: date) -> dict:
         resp = (
             supabase.table("deal_ui")
             .select("deal_id")
-            .in_("pae", ae_emails)
+            .in_("pae", ae_names)
             .gte("after_demo_date", monday_ts)
             .lte("after_demo_date", friday_ts)
             .execute()
@@ -241,6 +262,7 @@ def _build_friday(team_info: dict, today: date) -> dict:
             .select("deal_id")
             .eq("outcome", "won")
             .gte("created_at", monday_ts)
+            .lte("created_at", friday_ts)
             .execute()
         )
         won_candidates = [a["deal_id"] for a in (analysis_resp.data or [])]
@@ -249,7 +271,7 @@ def _build_friday(team_info: dict, today: date) -> dict:
                 supabase.table("deal_ui")
                 .select("deal_id, mrr, pae")
                 .in_("deal_id", won_candidates)
-                .in_("pae", ae_emails)
+                .in_("pae", ae_names)
                 .execute()
             )
             for d in (ui_resp.data or []):
@@ -264,7 +286,7 @@ def _build_friday(team_info: dict, today: date) -> dict:
             supabase.table("deal_ui")
             .select("mrr")
             .eq("outcome", "won")
-            .in_("pae", ae_emails)
+            .in_("pae", ae_names)
             .gte("close_date_hs", month_start)
             .execute()
         )
@@ -299,34 +321,37 @@ def _build_friday(team_info: dict, today: date) -> dict:
             .select("deal_id, outcome_summary, what_failed")
             .eq("outcome", "lost")
             .gte("created_at", monday_ts)
+            .lte("created_at", friday_ts)
             .execute()
         )
         lost_candidates = {a["deal_id"]: a for a in (analysis_resp.data or [])}
         if lost_candidates:
-            ui_resp = (
-                supabase.table("deal_ui")
-                .select("deal_id, deal_name_full, mrr, pae")
-                .in_("deal_id", list(lost_candidates.keys()))
-                .in_("pae", ae_emails)
-                .execute()
-            )
-            for d in (ui_resp.data or []):
-                did = d["deal_id"]
-                analysis = lost_candidates.get(did, {})
-                postmortem = analysis.get("outcome_summary") or ""
-                what_failed = analysis.get("what_failed") or ""
-                lost_deals.append({
-                    "deal_name": d.get("deal_name_full") or "?",
-                    "mrr": float(d.get("mrr") or 0),
-                    "ae": d.get("pae") or "",
-                    "postmortem": postmortem,
-                    "what_failed": what_failed,
-                })
-                if what_failed:
-                    learnings.append({
+            for i in range(0, len(list(lost_candidates.keys())), 200):
+                batch = list(lost_candidates.keys())[i:i + 200]
+                ui_resp = (
+                    supabase.table("deal_ui")
+                    .select("deal_id, deal_name_full, mrr, pae")
+                    .in_("deal_id", batch)
+                    .in_("pae", ae_names)
+                    .execute()
+                )
+                for d in (ui_resp.data or []):
+                    did = d["deal_id"]
+                    analysis = lost_candidates.get(did, {})
+                    postmortem = analysis.get("outcome_summary") or ""
+                    what_failed = analysis.get("what_failed") or ""
+                    lost_deals.append({
                         "deal_name": d.get("deal_name_full") or "?",
-                        "text": what_failed,
+                        "mrr": float(d.get("mrr") or 0),
+                        "ae": d.get("pae") or "",
+                        "postmortem": postmortem,
+                        "what_failed": what_failed,
                     })
+                    if what_failed:
+                        learnings.append({
+                            "deal_name": d.get("deal_name_full") or "?",
+                            "text": what_failed,
+                        })
     except Exception as e:
         print(f"    lost_deals failed: {e}")
 
@@ -336,7 +361,7 @@ def _build_friday(team_info: dict, today: date) -> dict:
         ae_deals_resp = (
             supabase.table("deal_ui")
             .select("deal_id")
-            .in_("pae", ae_emails)
+            .in_("pae", ae_names)
             .is_("outcome", "null")
             .execute()
         )
@@ -397,7 +422,6 @@ def run():
     print(f"SNAPSHOT — {day_label} {iso_week}")
     print("=" * 60)
 
-    # ── Resolve teams ──
     print("\n▸ RESOLVE TEAMS")
     try:
         teams = _resolve_teams()
@@ -407,14 +431,13 @@ def run():
         traceback.print_exc()
         return
 
-    # ── Build + upsert snapshots ──
     print(f"\n▸ BUILD SNAPSHOTS")
     generated = 0
 
     for team_info in teams:
         tl = team_info["tl_email"]
         team_name = team_info["team"]
-        n_aes = len(team_info["ae_emails"])
+        n_aes = len(team_info["ae_names"])
 
         try:
             if snapshot_day == 1:

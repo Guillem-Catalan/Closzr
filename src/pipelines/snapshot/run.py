@@ -13,8 +13,12 @@ Note: deal_ui.pae/pbd store NAMES (not emails). deal_ui.stage stores internal na
 import traceback
 from datetime import date, timedelta
 
-from src.schema import CLOSING, DEMO
+from src.schema import CLOSING, DEMO, WON, LOST
+from src.config import STAGE_WON, STAGE_LOST
 from src.db.client import supabase
+
+WON_ALL = list(STAGE_WON | WON)
+LOST_ALL = list(STAGE_LOST | LOST)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -29,6 +33,41 @@ def _week_boundaries(today: date) -> tuple[date, date]:
 
 def _first_of_month(today: date) -> date:
     return today.replace(day=1)
+
+
+def _won_mrr_month(ae_names: list[str], month_start: str) -> float:
+    total = 0.0
+    try:
+        resp = (
+            supabase.table("deal_ui")
+            .select("mrr")
+            .in_("stage", WON_ALL)
+            .in_("pae", ae_names)
+            .gte("close_date_hs", month_start)
+            .execute()
+        )
+        for d in (resp.data or []):
+            total += float(d.get("mrr") or 0)
+    except Exception:
+        pass
+    return total
+
+
+def _team_target(team: str, today: date) -> float:
+    try:
+        resp = (
+            supabase.table("forecast_targets")
+            .select("monthly_target")
+            .eq("team", team)
+            .eq("month", today.strftime("%Y-%m"))
+            .maybe_single()
+            .execute()
+        )
+        if resp.data:
+            return float(resp.data.get("monthly_target") or 0)
+    except Exception:
+        pass
+    return 0.0
 
 
 def _resolve_teams() -> list[dict]:
@@ -155,36 +194,8 @@ def _build_monday(team_info: dict, today: date) -> dict:
         print(f"    closing_expected failed: {e}")
 
     # ── consecucion: won MRR this month / target ──
-    won_mrr = 0.0
-    try:
-        resp = (
-            supabase.table("deal_ui")
-            .select("mrr")
-            .eq("outcome", "won")
-            .in_("pae", ae_names)
-            .gte("close_date_hs", month_start)
-            .execute()
-        )
-        for d in (resp.data or []):
-            won_mrr += float(d.get("mrr") or 0)
-    except Exception:
-        pass
-
-    target_mrr = 0.0
-    try:
-        resp = (
-            supabase.table("forecast_targets")
-            .select("monthly_target")
-            .eq("team", team_info["team"])
-            .eq("month", today.strftime("%Y-%m"))
-            .maybe_single()
-            .execute()
-        )
-        if resp.data:
-            target_mrr = float(resp.data.get("monthly_target") or 0)
-    except Exception:
-        pass
-
+    won_mrr = _won_mrr_month(ae_names, month_start)
+    target_mrr = _team_target(team_info["team"], today)
     consecucion = round(won_mrr / target_mrr * 100, 1) if target_mrr > 0 else 0
 
     # ── whales: top 5 active deals by MRR ──
@@ -254,104 +265,71 @@ def _build_friday(team_info: dict, today: date) -> dict:
     except Exception as e:
         print(f"    demos_held failed: {e}")
 
-    # ── mr_closed: deals won this week (via deal_analysis.created_at) ──
+    # ── mr_closed: won deals this week by close_date_hs ──
     mr_closed = 0.0
-    try:
-        analysis_resp = (
-            supabase.table("deal_analysis")
-            .select("deal_id")
-            .eq("outcome", "won")
-            .gte("created_at", monday_ts)
-            .lte("created_at", friday_ts)
-            .execute()
-        )
-        won_candidates = [a["deal_id"] for a in (analysis_resp.data or [])]
-        if won_candidates:
-            ui_resp = (
-                supabase.table("deal_ui")
-                .select("deal_id, mrr, pae")
-                .in_("deal_id", won_candidates)
-                .in_("pae", ae_names)
-                .execute()
-            )
-            for d in (ui_resp.data or []):
-                mr_closed += float(d.get("mrr") or 0)
-    except Exception as e:
-        print(f"    mr_closed failed: {e}")
-
-    # ── consecucion: won MRR this month / target ──
-    total_won_month = 0.0
     try:
         resp = (
             supabase.table("deal_ui")
             .select("mrr")
-            .eq("outcome", "won")
+            .in_("stage", WON_ALL)
             .in_("pae", ae_names)
-            .gte("close_date_hs", month_start)
+            .gte("close_date_hs", monday.isoformat())
+            .lte("close_date_hs", today.isoformat())
             .execute()
         )
         for d in (resp.data or []):
-            total_won_month += float(d.get("mrr") or 0)
-    except Exception:
-        pass
+            mr_closed += float(d.get("mrr") or 0)
+    except Exception as e:
+        print(f"    mr_closed failed: {e}")
 
-    target_mrr = 0.0
-    try:
-        resp = (
-            supabase.table("forecast_targets")
-            .select("monthly_target")
-            .eq("team", team_info["team"])
-            .eq("month", today.strftime("%Y-%m"))
-            .maybe_single()
-            .execute()
-        )
-        if resp.data:
-            target_mrr = float(resp.data.get("monthly_target") or 0)
-    except Exception:
-        pass
+    # ── consecucion: won MRR this month / target ──
+    won_mrr = _won_mrr_month(ae_names, month_start)
+    target_mrr = _team_target(team_info["team"], today)
+    consecucion = round(won_mrr / target_mrr * 100, 1) if target_mrr > 0 else 0
 
-    consecucion = round(total_won_month / target_mrr * 100, 1) if target_mrr > 0 else 0
-
-    # ── lost_deals: deals lost this week with postmortem ──
+    # ── lost_deals: deals lost this week by close_date_hs, enrich with deal_analysis ──
     lost_deals = []
     learnings = []
     try:
-        analysis_resp = (
-            supabase.table("deal_analysis")
-            .select("deal_id, outcome_summary, what_failed")
-            .eq("outcome", "lost")
-            .gte("created_at", monday_ts)
-            .lte("created_at", friday_ts)
+        lost_resp = (
+            supabase.table("deal_ui")
+            .select("deal_id, deal_name_full, mrr, pae")
+            .in_("stage", LOST_ALL)
+            .in_("pae", ae_names)
+            .gte("close_date_hs", monday.isoformat())
+            .lte("close_date_hs", today.isoformat())
             .execute()
         )
-        lost_candidates = {a["deal_id"]: a for a in (analysis_resp.data or [])}
-        if lost_candidates:
-            for i in range(0, len(list(lost_candidates.keys())), 200):
-                batch = list(lost_candidates.keys())[i:i + 200]
-                ui_resp = (
-                    supabase.table("deal_ui")
-                    .select("deal_id, deal_name_full, mrr, pae")
+        lost_deal_ids = [d["deal_id"] for d in (lost_resp.data or [])]
+        analysis_map = {}
+        if lost_deal_ids:
+            for i in range(0, len(lost_deal_ids), 200):
+                batch = lost_deal_ids[i:i + 200]
+                a_resp = (
+                    supabase.table("deal_analysis")
+                    .select("deal_id, outcome_summary, what_failed")
                     .in_("deal_id", batch)
-                    .in_("pae", ae_names)
                     .execute()
                 )
-                for d in (ui_resp.data or []):
-                    did = d["deal_id"]
-                    analysis = lost_candidates.get(did, {})
-                    postmortem = analysis.get("outcome_summary") or ""
-                    what_failed = analysis.get("what_failed") or ""
-                    lost_deals.append({
-                        "deal_name": d.get("deal_name_full") or "?",
-                        "mrr": float(d.get("mrr") or 0),
-                        "ae": d.get("pae") or "",
-                        "postmortem": postmortem,
-                        "what_failed": what_failed,
-                    })
-                    if what_failed:
-                        learnings.append({
-                            "deal_name": d.get("deal_name_full") or "?",
-                            "text": what_failed,
-                        })
+                for a in (a_resp.data or []):
+                    analysis_map[a["deal_id"]] = a
+        for d in (lost_resp.data or []):
+            did = d["deal_id"]
+            analysis = analysis_map.get(did, {})
+            postmortem = analysis.get("outcome_summary") or ""
+            what_failed = analysis.get("what_failed") or ""
+            lost_deals.append({
+                "deal_name": d.get("deal_name_full") or "?",
+                "mrr": float(d.get("mrr") or 0),
+                "ae": d.get("pae") or "",
+                "postmortem": postmortem,
+                "what_failed": what_failed,
+            })
+            if what_failed:
+                learnings.append({
+                    "deal_name": d.get("deal_name_full") or "?",
+                    "text": what_failed,
+                })
     except Exception as e:
         print(f"    lost_deals failed: {e}")
 

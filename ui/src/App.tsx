@@ -70,7 +70,7 @@ function App() {
         <Sidebar view={view} onNav={setView}/>
         <main className="cz-main">
           <SidebarToggle/>
-          {view === "todos" && <TodoView onOpen={handleOpen}/>}
+          {view === "alerts" && <TodoView onOpen={handleOpen}/>}
           {view === "pipeline" && <PipelineView onOpen={handleOpen}/>}
           {view === "forecast" && <ForecastView onOpen={handleOpen}/>}
           {view === "oneone" && <OneOnOneView onOpen={handleOpen}/>}

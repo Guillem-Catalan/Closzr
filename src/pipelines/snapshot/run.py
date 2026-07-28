@@ -35,22 +35,27 @@ def _first_of_month(today: date) -> date:
     return today.replace(day=1)
 
 
-def _won_mrr_month(ae_names: list[str], month_start: str) -> float:
+def _won_deals(ae_names: list[str], date_from: str, date_to: str | None = None) -> tuple[int, float]:
+    """Count and sum MRR of won deals in a date range. Returns (count, mrr)."""
+    count = 0
     total = 0.0
     try:
-        resp = (
+        q = (
             supabase.table("deal_ui")
             .select("mrr")
             .in_("stage", WON_ALL)
             .in_("pae", ae_names)
-            .gte("close_date_hs", month_start)
-            .execute()
+            .gte("close_date_hs", date_from)
         )
+        if date_to:
+            q = q.lte("close_date_hs", date_to)
+        resp = q.execute()
         for d in (resp.data or []):
+            count += 1
             total += float(d.get("mrr") or 0)
     except Exception:
         pass
-    return total
+    return count, total
 
 
 def _team_target(team: str, today: date) -> float:
@@ -193,10 +198,10 @@ def _build_monday(team_info: dict, today: date) -> dict:
     except Exception as e:
         print(f"    closing_expected failed: {e}")
 
-    # ── consecucion: won MRR this month / target ──
-    won_mrr = _won_mrr_month(ae_names, month_start)
+    # ── wons: week + month cumulative ──
+    wons_month, mr_month = _won_deals(ae_names, month_start)
     target_mrr = _team_target(team_info["team"], today)
-    consecucion = round(won_mrr / target_mrr * 100, 1) if target_mrr > 0 else 0
+    consecucion = round(mr_month / target_mrr * 100, 1) if target_mrr > 0 else 0
 
     # ── whales: top 5 active deals by MRR ──
     active_macro = ["prospecting", "qualifying", "demo", "evaluating", "closing", "nurturing"]
@@ -231,6 +236,9 @@ def _build_monday(team_info: dict, today: date) -> dict:
         "demos_held": 0,
         "mr_closed": 0,
         "mr_expected": round(mr_expected, 2),
+        "wons_week": 0,
+        "wons_month": wons_month,
+        "mr_closed_month": round(mr_month, 2),
         "consecucion_pct": consecucion,
         "data": {
             "closing_expected": closing_expected,
@@ -265,27 +273,11 @@ def _build_friday(team_info: dict, today: date) -> dict:
     except Exception as e:
         print(f"    demos_held failed: {e}")
 
-    # ── mr_closed: won deals this week by close_date_hs ──
-    mr_closed = 0.0
-    try:
-        resp = (
-            supabase.table("deal_ui")
-            .select("mrr")
-            .in_("stage", WON_ALL)
-            .in_("pae", ae_names)
-            .gte("close_date_hs", monday.isoformat())
-            .lte("close_date_hs", today.isoformat())
-            .execute()
-        )
-        for d in (resp.data or []):
-            mr_closed += float(d.get("mrr") or 0)
-    except Exception as e:
-        print(f"    mr_closed failed: {e}")
-
-    # ── consecucion: won MRR this month / target ──
-    won_mrr = _won_mrr_month(ae_names, month_start)
+    # ── wons: week + month cumulative ──
+    wons_week, mr_closed = _won_deals(ae_names, monday.isoformat(), today.isoformat())
+    wons_month, mr_month = _won_deals(ae_names, month_start)
     target_mrr = _team_target(team_info["team"], today)
-    consecucion = round(won_mrr / target_mrr * 100, 1) if target_mrr > 0 else 0
+    consecucion = round(mr_month / target_mrr * 100, 1) if target_mrr > 0 else 0
 
     # ── lost_deals: deals lost this week by close_date_hs, enrich with deal_analysis ──
     lost_deals = []
@@ -372,6 +364,9 @@ def _build_friday(team_info: dict, today: date) -> dict:
         "demos_held": demos_held,
         "mr_closed": round(mr_closed, 2),
         "mr_expected": 0,
+        "wons_week": wons_week,
+        "wons_month": wons_month,
+        "mr_closed_month": round(mr_month, 2),
         "consecucion_pct": consecucion,
         "data": {
             "lost_deals": lost_deals,
@@ -437,6 +432,9 @@ def run():
                 "demos_held": metrics["demos_held"],
                 "mr_closed": metrics["mr_closed"],
                 "mr_expected": metrics["mr_expected"],
+                "wons_week": metrics["wons_week"],
+                "wons_month": metrics["wons_month"],
+                "mr_closed_month": metrics["mr_closed_month"],
                 "consecucion_pct": metrics["consecucion_pct"],
                 "data": metrics["data"],
             }

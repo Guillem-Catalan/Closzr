@@ -15,6 +15,9 @@ CREATE TABLE team_snapshots (
   demos_held      INTEGER DEFAULT 0,
   mr_closed       NUMERIC DEFAULT 0,
   mr_expected     NUMERIC DEFAULT 0,
+  wons_week       INTEGER DEFAULT 0,
+  wons_month      INTEGER DEFAULT 0,
+  mr_closed_month NUMERIC DEFAULT 0,
   consecucion_pct NUMERIC DEFAULT 0,
 
   -- Variable content (Mon: closing_expected, whales / Fri: lost_deals, learnings, coaching_flags)

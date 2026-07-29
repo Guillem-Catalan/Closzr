@@ -568,6 +568,129 @@ export default function ExecSummaryView() {
     return { reasons: sorted, unknownPct, totalLost: lostDeals.length };
   }, [lostDeals]);
 
+  // ---- Section 5: Drill-down tab data ----
+
+  // By PAE
+  type PaeRow = { pae: string; mrrWon: number; demos: number; demoWon: number | null; logos: number; arpu: number | null; avgCycle: number | null };
+  const paeRows = useMemo(() => {
+    const byPae = new Map<string, { won: BenchmarkDeal[]; demos: number }>();
+    for (const d of wonDeals) {
+      const pae = d.owner || "Unknown";
+      const cur = byPae.get(pae) || { won: [], demos: 0 };
+      cur.won.push(d);
+      byPae.set(pae, cur);
+    }
+    for (const d of demosInRange) {
+      const pae = d.pae || "Unknown";
+      const cur = byPae.get(pae) || { won: [], demos: 0 };
+      cur.demos += 1;
+      byPae.set(pae, cur);
+    }
+    return [...byPae.entries()].map(([pae, v]) => {
+      const mrrWon = v.won.reduce((s, d) => s + (d.mrr || 0), 0);
+      const logos = v.won.length;
+      const cycles = v.won.filter(d => d.dealAge != null && d.dealAge > 0).map(d => d.dealAge!);
+      return {
+        pae,
+        mrrWon,
+        demos: v.demos,
+        demoWon: v.demos > 0 ? logos / v.demos : null,
+        logos,
+        arpu: logos > 0 ? mrrWon / logos : null,
+        avgCycle: cycles.length > 0 ? median(cycles) : null,
+      };
+    }).sort((a, b) => b.mrrWon - a.mrrWon);
+  }, [wonDeals, demosInRange]);
+
+  // By PBD
+  type PbdRow = { pbd: string; demos: number; pipeline: number };
+  const pbdRows = useMemo(() => {
+    const byPbd = new Map<string, { demos: number; pipeline: number }>();
+    for (const d of demosInRange) {
+      const pbd = d.pbd || "Unknown";
+      const cur = byPbd.get(pbd) || { demos: 0, pipeline: 0 };
+      cur.demos += 1;
+      byPbd.set(pbd, cur);
+    }
+    for (const d of openDeals) {
+      const raw = d.id ? dealsMap.get(d.id) : null;
+      const pbd = raw?.pbd || (d as any).owner || "Unknown";
+      const cur = byPbd.get(pbd) || { demos: 0, pipeline: 0 };
+      cur.pipeline += d.mrr || 0;
+      byPbd.set(pbd, cur);
+    }
+    return [...byPbd.entries()]
+      .map(([pbd, v]) => ({ pbd, ...v }))
+      .sort((a, b) => b.demos - a.demos);
+  }, [demosInRange, openDeals, dealsMap]);
+
+  // By Partner
+  type PartnerRow = { partner: string; mrrWon: number; wonDeals: number; pipeline: number; avgDealSize: number | null; avgCycle: number | null };
+  const partnerRows = useMemo(() => {
+    const byPartner = new Map<string, { wonMrr: number; wonCount: number; pipeline: number; cycles: number[] }>();
+    for (const d of dealsRaw) {
+      const p = (d.partner || "").trim();
+      if (!p) continue;
+      const stage = (d.deal_stage || "").toLowerCase().trim();
+      const amt = d.amount || 0;
+      if (!byPartner.has(p)) byPartner.set(p, { wonMrr: 0, wonCount: 0, pipeline: 0, cycles: [] });
+      const row = byPartner.get(p)!;
+      if (WON_STAGES.has(stage) && inRange(d.close_date, range)) {
+        row.wonMrr += amt;
+        row.wonCount += 1;
+        if (d.createdate && d.close_date) {
+          const days = Math.round((new Date(d.close_date).getTime() - new Date(d.createdate).getTime()) / 86400000);
+          if (days > 0) row.cycles.push(days);
+        }
+      }
+      if (!CLOSED_STAGES.has(stage)) {
+        row.pipeline += amt;
+      }
+    }
+    return [...byPartner.entries()]
+      .map(([partner, v]) => ({
+        partner,
+        mrrWon: v.wonMrr,
+        wonDeals: v.wonCount,
+        pipeline: v.pipeline,
+        avgDealSize: v.wonCount > 0 ? v.wonMrr / v.wonCount : null,
+        avgCycle: v.cycles.length > 0 ? median(v.cycles) : null,
+      }))
+      .filter(r => r.mrrWon > 0 || r.pipeline > 0)
+      .sort((a, b) => b.mrrWon - a.mrrWon);
+  }, [dealsRaw, range]);
+
+  // By Size
+  type SizeRow = { bucket: string; dealCount: number; mrrWon: number; winRate: number | null; avgDealSize: number | null };
+  const sizeRows = useMemo(() => {
+    const allBenchmark = [...wonDeals, ...lostDeals];
+    const byBucket = new Map<string, { won: number; lost: number; mrrWon: number }>();
+    for (const d of allBenchmark) {
+      const count = parseEmployeeCount(d.employees);
+      const bucket = employeeBucket(count);
+      const cur = byBucket.get(bucket) || { won: 0, lost: 0, mrrWon: 0 };
+      if (d.outcome === "won") {
+        cur.won += 1;
+        cur.mrrWon += d.mrr || 0;
+      } else {
+        cur.lost += 1;
+      }
+      byBucket.set(bucket, cur);
+    }
+    return [...byBucket.entries()]
+      .map(([bucket, v]) => {
+        const total = v.won + v.lost;
+        return {
+          bucket,
+          dealCount: total,
+          mrrWon: v.mrrWon,
+          winRate: total > 0 ? v.won / total : null,
+          avgDealSize: v.won > 0 ? v.mrrWon / v.won : null,
+        };
+      })
+      .sort((a, b) => b.mrrWon - a.mrrWon);
+  }, [wonDeals, lostDeals]);
+
   return (
     <div style={{ padding: "24px 32px", maxWidth: 1200 }}>
       {/* Header */}
@@ -939,6 +1062,206 @@ export default function ExecSummaryView() {
             )}
           </div>
         </div>
+      </section>
+
+      {/* Section 5: Drill-down Tabs */}
+      <section style={CARD}>
+        <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--line)", marginBottom: 16 }}>
+          {([
+            ["pae", "By PAE"],
+            ["pbd", "By PBD"],
+            ["partner", "By Partner"],
+            ["size", "By Size"],
+          ] as [typeof activeTab, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              style={{
+                padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                border: "none", background: "none",
+                color: activeTab === key ? "var(--ink-1)" : "var(--ink-3)",
+                borderBottom: activeTab === key ? "2px solid var(--indigo)" : "2px solid transparent",
+              }}
+            >
+              {label}
+              {(key === "partner" || key === "size") && (
+                <span style={{ marginLeft: 6, fontSize: 10, color: "var(--ink-4)" }}>{"≈"}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* PAE Tab */}
+        {activeTab === "pae" && (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={{ ...TH, textAlign: "left" }}>PAE</th>
+                  <th style={{ ...TH, textAlign: "right" }}>MRR Won</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Demos</th>
+                  <th style={{ ...TH, textAlign: "right" }}>{"Demo→Won"}</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Logos</th>
+                  <th style={{ ...TH, textAlign: "right" }}>ARPU</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Avg Cycle</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* TOTAL row */}
+                {(() => {
+                  const totMrr = paeRows.reduce((s, r) => s + r.mrrWon, 0);
+                  const totDemos = paeRows.reduce((s, r) => s + r.demos, 0);
+                  const totLogos = paeRows.reduce((s, r) => s + r.logos, 0);
+                  return (
+                    <tr style={{ background: "var(--card)", fontWeight: 600 }}>
+                      <td style={{ ...TD, fontWeight: 700 }}>TOTAL / AVG</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{fmtMRR(totMrr)}</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{totDemos}</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{totDemos > 0 ? `${Math.round((totLogos / totDemos) * 100)}%` : "—"}</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{totLogos}</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{totLogos > 0 ? fmtMRR(totMrr / totLogos) : "—"}</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{kpis.medianCycle != null ? `${kpis.medianCycle}d` : "—"}</td>
+                    </tr>
+                  );
+                })()}
+                {paeRows.map(r => (
+                  <tr key={r.pae}>
+                    <td style={{ ...TD, fontWeight: 500, color: "var(--ink-1)" }}>{ownerDisplayName(r.pae)}</td>
+                    <td style={{ ...TD, textAlign: "right", fontWeight: 600 }} className="num">{fmtMRR(r.mrrWon)}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.demos}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.demoWon != null ? `${Math.round(r.demoWon * 100)}%` : "—"}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.logos}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.arpu != null ? fmtMRR(r.arpu) : "—"}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.avgCycle != null ? `${r.avgCycle}d` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* PBD Tab */}
+        {activeTab === "pbd" && (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={{ ...TH, textAlign: "left" }}>PBD</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Demos Attributed</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Pipeline Generated</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style={{ background: "var(--card)", fontWeight: 600 }}>
+                  <td style={{ ...TD, fontWeight: 700 }}>TOTAL</td>
+                  <td style={{ ...TD, textAlign: "right" }} className="num">{pbdRows.reduce((s, r) => s + r.demos, 0)}</td>
+                  <td style={{ ...TD, textAlign: "right" }} className="num">{fmtMRR(pbdRows.reduce((s, r) => s + r.pipeline, 0))}</td>
+                </tr>
+                {pbdRows.map(r => (
+                  <tr key={r.pbd}>
+                    <td style={{ ...TD, fontWeight: 500, color: "var(--ink-1)" }}>{ownerDisplayName(r.pbd)}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.demos}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{fmtMRR(r.pipeline)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Partner Tab */}
+        {activeTab === "partner" && (
+          <div style={{ overflowX: "auto" }}>
+            <div style={{ marginBottom: 10 }}>
+              <Chip tone="amber" style={{ fontSize: 11 }}>{"≈ pending #29"}</Chip>
+            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={{ ...TH, textAlign: "left" }}>Partner</th>
+                  <th style={{ ...TH, textAlign: "right" }}>MRR Won</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Won Deals</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Open Pipeline</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Avg Deal Size</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Avg Cycle</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const totMrr = partnerRows.reduce((s, r) => s + r.mrrWon, 0);
+                  const totDeals = partnerRows.reduce((s, r) => s + r.wonDeals, 0);
+                  const totPipeline = partnerRows.reduce((s, r) => s + r.pipeline, 0);
+                  return (
+                    <tr style={{ background: "var(--card)", fontWeight: 600 }}>
+                      <td style={{ ...TD, fontWeight: 700 }}>TOTAL</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{fmtMRR(totMrr)}</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{totDeals}</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{fmtMRR(totPipeline)}</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{totDeals > 0 ? fmtMRR(totMrr / totDeals) : "—"}</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{"—"}</td>
+                    </tr>
+                  );
+                })()}
+                {partnerRows.map(r => (
+                  <tr key={r.partner}>
+                    <td style={{ ...TD, fontWeight: 500, color: "var(--ink-1)" }}>{r.partner}</td>
+                    <td style={{ ...TD, textAlign: "right", fontWeight: 600 }} className="num">{fmtMRR(r.mrrWon)}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.wonDeals}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{fmtMRR(r.pipeline)}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.avgDealSize != null ? fmtMRR(r.avgDealSize) : "—"}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.avgCycle != null ? `${r.avgCycle}d` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Size Tab */}
+        {activeTab === "size" && (
+          <div style={{ overflowX: "auto" }}>
+            <div style={{ marginBottom: 10 }}>
+              <Chip tone="amber" style={{ fontSize: 11 }}>{"≈ pending #29"}</Chip>
+            </div>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={{ ...TH, textAlign: "left" }}>Size Bucket</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Deal Count</th>
+                  <th style={{ ...TH, textAlign: "right" }}>MRR Won</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Win Rate</th>
+                  <th style={{ ...TH, textAlign: "right" }}>Avg Deal Size</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  const totCount = sizeRows.reduce((s, r) => s + r.dealCount, 0);
+                  const totMrr = sizeRows.reduce((s, r) => s + r.mrrWon, 0);
+                  const totWon = wonDeals.length;
+                  const totClosed = wonDeals.length + lostDeals.length;
+                  return (
+                    <tr style={{ background: "var(--card)", fontWeight: 600 }}>
+                      <td style={{ ...TD, fontWeight: 700 }}>TOTAL</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{totCount}</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{fmtMRR(totMrr)}</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{totClosed > 0 ? `${Math.round((totWon / totClosed) * 100)}%` : "—"}</td>
+                      <td style={{ ...TD, textAlign: "right" }} className="num">{totWon > 0 ? fmtMRR(totMrr / totWon) : "—"}</td>
+                    </tr>
+                  );
+                })()}
+                {sizeRows.map(r => (
+                  <tr key={r.bucket}>
+                    <td style={{ ...TD, fontWeight: 500, color: "var(--ink-1)" }}>{r.bucket}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.dealCount}</td>
+                    <td style={{ ...TD, textAlign: "right", fontWeight: 600 }} className="num">{fmtMRR(r.mrrWon)}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.winRate != null ? `${Math.round(r.winRate * 100)}%` : "—"}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.avgDealSize != null ? fmtMRR(r.avgDealSize) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </div>
   );

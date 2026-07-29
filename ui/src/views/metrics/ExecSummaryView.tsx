@@ -484,6 +484,90 @@ export default function ExecSummaryView() {
     return "var(--ink-4)";
   }
 
+  // ---- Section 3: Pipeline Health ----
+  const coverageRatio = useMemo(() => {
+    const remaining = kpis.totalTarget > 0 ? kpis.totalTarget - kpis.mrrWon : 0;
+    if (remaining <= 0 && kpis.totalTarget > 0) return Infinity; // already hit target
+    if (kpis.totalTarget === 0) return null;
+    return kpis.pipeline / remaining;
+  }, [kpis]);
+
+  const stageDistribution = useMemo(() => {
+    const byStage = new Map<string, { count: number; mrr: number }>();
+    for (const d of openDeals) {
+      const s = d.stage || "Other";
+      const cur = byStage.get(s) || { count: 0, mrr: 0 };
+      cur.count += 1;
+      cur.mrr += d.mrr || 0;
+      byStage.set(s, cur);
+    }
+    return [...byStage.entries()]
+      .map(([stage, v]) => ({ stage, ...v }))
+      .sort((a, b) => b.mrr - a.mrr)
+      .slice(0, 6);
+  }, [openDeals]);
+
+  const hygieneAlerts = useMemo(() => {
+    const stale = openDeals.filter(d => (d as any).stale).length;
+    const toReschedule = openDeals.filter(d => {
+      const s = (d.stage || "").toLowerCase();
+      return s.includes("reschedul") || s === "to reschedule";
+    }).length;
+    const missingFirstMeeting = dealsRaw.filter(d => {
+      const stage = (d.deal_stage || "").toLowerCase();
+      if (CLOSED_STAGES.has(stage)) return false;
+      if (stage === "prospecting" || stage === "new" || stage === "") return false;
+      return !d.first_meeting_at;
+    }).length;
+    return { stale, toReschedule, missingFirstMeeting };
+  }, [openDeals, dealsRaw]);
+
+  // ---- Section 4: Monthly Trends (trailing 6 months) ----
+  const monthlyTrends = useMemo(() => {
+    const now = new Date();
+    const months: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(monthKey(d));
+    }
+    const curMonth = monthKey(now);
+
+    const mrrByMonth = months.map(m => {
+      const mrr = D.benchmark.won
+        .filter(d => d.closeDate && d.closeDate.slice(0, 7) === m)
+        .reduce((s, d) => s + (d.mrr || 0), 0);
+      return { month: m, value: mrr, isCurrent: m === curMonth };
+    });
+
+    const demosByMonth = months.map(m => {
+      const count = dealsRaw.filter(d => d.after_demo_date && d.after_demo_date.slice(0, 7) === m).length;
+      return { month: m, value: count, isCurrent: m === curMonth };
+    });
+
+    return { months, mrrByMonth, demosByMonth };
+  }, [D.benchmark.won, dealsRaw]);
+
+  // ---- Section 4: Loss Reasons ----
+  const lossReasons = useMemo(() => {
+    const reasons = new Map<string, { count: number; mrr: number }>();
+    for (const d of lostDeals) {
+      const r = d.lostReason || "Unknown";
+      const cur = reasons.get(r) || { count: 0, mrr: 0 };
+      cur.count += 1;
+      cur.mrr += d.mrr || 0;
+      reasons.set(r, cur);
+    }
+    const sorted = [...reasons.entries()]
+      .map(([reason, v]) => ({ reason, ...v }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+
+    const unknownCount = reasons.get("Unknown")?.count || 0;
+    const unknownPct = lostDeals.length > 0 ? unknownCount / lostDeals.length : 0;
+
+    return { reasons: sorted, unknownPct, totalLost: lostDeals.length };
+  }, [lostDeals]);
+
   return (
     <div style={{ padding: "24px 32px", maxWidth: 1200 }}>
       {/* Header */}
@@ -677,6 +761,184 @@ export default function ExecSummaryView() {
             </table>
           </div>
         )}
+      </section>
+
+      {/* Section 3: Pipeline Health Strip */}
+      <section style={CARD}>
+        <div style={HEADING}>
+          <Icon name="layers" size={18} />
+          Pipeline Health
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+          {/* 3a. Coverage Ratio */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 8 }}>Coverage Ratio</div>
+            {coverageRatio == null ? (
+              <div>
+                <span style={{ fontSize: 28, fontWeight: 800, color: "var(--ink-1)" }} className="num">{fmtMRR(kpis.pipeline)}</span>
+                <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 4 }}>No target set</div>
+              </div>
+            ) : coverageRatio === Infinity ? (
+              <div>
+                <span style={{ fontSize: 28, fontWeight: 800, color: "var(--green-ink)" }} className="num">{"Target hit ✓"}</span>
+              </div>
+            ) : (
+              <div>
+                <span style={{
+                  fontSize: 28, fontWeight: 800,
+                  color: coverageRatio >= 3 ? "var(--green-ink)" : coverageRatio >= 2 ? "var(--amber-ink)" : "var(--red-ink)",
+                }} className="num">{coverageRatio.toFixed(1)}{"×"}</span>
+                <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 4 }}>
+                  {fmtMRR(kpis.pipeline)} pipeline {"÷"} {fmtMRR(kpis.totalTarget - kpis.mrrWon)} remaining
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 3b. Pre/Post Demo Pipeline */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 8 }}>Pipeline by Demo Status</div>
+            {(() => {
+              const total = kpis.postDemoPipeline + kpis.preDemoPipeline;
+              const postPct = total > 0 ? Math.round((kpis.postDemoPipeline / total) * 100) : 0;
+              return (
+                <>
+                  <div style={{ height: 16, borderRadius: 8, overflow: "hidden", display: "flex", background: "var(--card)" }}>
+                    <div style={{ width: `${postPct}%`, background: "var(--indigo)", minWidth: kpis.postDemoPipeline > 0 ? 4 : 0 }} />
+                    <div style={{ flex: 1, background: "var(--indigo)", opacity: 0.3 }} />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ink-3)", marginTop: 6 }}>
+                    <span>{fmtMRR(kpis.postDemoPipeline)} post-demo</span>
+                    <span>{fmtMRR(kpis.preDemoPipeline)} pre-demo</span>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* 3c. Stage Distribution */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 8 }}>Stage Distribution</div>
+            {stageDistribution.length === 0 ? (
+              <p style={{ color: "var(--ink-4)", fontSize: 12 }}>No open deals.</p>
+            ) : (
+              <HBar
+                items={stageDistribution.map(s => ({
+                  label: s.stage,
+                  value: s.mrr,
+                  subLabel: String(s.count),
+                }))}
+                maxVal={stageDistribution[0]?.mrr || 1}
+              />
+            )}
+          </div>
+
+          {/* 3d. Hygiene Alerts */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 8 }}>Hygiene Alerts</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {[
+                { label: "stale deals", count: hygieneAlerts.stale },
+                { label: "missing 1st meeting", count: hygieneAlerts.missingFirstMeeting },
+                { label: "to reschedule", count: hygieneAlerts.toReschedule },
+              ].map(h => (
+                <Chip
+                  key={h.label}
+                  tone={h.count > 5 ? "red" : h.count > 0 ? "amber" : "ink"}
+                  style={{ fontSize: 12 }}
+                >
+                  {h.count} {h.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 4: Funnel & Loss */}
+      <section style={CARD}>
+        <div style={HEADING}>
+          <Icon name="trendUp" size={18} />
+          Trends & Loss Analysis
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+          {/* 4a. Monthly Trends */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 10 }}>MRR Won by Month</div>
+            <div style={{ fontSize: 10, color: "var(--ink-4)", marginBottom: 8 }}>Last 6 months</div>
+            {(() => {
+              const maxMrr = Math.max(...monthlyTrends.mrrByMonth.map(m => m.value), 1);
+              return (
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 80 }}>
+                  {monthlyTrends.mrrByMonth.map(m => {
+                    const h = maxMrr > 0 ? Math.round((m.value / maxMrr) * 70) : 0;
+                    return (
+                      <div key={m.month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <span className="num" style={{ fontSize: 9, color: "var(--ink-3)", marginBottom: 2 }}>{fmtMRR(m.value)}</span>
+                        <div style={{
+                          width: "100%", height: h, borderRadius: 3,
+                          background: "var(--indigo)", opacity: m.isCurrent ? 0.5 : 1,
+                        }} />
+                        <span style={{ fontSize: 9, color: "var(--ink-4)", marginTop: 3 }}>{monthLabel(m.month).slice(0, 3)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 10, marginTop: 20 }}>Demos by Month</div>
+            {(() => {
+              const maxDemos = Math.max(...monthlyTrends.demosByMonth.map(m => m.value), 1);
+              return (
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 80 }}>
+                  {monthlyTrends.demosByMonth.map(m => {
+                    const h = maxDemos > 0 ? Math.round((m.value / maxDemos) * 70) : 0;
+                    return (
+                      <div key={m.month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <span className="num" style={{ fontSize: 9, color: "var(--ink-3)", marginBottom: 2 }}>{m.value}</span>
+                        <div style={{
+                          width: "100%", height: h, borderRadius: 3,
+                          background: "var(--green)", opacity: m.isCurrent ? 0.5 : 1,
+                        }} />
+                        <span style={{ fontSize: 9, color: "var(--ink-4)", marginTop: 3 }}>{monthLabel(m.month).slice(0, 3)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* 4b. Loss Reasons */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)", marginBottom: 4 }}>Loss Reasons</div>
+            <div style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 10 }}>{lossReasons.totalLost} lost in {rangeLabel(range)}</div>
+            {lossReasons.reasons.length === 0 ? (
+              <p style={{ color: "var(--ink-3)", fontSize: 13 }}>No lost deals in this period.</p>
+            ) : (
+              <>
+                <HBar
+                  items={lossReasons.reasons.map(r => ({
+                    label: r.reason,
+                    value: r.count,
+                    subLabel: fmtMRR(r.mrr),
+                    tone: "var(--red)",
+                  }))}
+                  maxVal={lossReasons.reasons[0]?.count || 1}
+                />
+                {lossReasons.unknownPct > 0.5 && (
+                  <div style={{
+                    marginTop: 12, padding: "8px 12px", borderRadius: 8,
+                    background: "var(--amber-tint)", fontSize: 12, color: "var(--amber-ink)",
+                  }}>
+                    {Math.round(lossReasons.unknownPct * 100)}% of losses have no reason recorded.
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       </section>
     </div>
   );

@@ -316,6 +316,174 @@ export default function ExecSummaryView() {
     return total > 0 ? w.length / total : null;
   }, [D.benchmark, prior]);
 
+  // ---- Section 1: KPI computations ----
+  const kpis = useMemo(() => {
+    const mrrWon = wonDeals.reduce((s, d) => s + (d.mrr || 0), 0);
+    const priorMrr = priorWon.reduce((s, d) => s + (d.mrr || 0), 0);
+    const logos = wonDeals.length;
+    const priorLogos = priorWon.length;
+    const demos = demosInRange.length;
+    const priorDemos = priorDemosInRange.length;
+    const demoWon = demos > 0 ? wonDeals.length / demos : null;
+    const priorDemoWon = priorDemos > 0 ? priorWon.length / priorDemos : null;
+    const pipeline = openDeals.reduce((s, d) => s + (d.mrr || 0), 0);
+    const wonCycles = wonDeals.filter(d => d.dealAge != null && d.dealAge > 0).map(d => d.dealAge!);
+    const medianCycle = wonCycles.length > 0 ? median(wonCycles) : null;
+    const priorCycles = priorWon.filter(d => d.dealAge != null && d.dealAge > 0).map(d => d.dealAge!);
+    const priorMedianCycle = priorCycles.length > 0 ? median(priorCycles) : null;
+
+    // Attainment
+    const targetMonths = D.forecast.targets.filter(t => t.month >= range.from && t.month <= range.to);
+    const totalTarget = targetMonths.reduce((s, t) => s + t.monthly_target, 0);
+
+    // Post-demo / pre-demo pipeline split
+    let postDemoPipeline = 0, preDemoPipeline = 0;
+    for (const d of openDeals) {
+      const raw = d.id ? dealsMap.get(d.id) : null;
+      if (raw?.after_demo_date) postDemoPipeline += d.mrr || 0;
+      else preDemoPipeline += d.mrr || 0;
+    }
+
+    return {
+      mrrWon, priorMrr, logos, priorLogos, demos, priorDemos,
+      demoWon, priorDemoWon,
+      winRate6m, priorWinRate6m,
+      pipeline, postDemoPipeline, preDemoPipeline,
+      medianCycle, priorMedianCycle,
+      totalTarget,
+    };
+  }, [wonDeals, priorWon, lostDeals, demosInRange, priorDemosInRange, openDeals, dealsMap, D.forecast.targets, range, winRate6m, priorWinRate6m]);
+
+  // ---- Section 2: Team Scorecard ----
+  type TeamSortCol = "team" | "mrrWon" | "demos" | "demoWon" | "logos" | "pipeline" | "winRate" | "avgDealSize" | "avgCycle" | "hygiene";
+  const [teamSortCol, setTeamSortCol] = useState<TeamSortCol>("mrrWon");
+  const [teamSortDir, setTeamSortDir] = useState<SortDir>("desc");
+
+  const teamRows = useMemo(() => {
+    const teams = ACTIVE_TEAMS as unknown as string[];
+    const rows = teams.map(team => {
+      const teamEmails = expandTeam(team);
+      const tw = wonDeals.filter(d => teamEmails.has(d.team));
+      const tl = lostDeals.filter(d => teamEmails.has(d.team));
+      const to = openDeals.filter(d => teamEmails.has(d.team || ""));
+      const totalClosed = tw.length + tl.length;
+      const teamDemos = demosInRange.filter(d => teamEmails.has(d.team || ""));
+      const mrrWon = tw.reduce((s, d) => s + (d.mrr || 0), 0);
+      const logos = tw.length;
+
+      // Win rate — 6m rolling per team
+      const [ty, tm] = range.to.split("-").map(Number);
+      const w6start = new Date(ty, tm - 6, 1);
+      const w6 = { from: monthKey(w6start), to: range.to };
+      const tw6 = D.benchmark.won.filter(d => teamEmails.has(d.team) && inRange(d.closeDate, w6));
+      const tl6 = D.benchmark.lost.filter(d => teamEmails.has(d.team) && inRange(d.closeDate, w6));
+      const t6total = tw6.length + tl6.length;
+      const winRate = t6total > 0 ? tw6.length / t6total : null;
+
+      // Cycle
+      const cycles = tw.filter(d => d.dealAge != null && d.dealAge > 0).map(d => d.dealAge!);
+      const avgCycle = cycles.length > 0 ? median(cycles) : null;
+
+      // Hygiene: stale + missing first meeting + to reschedule
+      const stale = to.filter(d => (d as any).stale).length;
+      const toReschedule = to.filter(d => {
+        const s = (d.stage || "").toLowerCase();
+        return s.includes("reschedul") || s === "to reschedule";
+      }).length;
+      const missingFirstMeeting = dealsRaw.filter(d => {
+        if (!teamEmails.has(d.team || "")) return false;
+        const stage = (d.deal_stage || "").toLowerCase();
+        if (CLOSED_STAGES.has(stage)) return false;
+        if (stage === "prospecting" || stage === "new" || stage === "") return false;
+        return !d.first_meeting_at;
+      }).length;
+      const hygiene = stale + toReschedule + missingFirstMeeting;
+
+      return {
+        team, mrrWon, demos: teamDemos.length,
+        demoWon: teamDemos.length > 0 ? logos / teamDemos.length : null,
+        logos, pipeline: to.reduce((s, d) => s + (d.mrr || 0), 0),
+        winRate, avgDealSize: logos > 0 ? mrrWon / logos : null,
+        avgCycle, hygiene,
+      };
+    }).filter(r => r.mrrWon > 0 || r.pipeline > 0 || r.logos > 0 || r.demos > 0);
+
+    return rows;
+  }, [wonDeals, lostDeals, openDeals, demosInRange, dealsRaw, D.benchmark, range]);
+
+  // TOTAL row
+  const totalRow = useMemo(() => {
+    const mrrWon = teamRows.reduce((s, r) => s + r.mrrWon, 0);
+    const demos = teamRows.reduce((s, r) => s + r.demos, 0);
+    const logos = teamRows.reduce((s, r) => s + r.logos, 0);
+    const pipeline = teamRows.reduce((s, r) => s + r.pipeline, 0);
+    const hygiene = teamRows.reduce((s, r) => s + r.hygiene, 0);
+    const demoWon = demos > 0 ? logos / demos : null;
+    const avgDealSize = logos > 0 ? mrrWon / logos : null;
+    const allCycles = wonDeals.filter(d => d.dealAge != null && d.dealAge > 0).map(d => d.dealAge!);
+    const avgCycle = allCycles.length > 0 ? median(allCycles) : null;
+    return { team: "TOTAL", mrrWon, demos, demoWon, logos, pipeline, winRate: kpis.winRate6m, avgDealSize, avgCycle, hygiene };
+  }, [teamRows, wonDeals, kpis.winRate6m]);
+
+  // Rank badges for MRR Won
+  const mrrRanks = useMemo(() => {
+    const sorted = [...teamRows].sort((a, b) => b.mrrWon - a.mrrWon);
+    const ranks = new Map<string, number>();
+    sorted.forEach((r, i) => ranks.set(r.team, i + 1));
+    return ranks;
+  }, [teamRows]);
+
+  // Conditional formatting thresholds
+  const teamAvgWinRate = useMemo(() => {
+    const rates = teamRows.filter(r => r.winRate != null).map(r => r.winRate!);
+    if (rates.length === 0) return null;
+    const avg = rates.reduce((s, v) => s + v, 0) / rates.length;
+    const variance = rates.reduce((s, v) => s + (v - avg) ** 2, 0) / rates.length;
+    return { avg, stdDev: Math.sqrt(variance) };
+  }, [teamRows]);
+
+  const medianTeamCycle = useMemo(() => {
+    const cycles = teamRows.filter(r => r.avgCycle != null).map(r => r.avgCycle!);
+    return cycles.length > 0 ? median(cycles) : null;
+  }, [teamRows]);
+
+  const sortedTeams = useMemo(() => {
+    const rows = [...teamRows];
+    rows.sort((a, b) => {
+      const av = a[teamSortCol] ?? -Infinity;
+      const bv = b[teamSortCol] ?? -Infinity;
+      if (typeof av === "string" && typeof bv === "string")
+        return teamSortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      return teamSortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
+    });
+    return rows;
+  }, [teamRows, teamSortCol, teamSortDir]);
+
+  const toggleTeamSort = (col: TeamSortCol) => {
+    if (teamSortCol === col) setTeamSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setTeamSortCol(col); setTeamSortDir("desc"); }
+  };
+
+  function winRateColor(rate: number | null): string {
+    if (rate == null || !teamAvgWinRate) return "var(--ink-4)";
+    if (rate >= teamAvgWinRate.avg) return "var(--green-ink)";
+    if (rate >= teamAvgWinRate.avg - teamAvgWinRate.stdDev) return "var(--amber-ink)";
+    return "var(--red-ink)";
+  }
+
+  function cycleColor(cycle: number | null): string {
+    if (cycle == null || medianTeamCycle == null) return "var(--ink-4)";
+    if (cycle <= medianTeamCycle) return "var(--green-ink)";
+    if (cycle >= medianTeamCycle * 1.5) return "var(--red-ink)";
+    return "var(--ink-2)";
+  }
+
+  function hygieneColor(count: number): string {
+    if (count > 5) return "var(--red-ink)";
+    if (count > 0) return "var(--amber-ink)";
+    return "var(--ink-4)";
+  }
+
   return (
     <div style={{ padding: "24px 32px", maxWidth: 1200 }}>
       {/* Header */}
@@ -351,8 +519,165 @@ export default function ExecSummaryView() {
         )}
       </div>
 
-      {/* Sections 1-5 are added in Tasks 3-5 */}
-      <p style={{ color: "var(--ink-3)", fontSize: 13 }}>{dealsLoading ? "Loading deals data..." : `${dealsRaw.length} deals loaded.`}</p>
+      {/* Section 1: Headline KPI Row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(145px, 1fr))", gap: 12, marginBottom: 24 }}>
+        {/* MRR Won */}
+        <div style={{ background: "var(--card-2)", borderRadius: 10, padding: "16px 18px" }}>
+          <div style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>MRR Won</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "var(--ink-1)" }} className="num">{fmtMRR(kpis.mrrWon)}</div>
+          {kpis.totalTarget > 0 && (
+            <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>
+              {fmtMRR(kpis.mrrWon)} / {fmtMRR(kpis.totalTarget)} ({Math.round((kpis.mrrWon / kpis.totalTarget) * 100)}%)
+            </div>
+          )}
+          <div style={{ marginTop: 6 }}>
+            <DeltaChip delta={computeDelta(kpis.mrrWon, kpis.priorMrr)} higherIsGood isCurrency />
+          </div>
+        </div>
+
+        {/* Logos Won */}
+        <div style={{ background: "var(--card-2)", borderRadius: 10, padding: "16px 18px" }}>
+          <div style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Logos Won</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "var(--ink-1)" }} className="num">{kpis.logos}</div>
+          <div style={{ marginTop: 6 }}>
+            <DeltaChip delta={computeDelta(kpis.logos, kpis.priorLogos)} higherIsGood />
+          </div>
+        </div>
+
+        {/* Demos Held */}
+        <div style={{ background: "var(--card-2)", borderRadius: 10, padding: "16px 18px" }}>
+          <div style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Demos Held</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "var(--ink-1)" }} className="num">{kpis.demos}</div>
+          <div style={{ marginTop: 6 }}>
+            <DeltaChip delta={computeDelta(kpis.demos, kpis.priorDemos)} higherIsGood />
+          </div>
+        </div>
+
+        {/* Demo → Won */}
+        <div style={{ background: "var(--card-2)", borderRadius: 10, padding: "16px 18px" }}>
+          <div style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>{"Demo → Won"}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "var(--ink-1)" }} className="num">
+            {kpis.demoWon != null ? `${Math.round(kpis.demoWon * 100)}%` : "—"}
+          </div>
+          <div style={{ marginTop: 6 }}>
+            {kpis.demoWon != null && kpis.priorDemoWon != null
+              ? <DeltaChip delta={computeDelta(kpis.demoWon, kpis.priorDemoWon)} higherIsGood isPct />
+              : <span style={{ fontSize: 11, color: "var(--ink-4)" }}>{"—"}</span>}
+          </div>
+        </div>
+
+        {/* Win Rate (6m) */}
+        <div style={{ background: "var(--card-2)", borderRadius: 10, padding: "16px 18px" }}>
+          <div style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Win Rate (6m)</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "var(--ink-1)" }} className="num">
+            {kpis.winRate6m != null ? `${Math.round(kpis.winRate6m * 100)}%` : "—"}
+          </div>
+          <div style={{ marginTop: 6 }}>
+            {kpis.winRate6m != null && kpis.priorWinRate6m != null
+              ? <DeltaChip delta={computeDelta(kpis.winRate6m, kpis.priorWinRate6m)} higherIsGood isPct />
+              : <span style={{ fontSize: 11, color: "var(--ink-4)" }}>{"—"}</span>}
+          </div>
+        </div>
+
+        {/* Open Pipeline */}
+        <div style={{ background: "var(--card-2)", borderRadius: 10, padding: "16px 18px" }}>
+          <div style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Open Pipeline</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "var(--ink-1)" }} className="num">{fmtMRR(kpis.pipeline)}</div>
+          <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 4 }}>
+            {fmtMRR(kpis.postDemoPipeline)} post-demo {"·"} {fmtMRR(kpis.preDemoPipeline)} pre-demo
+          </div>
+        </div>
+
+        {/* Avg Sales Cycle */}
+        <div style={{ background: "var(--card-2)", borderRadius: 10, padding: "16px 18px" }}>
+          <div style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Avg Cycle</div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "var(--ink-1)" }} className="num">
+            {kpis.medianCycle != null ? `${kpis.medianCycle}d` : "—"}
+          </div>
+          <div style={{ marginTop: 6 }}>
+            {kpis.medianCycle != null && kpis.priorMedianCycle != null
+              ? <DeltaChip delta={computeDelta(kpis.medianCycle, kpis.priorMedianCycle)} higherIsGood={false} />
+              : <span style={{ fontSize: 11, color: "var(--ink-4)" }}>{"—"}</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* Section 2: Team Performance Scorecard */}
+      <section style={{ ...CARD, marginTop: 8 }}>
+        <div style={HEADING}>
+          <Icon name="users" size={18} />
+          Team Performance
+          <span style={{ flex: 1 }} />
+          <span style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 400 }}>{rangeLabel(range)}</span>
+        </div>
+        {sortedTeams.length === 0 ? (
+          <p style={{ color: "var(--ink-3)", fontSize: 13 }}>No team data for this period.</p>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {([
+                    ["team", "Team", "left"],
+                    ["mrrWon", "MRR Won", "right"],
+                    ["demos", "Demos", "right"],
+                    ["demoWon", "Demo→Won", "right"],
+                    ["logos", "Logos", "right"],
+                    ["pipeline", "Pipeline", "right"],
+                    ["winRate", "Win Rate (6m)", "right"],
+                    ["avgDealSize", "Avg Deal", "right"],
+                    ["avgCycle", "Avg Cycle", "right"],
+                    ["hygiene", "Hygiene", "right"],
+                  ] as [TeamSortCol, string, string][]).map(([key, label, align]) => (
+                    <th key={key} onClick={() => toggleTeamSort(key)} style={{ ...TH, textAlign: align as any }}>
+                      {label}
+                      {teamSortCol === key && <span style={{ marginLeft: 4, fontSize: 9 }}>{teamSortDir === "asc" ? "▲" : "▼"}</span>}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {/* TOTAL row pinned at top */}
+                <tr style={{ background: "var(--card)", fontWeight: 600 }}>
+                  <td style={{ ...TD, fontWeight: 700, color: "var(--ink-1)" }}>TOTAL / AVG</td>
+                  <td style={{ ...TD, textAlign: "right" }} className="num">{fmtMRR(totalRow.mrrWon)}</td>
+                  <td style={{ ...TD, textAlign: "right" }} className="num">{totalRow.demos}</td>
+                  <td style={{ ...TD, textAlign: "right" }} className="num">{totalRow.demoWon != null ? `${Math.round(totalRow.demoWon * 100)}%` : "—"}</td>
+                  <td style={{ ...TD, textAlign: "right" }} className="num">{totalRow.logos}</td>
+                  <td style={{ ...TD, textAlign: "right" }} className="num">{fmtMRR(totalRow.pipeline)}</td>
+                  <td style={{ ...TD, textAlign: "right" }} className="num">{totalRow.winRate != null ? `${Math.round(totalRow.winRate * 100)}%` : "—"}</td>
+                  <td style={{ ...TD, textAlign: "right" }} className="num">{totalRow.avgDealSize != null ? fmtMRR(totalRow.avgDealSize) : "—"}</td>
+                  <td style={{ ...TD, textAlign: "right" }} className="num">{totalRow.avgCycle != null ? `${totalRow.avgCycle}d` : "—"}</td>
+                  <td style={{ ...TD, textAlign: "right" }} className="num">{totalRow.hygiene}</td>
+                </tr>
+                {sortedTeams.map(r => (
+                  <tr key={r.team}>
+                    <td style={{ ...TD, fontWeight: 500, color: "var(--ink-1)" }}>{r.team}</td>
+                    <td style={{ ...TD, textAlign: "right", fontWeight: 600 }} className="num">
+                      {fmtMRR(r.mrrWon)}
+                      {mrrRanks.get(r.team) != null && (
+                        <span style={{ marginLeft: 6, fontSize: 10, color: "var(--ink-4)", fontWeight: 400 }}>#{mrrRanks.get(r.team)}</span>
+                      )}
+                    </td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.demos}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.demoWon != null ? `${Math.round(r.demoWon * 100)}%` : "—"}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.logos}</td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{fmtMRR(r.pipeline)}</td>
+                    <td style={{ ...TD, textAlign: "right", fontWeight: 600, color: winRateColor(r.winRate) }} className="num">
+                      {r.winRate != null ? `${Math.round(r.winRate * 100)}%` : "—"}
+                    </td>
+                    <td style={{ ...TD, textAlign: "right" }} className="num">{r.avgDealSize != null ? fmtMRR(r.avgDealSize) : "—"}</td>
+                    <td style={{ ...TD, textAlign: "right", color: cycleColor(r.avgCycle) }} className="num">
+                      {r.avgCycle != null ? `${r.avgCycle}d` : "—"}
+                    </td>
+                    <td style={{ ...TD, textAlign: "right", fontWeight: 600, color: hygieneColor(r.hygiene) }} className="num">{r.hygiene}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

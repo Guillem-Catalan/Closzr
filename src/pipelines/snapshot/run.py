@@ -168,13 +168,43 @@ def _build_monday(team_info: dict, today: date) -> dict:
     except Exception as e:
         print(f"    demos_booked failed: {e}")
 
-    # ── closing_expected: deal_ui stage in CLOSING, close_date_hs this week ──
-    closing_expected = []
+    # ── wons: week + month cumulative ──
+    wons_month, mr_month = _won_deals(ae_names, month_start)
+    target_mrr = _team_target(team_info["team"], today)
+    consecucion = round(mr_month / target_mrr * 100, 1) if target_mrr > 0 else 0
+
+    # ── whales: active deals with MRR > 2000 ──
+    active_macro = ["prospecting", "qualifying", "demo", "evaluating", "closing", "nurturing"]
+    whales = []
+    try:
+        resp = (
+            supabase.table("deal_ui")
+            .select("deal_name_full, mrr, action_signal, pae, deal_momentum, stage")
+            .in_("pae", ae_names)
+            .in_("macro_stage", active_macro)
+            .gt("mrr", 2000)
+            .order("mrr", desc=True)
+            .execute()
+        )
+        for d in (resp.data or []):
+            whales.append({
+                "deal_name": d.get("deal_name_full") or "?",
+                "mrr": float(d.get("mrr") or 0),
+                "signal": d.get("action_signal") or "",
+                "ae": d.get("pae") or "",
+                "stage": d.get("stage") or "",
+                "momentum": d.get("deal_momentum") or "",
+            })
+    except Exception:
+        pass
+
+    # ── closing_this_week: deals in closing with close_date_hs this week ──
+    closing_this_week = []
     mr_expected = 0.0
     try:
         resp = (
             supabase.table("deal_ui")
-            .select("deal_id, deal_name_full, stage, mrr, close_probability, close_date_hs, pae, deal_momentum")
+            .select("deal_name_full, deal_id, mrr, close_probability, close_date_hs, pae, stage, deal_momentum")
             .in_("stage", list(CLOSING))
             .in_("pae", ae_names)
             .gte("close_date_hs", monday.isoformat())
@@ -184,7 +214,7 @@ def _build_monday(team_info: dict, today: date) -> dict:
         for d in (resp.data or []):
             mrr = float(d.get("mrr") or 0)
             prob = float(d.get("close_probability") or 0)
-            closing_expected.append({
+            closing_this_week.append({
                 "deal_name": d.get("deal_name_full") or "?",
                 "deal_id": str(d.get("deal_id") or ""),
                 "mrr": mrr,
@@ -195,39 +225,6 @@ def _build_monday(team_info: dict, today: date) -> dict:
                 "momentum": d.get("deal_momentum") or "",
             })
             mr_expected += mrr * prob / 100
-    except Exception as e:
-        print(f"    closing_expected failed: {e}")
-
-    # ── wons: week + month cumulative ──
-    wons_month, mr_month = _won_deals(ae_names, month_start)
-    target_mrr = _team_target(team_info["team"], today)
-    consecucion = round(mr_month / target_mrr * 100, 1) if target_mrr > 0 else 0
-
-    # ── whales: top 5 active deals by MRR ──
-    active_macro = ["prospecting", "qualifying", "demo", "evaluating", "closing", "nurturing"]
-    whales = []
-    try:
-        resp = (
-            supabase.table("deal_ui")
-            .select("deal_name_full, mrr, action_signal, pae, deal_momentum")
-            .in_("pae", ae_names)
-            .in_("macro_stage", active_macro)
-            .not_.is_("mrr", "null")
-            .gt("mrr", 0)
-            .order("mrr", desc=True)
-            .limit(5)
-            .execute()
-        )
-        for d in (resp.data or []):
-            mrr = float(d.get("mrr") or 0)
-            if mrr > 0:
-                whales.append({
-                    "deal_name": d.get("deal_name_full") or "?",
-                    "mrr": mrr,
-                    "signal": d.get("action_signal") or "",
-                    "ae": d.get("pae") or "",
-                    "momentum": d.get("deal_momentum") or "",
-                })
     except Exception:
         pass
 
@@ -241,7 +238,7 @@ def _build_monday(team_info: dict, today: date) -> dict:
         "mr_closed_month": round(mr_month, 2),
         "consecucion_pct": consecucion,
         "data": {
-            "closing_expected": closing_expected,
+            "closing_this_week": closing_this_week,
             "whales": whales,
         },
     }

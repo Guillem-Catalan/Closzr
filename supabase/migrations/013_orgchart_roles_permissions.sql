@@ -98,11 +98,10 @@ ALTER TABLE orgchart ADD CONSTRAINT chk_scope_partners      CHECK (scope_partner
 -- 4. ACCESS LEVELS
 -- ══════════════════════════════════════════════════════════════════════════════
 
--- Admins (4)
+-- Admins (3)
 UPDATE orgchart SET access_level = 'admin', scope_admin = 'all'
   WHERE email IN (
     'guillem.catalan@factorial.co',
-    'marc.sorensen@factorial.co',
     'albert.fernandez@factorial.co',
     'marc.macia@factorial.co'
   );

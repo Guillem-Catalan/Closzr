@@ -4,6 +4,9 @@ on:
   repository_dispatch:
     types: [orgchart_sync]
 
+permissions:
+  contents: write
+
 concurrency:
   group: orgchart-sync
   cancel-in-progress: true
@@ -24,6 +27,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
         run: python -m src.pipelines.orgchart.sync_orgchart
 
       - name: Commit if changed

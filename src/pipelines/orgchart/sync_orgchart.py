@@ -28,8 +28,48 @@ try:
 except ImportError:
     pass
 
+import os
+import urllib.request
+import json
+
 from src.db.client import supabase
 from src.org import TEAM_PIPELINE_CONFIG
+
+HUBSPOT_TOKEN = os.environ.get("HUBSPOT_TOKEN", "")
+
+
+# ── HubSpot owner lookup ────────────────────────────────────────────────────
+
+def _lookup_hs_owner_id(email: str) -> str | None:
+    if not HUBSPOT_TOKEN:
+        return None
+    url = f"https://api.hubapi.com/crm/v3/owners?email={email}"
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"Bearer {HUBSPOT_TOKEN}",
+        "Accept": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+            results = data.get("results", [])
+            if results:
+                return str(results[0]["id"])
+    except Exception:
+        pass
+    return None
+
+
+def _backfill_hs_owner_ids(rows: list[dict]) -> list[str]:
+    filled = []
+    for r in rows:
+        if r.get("hs_owner_id"):
+            continue
+        owner_id = _lookup_hs_owner_id(r["email"])
+        if owner_id:
+            supabase.table("orgchart").update({"hs_owner_id": owner_id}).eq("email", r["email"]).execute()
+            r["hs_owner_id"] = owner_id
+            filled.append(r["email"])
+    return filled
 
 
 # ── Fetch ────────────────────────────────────────────────────────────────────
@@ -347,6 +387,8 @@ def run() -> dict:
     if not rows:
         return {"status": "error", "message": "No rows in orgchart table"}
 
+    filled = _backfill_hs_owner_ids(rows)
+
     source = generate_source(rows)
     ORG_PEOPLE_PATH.write_text(source)
 
@@ -355,6 +397,7 @@ def run() -> dict:
         "status": "ok",
         "total_people": len(rows),
         "active": active,
+        "hs_ids_backfilled": filled,
         "file": str(ORG_PEOPLE_PATH),
     }
 

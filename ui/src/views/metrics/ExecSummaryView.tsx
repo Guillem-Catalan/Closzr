@@ -602,6 +602,25 @@ export default function ExecSummaryView() {
     }).sort((a, b) => b.mrrWon - a.mrrWon);
   }, [wonDeals, demosInRange]);
 
+  type PaeSortCol = "pae" | "mrrWon" | "demos" | "demoWon" | "logos" | "arpu" | "avgCycle";
+  const [paeSortCol, setPaeSortCol] = useState<PaeSortCol>("mrrWon");
+  const [paeSortDir, setPaeSortDir] = useState<SortDir>("desc");
+  const togglePaeSort = (col: PaeSortCol) => {
+    if (paeSortCol === col) setPaeSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setPaeSortCol(col); setPaeSortDir("desc"); }
+  };
+  const sortedPaeRows = useMemo(() => {
+    const rows = [...paeRows];
+    rows.sort((a, b) => {
+      const av = a[paeSortCol] ?? -Infinity;
+      const bv = b[paeSortCol] ?? -Infinity;
+      if (typeof av === "string" && typeof bv === "string")
+        return paeSortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      return paeSortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
+    });
+    return rows;
+  }, [paeRows, paeSortCol, paeSortDir]);
+
   // By PBD
   type PbdRow = { pbd: string; demos: number; pipeline: number };
   const pbdRows = useMemo(() => {
@@ -623,6 +642,25 @@ export default function ExecSummaryView() {
       .map(([pbd, v]) => ({ pbd, ...v }))
       .sort((a, b) => b.demos - a.demos);
   }, [demosInRange, openDeals, dealsMap]);
+
+  type PbdSortCol = "pbd" | "demos" | "pipeline";
+  const [pbdSortCol, setPbdSortCol] = useState<PbdSortCol>("demos");
+  const [pbdSortDir, setPbdSortDir] = useState<SortDir>("desc");
+  const togglePbdSort = (col: PbdSortCol) => {
+    if (pbdSortCol === col) setPbdSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setPbdSortCol(col); setPbdSortDir("desc"); }
+  };
+  const sortedPbdRows = useMemo(() => {
+    const rows = [...pbdRows];
+    rows.sort((a, b) => {
+      const av = a[pbdSortCol] ?? -Infinity;
+      const bv = b[pbdSortCol] ?? -Infinity;
+      if (typeof av === "string" && typeof bv === "string")
+        return pbdSortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      return pbdSortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
+    });
+    return rows;
+  }, [pbdRows, pbdSortCol, pbdSortDir]);
 
   // By Partner
   type PartnerRow = { partner: string; mrrWon: number; wonDeals: number; pipeline: number; avgDealSize: number | null; avgCycle: number | null };
@@ -660,6 +698,25 @@ export default function ExecSummaryView() {
       .sort((a, b) => b.mrrWon - a.mrrWon);
   }, [dealsRaw, range]);
 
+  type PartnerSortCol = "partner" | "mrrWon" | "wonDeals" | "pipeline" | "avgDealSize" | "avgCycle";
+  const [partnerSortCol, setPartnerSortCol] = useState<PartnerSortCol>("mrrWon");
+  const [partnerSortDir, setPartnerSortDir] = useState<SortDir>("desc");
+  const togglePartnerSort = (col: PartnerSortCol) => {
+    if (partnerSortCol === col) setPartnerSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setPartnerSortCol(col); setPartnerSortDir("desc"); }
+  };
+  const sortedPartnerRows = useMemo(() => {
+    const rows = [...partnerRows];
+    rows.sort((a, b) => {
+      const av = a[partnerSortCol] ?? -Infinity;
+      const bv = b[partnerSortCol] ?? -Infinity;
+      if (typeof av === "string" && typeof bv === "string")
+        return partnerSortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      return partnerSortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
+    });
+    return rows;
+  }, [partnerRows, partnerSortCol, partnerSortDir]);
+
   // By Size
   type SizeRow = { bucket: string; dealCount: number; mrrWon: number; winRate: number | null; avgDealSize: number | null };
   const sizeRows = useMemo(() => {
@@ -690,6 +747,25 @@ export default function ExecSummaryView() {
       })
       .sort((a, b) => b.mrrWon - a.mrrWon);
   }, [wonDeals, lostDeals]);
+
+  type SizeSortCol = "bucket" | "dealCount" | "mrrWon" | "winRate" | "avgDealSize";
+  const [sizeSortCol, setSizeSortCol] = useState<SizeSortCol>("mrrWon");
+  const [sizeSortDir, setSizeSortDir] = useState<SortDir>("desc");
+  const toggleSizeSort = (col: SizeSortCol) => {
+    if (sizeSortCol === col) setSizeSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSizeSortCol(col); setSizeSortDir("desc"); }
+  };
+  const sortedSizeRows = useMemo(() => {
+    const rows = [...sizeRows];
+    rows.sort((a, b) => {
+      const av = a[sizeSortCol] ?? -Infinity;
+      const bv = b[sizeSortCol] ?? -Infinity;
+      if (typeof av === "string" && typeof bv === "string")
+        return sizeSortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sizeSortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
+    });
+    return rows;
+  }, [sizeRows, sizeSortCol, sizeSortDir]);
 
   return (
     <div style={{ padding: "24px 32px", maxWidth: 1200 }}>
@@ -1097,13 +1173,20 @@ export default function ExecSummaryView() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  <th style={{ ...TH, textAlign: "left" }}>PAE</th>
-                  <th style={{ ...TH, textAlign: "right" }}>MRR Won</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Demos</th>
-                  <th style={{ ...TH, textAlign: "right" }}>{"Demo→Won"}</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Logos</th>
-                  <th style={{ ...TH, textAlign: "right" }}>ARPU</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Avg Cycle</th>
+                  {([
+                    ["pae", "PAE", "left"],
+                    ["mrrWon", "MRR Won", "right"],
+                    ["demos", "Demos", "right"],
+                    ["demoWon", "Demo→Won", "right"],
+                    ["logos", "Logos", "right"],
+                    ["arpu", "ARPU", "right"],
+                    ["avgCycle", "Avg Cycle", "right"],
+                  ] as [PaeSortCol, string, string][]).map(([key, label, align]) => (
+                    <th key={key} onClick={() => togglePaeSort(key)} style={{ ...TH, textAlign: align as any }}>
+                      {label}
+                      {paeSortCol === key && <span style={{ marginLeft: 4, fontSize: 9 }}>{paeSortDir === "asc" ? "▲" : "▼"}</span>}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -1124,7 +1207,7 @@ export default function ExecSummaryView() {
                     </tr>
                   );
                 })()}
-                {paeRows.map(r => (
+                {sortedPaeRows.map(r => (
                   <tr key={r.pae}>
                     <td style={{ ...TD, fontWeight: 500, color: "var(--ink-1)" }}>{ownerDisplayName(r.pae)}</td>
                     <td style={{ ...TD, textAlign: "right", fontWeight: 600 }} className="num">{fmtMRR(r.mrrWon)}</td>
@@ -1146,9 +1229,16 @@ export default function ExecSummaryView() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  <th style={{ ...TH, textAlign: "left" }}>PBD</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Demos Attributed</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Pipeline Generated</th>
+                  {([
+                    ["pbd", "PBD", "left"],
+                    ["demos", "Demos Attributed", "right"],
+                    ["pipeline", "Pipeline Generated", "right"],
+                  ] as [PbdSortCol, string, string][]).map(([key, label, align]) => (
+                    <th key={key} onClick={() => togglePbdSort(key)} style={{ ...TH, textAlign: align as any }}>
+                      {label}
+                      {pbdSortCol === key && <span style={{ marginLeft: 4, fontSize: 9 }}>{pbdSortDir === "asc" ? "▲" : "▼"}</span>}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -1157,7 +1247,7 @@ export default function ExecSummaryView() {
                   <td style={{ ...TD, textAlign: "right" }} className="num">{pbdRows.reduce((s, r) => s + r.demos, 0)}</td>
                   <td style={{ ...TD, textAlign: "right" }} className="num">{fmtMRR(pbdRows.reduce((s, r) => s + r.pipeline, 0))}</td>
                 </tr>
-                {pbdRows.map(r => (
+                {sortedPbdRows.map(r => (
                   <tr key={r.pbd}>
                     <td style={{ ...TD, fontWeight: 500, color: "var(--ink-1)" }}>{ownerDisplayName(r.pbd)}</td>
                     <td style={{ ...TD, textAlign: "right" }} className="num">{r.demos}</td>
@@ -1178,12 +1268,19 @@ export default function ExecSummaryView() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  <th style={{ ...TH, textAlign: "left" }}>Partner</th>
-                  <th style={{ ...TH, textAlign: "right" }}>MRR Won</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Won Deals</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Open Pipeline</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Avg Deal Size</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Avg Cycle</th>
+                  {([
+                    ["partner", "Partner", "left"],
+                    ["mrrWon", "MRR Won", "right"],
+                    ["wonDeals", "Won Deals", "right"],
+                    ["pipeline", "Open Pipeline", "right"],
+                    ["avgDealSize", "Avg Deal Size", "right"],
+                    ["avgCycle", "Avg Cycle", "right"],
+                  ] as [PartnerSortCol, string, string][]).map(([key, label, align]) => (
+                    <th key={key} onClick={() => togglePartnerSort(key)} style={{ ...TH, textAlign: align as any }}>
+                      {label}
+                      {partnerSortCol === key && <span style={{ marginLeft: 4, fontSize: 9 }}>{partnerSortDir === "asc" ? "▲" : "▼"}</span>}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -1202,7 +1299,7 @@ export default function ExecSummaryView() {
                     </tr>
                   );
                 })()}
-                {partnerRows.map(r => (
+                {sortedPartnerRows.map(r => (
                   <tr key={r.partner}>
                     <td style={{ ...TD, fontWeight: 500, color: "var(--ink-1)" }}>{r.partner}</td>
                     <td style={{ ...TD, textAlign: "right", fontWeight: 600 }} className="num">{fmtMRR(r.mrrWon)}</td>
@@ -1226,11 +1323,18 @@ export default function ExecSummaryView() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  <th style={{ ...TH, textAlign: "left" }}>Size Bucket</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Deal Count</th>
-                  <th style={{ ...TH, textAlign: "right" }}>MRR Won</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Win Rate</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Avg Deal Size</th>
+                  {([
+                    ["bucket", "Size Bucket", "left"],
+                    ["dealCount", "Deal Count", "right"],
+                    ["mrrWon", "MRR Won", "right"],
+                    ["winRate", "Win Rate", "right"],
+                    ["avgDealSize", "Avg Deal Size", "right"],
+                  ] as [SizeSortCol, string, string][]).map(([key, label, align]) => (
+                    <th key={key} onClick={() => toggleSizeSort(key)} style={{ ...TH, textAlign: align as any }}>
+                      {label}
+                      {sizeSortCol === key && <span style={{ marginLeft: 4, fontSize: 9 }}>{sizeSortDir === "asc" ? "▲" : "▼"}</span>}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -1249,7 +1353,7 @@ export default function ExecSummaryView() {
                     </tr>
                   );
                 })()}
-                {sizeRows.map(r => (
+                {sortedSizeRows.map(r => (
                   <tr key={r.bucket}>
                     <td style={{ ...TD, fontWeight: 500, color: "var(--ink-1)" }}>{r.bucket}</td>
                     <td style={{ ...TD, textAlign: "right" }} className="num">{r.dealCount}</td>

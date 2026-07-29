@@ -173,15 +173,14 @@ def _build_monday(team_info: dict, today: date) -> dict:
     target_mrr = _team_target(team_info["team"], today)
     consecucion = round(mr_month / target_mrr * 100, 1) if target_mrr > 0 else 0
 
-    # ── whales: active deals with MRR > 2000 ──
-    active_macro = ["prospecting", "qualifying", "demo", "evaluating", "closing", "nurturing"]
+    # ── whales: closing + evaluating deals with MRR > 2000 ──
     whales = []
     try:
         resp = (
             supabase.table("deal_ui")
             .select("deal_name_full, mrr, action_signal, pae, deal_momentum, stage")
             .in_("pae", ae_names)
-            .in_("macro_stage", active_macro)
+            .in_("macro_stage", ["closing", "evaluating"])
             .gt("mrr", 2000)
             .order("mrr", desc=True)
             .execute()

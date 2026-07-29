@@ -28,6 +28,7 @@ const DEFAULT_PERMISSIONS: Record<string, TabScope> = {
   uplift: { enabled: true, scope: "all" },
   "exec-summary": { enabled: true, scope: "all" },
   "rep-stats": { enabled: true, scope: "all" },
+  "closzr-usage": { enabled: false, scope: "all" },
 };
 
 const PermCtx = createContext<{ profile: UserProfile | null; loading: boolean }>({ profile: null, loading: true });
@@ -45,7 +46,7 @@ export function getTabScope(profile: UserProfile | null, tab: string): TabScope 
 
 export function isTabEnabled(profile: UserProfile | null, tab: string): boolean {
   if (!profile) return true;
-  if (tab === "admin") return profile.role === "Admin";
+  if (tab === "admin" || tab === "closzr-usage") return profile.role === "Admin";
   return getTabScope(profile, tab).enabled;
 }
 

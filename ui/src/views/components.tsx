@@ -38,6 +38,7 @@ export const PATHS: Record<string, string> = {
   book:        "M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 5v14",
   file:        "M14 3v5h5M7 3h8l5 5v11a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z",
   trendUp:     "M3 17l6-6 4 4 8-8M21 7v5M21 7h-5",
+  barChart:    "M18 20V10M12 20V4M6 20v-6",
   search:      "M11 11m-7 0a7 7 0 1014 0 7 7 0 10-14 0M21 21l-4-4",
   filter:      "M3 5h18l-7 8v6l-4 2v-8z",
   sparkle:     "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z",

@@ -2,6 +2,7 @@
    CLOSZR — App root
    ============================================================ */
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { track } from "./data/track";
 import { Analytics } from "@vercel/analytics/react";
 import { useData } from "./data/store";
 import { fetchDealDetail, type DealDetail } from "./data/fetchDetail";
@@ -16,6 +17,7 @@ import BenchmarkView from "./views/benchmark/BenchmarkView";
 import ComingSoon from "./views/ComingSoon";
 import MetricsRepView from "./views/metrics/MetricsRepView";
 import ExecSummaryView from "./views/metrics/ExecSummaryView";
+import CloszrUsageView from "./views/metrics/CloszrUsageView";
 const AdminView = lazy(() => import("./views/admin/AdminView"));
 
 function SidebarToggle() {
@@ -29,7 +31,8 @@ function SidebarToggle() {
 
 function App() {
   const D = useData();
-  const [view, setView] = useState("forecast");
+  const [view, _setView] = useState("forecast");
+  const setView = (v: string) => { track("view", v); _setView(v); };
   const [detail, setDetail] = useState<DealDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
@@ -44,6 +47,7 @@ function App() {
 
   const handleOpen = useCallback((row: any, _tab?: string) => {
     if (!row.id) return;
+    track("click", "deal-detail");
     setDetailLoading(true);
     fetchDealDetail(row.id).then(d => {
       setDetail(d);
@@ -79,6 +83,7 @@ function App() {
           {view === "benchmark" && <BenchmarkView onOpen={handleOpen}/>}
           {view === "execsummary" && <ExecSummaryView />}
           {view === "repstats" && <MetricsRepView />}
+          {view === "closzrusage" && <CloszrUsageView />}
           {["general","alerts","uplift"].includes(view) && <ComingSoon label={view.charAt(0).toUpperCase() + view.slice(1)}/>}
         </main>
         {detailLoading && (

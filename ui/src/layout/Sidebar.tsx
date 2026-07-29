@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { Icon, Avatar, getInitials } from "../views/components";
+import { track } from "../data/track";
 import { usePermissions, isTabEnabled } from "../permissions";
 import { NAV_ITEMS, type NavItem } from "./nav-items";
 
@@ -68,7 +69,7 @@ function Collapsible({ item, view, onNav }: { item: NavItem; view: string; onNav
           <Tip key={child.key} label={child.label}>
             <button
               className={"cz-sb-item" + (view === child.key ? " active" : "") + (child.soon ? " soon" : "")}
-              onClick={() => !child.soon && onNav(child.key)}
+              onClick={() => { if (!child.soon) { track("click", child.key); onNav(child.key); } }}
             >
               <Icon name={child.icon} size={18} />
             </button>
@@ -91,7 +92,7 @@ function Collapsible({ item, view, onNav }: { item: NavItem; view: string; onNav
             <button
               key={child.key}
               className={"cz-sb-sub-item" + (view === child.key ? " active" : "") + (child.soon ? " soon" : "")}
-              onClick={() => !child.soon && onNav(child.key)}
+              onClick={() => { if (!child.soon) { track("click", child.key); onNav(child.key); } }}
             >
               {child.label}
               {child.soon && <span className="cz-sb-soon">Soon</span>}
@@ -133,7 +134,7 @@ export default function Sidebar({ view, onNav }: { view: string; onNav: (v: stri
             <Tip key={item.key} label={item.label}>
               <button
                 className={"cz-sb-item parent" + (view === item.key ? " active" : "") + (item.soon ? " soon" : "")}
-                onClick={() => !item.soon && onNav(item.key)}
+                onClick={() => { if (!item.soon) { track("click", item.key); onNav(item.key); } }}
               >
                 <Icon name={item.icon} size={20} />
                 {expanded && <span className="cz-sb-item-text">{item.label}</span>}
@@ -148,7 +149,7 @@ export default function Sidebar({ view, onNav }: { view: string; onNav: (v: stri
       <div className="cz-sb-footer">
         {showAdmin && (
           <Tip label="Users">
-            <button className={"cz-sb-item" + (view === "admin" ? " active" : "")} onClick={() => onNav("admin")}>
+            <button className={"cz-sb-item" + (view === "admin" ? " active" : "")} onClick={() => { track("click", "admin"); onNav("admin"); }}>
               <Icon name="settings" size={18} />
               {expanded && <span className="cz-sb-item-text">Users</span>}
             </button>

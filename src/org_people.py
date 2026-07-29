@@ -533,15 +533,15 @@ PARTNERS_ORGCHART = {
         'active': True,
         'pipeline_ids': ['824790797', '3612610753'],
         'leadership': {
-            'tl_pae': {
-                'email': 'nunzio.fumo@factorial.co',
-                'name': 'Nunzio Fumo',
-                'role': 'pae_tl',
-            },
             'tl_pbd': {
                 'email': 'giacomo.torresi@factorial.co',
                 'name': 'Giacomo Torresi',
                 'role': 'pbd_tl',
+            },
+            'tl_pae': {
+                'email': 'nunzio.fumo@factorial.co',
+                'name': 'Nunzio Fumo',
+                'role': 'pae_tl',
             },
             'director': {
                 'email': 'andrea.galimberti@factorial.co',
@@ -567,15 +567,15 @@ PARTNERS_ORGCHART = {
         'active': True,
         'pipeline_ids': ['824790797', '3612610753'],
         'leadership': {
-            'tl_pbd': {
-                'email': 'fiona.durr@factorial.co',
-                'name': 'Fiona Dürr',
-                'role': 'pbd_tl',
-            },
             'tl_pae': {
                 'email': 'gabriel.lichtenstein@factorial.co',
                 'name': 'Gabriel Lichtenstein',
                 'role': 'pae_tl',
+            },
+            'tl_pbd': {
+                'email': 'fiona.durr@factorial.co',
+                'name': 'Fiona Dürr',
+                'role': 'pbd_tl',
             },
             'director': {
                 'email': 'laura.proefrock@factorial.co',

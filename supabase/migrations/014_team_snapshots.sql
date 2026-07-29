@@ -6,7 +6,7 @@ CREATE TABLE team_snapshots (
   id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   team            TEXT NOT NULL,
   tl_email        TEXT,
-  iso_week        TEXT NOT NULL,           -- "W30"
+  iso_week        TEXT NOT NULL,           -- "2026-W30"
   snapshot_day    SMALLINT NOT NULL CHECK (snapshot_day IN (1, 2)),  -- 1=Mon, 2=Fri
   snapshot_date   DATE NOT NULL,
 
@@ -25,7 +25,7 @@ CREATE TABLE team_snapshots (
 
   created_at      TIMESTAMPTZ DEFAULT now(),
   updated_at      TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(team, iso_week, snapshot_day)
+  UNIQUE(tl_email, iso_week, snapshot_day)
 );
 
 CREATE INDEX idx_team_snapshots_team ON team_snapshots(team);

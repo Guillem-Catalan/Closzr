@@ -257,7 +257,7 @@ TABLES = {
     "users":                {"name": "users",                "upsert_key": "id"},
 
     # ── Factus ──
-    "team_snapshots":       {"name": "team_snapshots",       "upsert_key": "team,iso_week,snapshot_day"},
+    "team_snapshots":       {"name": "team_snapshots",       "upsert_key": "tl_email,iso_week,snapshot_day"},
 }
 
 

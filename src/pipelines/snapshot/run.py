@@ -388,7 +388,8 @@ def run():
         print(f"  Not Monday or Friday (weekday={weekday}), skipping")
         return
 
-    iso_week = f"W{today.isocalendar().week}"
+    iso_cal = today.isocalendar()
+    iso_week = f"{iso_cal.year}-W{iso_cal.week:02d}"
     day_label = "MONDAY" if snapshot_day == 1 else "FRIDAY"
 
     print("=" * 60)
@@ -436,7 +437,7 @@ def run():
             }
 
             supabase.table("team_snapshots").upsert(
-                row, on_conflict="team,iso_week,snapshot_day"
+                row, on_conflict="tl_email,iso_week,snapshot_day"
             ).execute()
 
             print(f"  ✓ {team_name} ({n_aes} AEs, TL: {tl})")

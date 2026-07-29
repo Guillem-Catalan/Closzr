@@ -182,7 +182,177 @@ const TH: React.CSSProperties = {
 };
 const TD: React.CSSProperties = { padding: "10px 12px", fontSize: 13 };
 
-// placeholder — Tasks 2-5 will add sub-components and the main component
+// ---- Sub-components ----
+
+function DeltaChip({ delta, higherIsGood, isCurrency, isPct }: {
+  delta: Delta; higherIsGood: boolean; isCurrency?: boolean; isPct?: boolean;
+}) {
+  const tone = deltaColor(delta, higherIsGood);
+  const sign = delta.abs > 0 ? "+" : "";
+  let label: string;
+  if (isPct) {
+    label = `${sign}${Math.round(delta.abs * 100)}pp`;
+  } else if (isCurrency) {
+    label = `${sign}${fmtMRR(delta.abs)} (${sign}${Math.round(delta.pct * 100)}%)`;
+  } else {
+    label = `${sign}${delta.abs} (${sign}${Math.round(delta.pct * 100)}%)`;
+  }
+  if (delta.abs === 0 && delta.pct === 0) label = "—";
+  return <Chip tone={tone} style={{ fontSize: 11 }}>{label}</Chip>;
+}
+
+function HBar({ items, maxVal }: {
+  items: { label: string; value: number; subLabel?: string; tone?: string }[];
+  maxVal: number;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {items.map((item, i) => {
+        const pct = maxVal > 0 ? Math.round((item.value / maxVal) * 100) : 0;
+        return (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 12, color: "var(--ink-2)", minWidth: 140, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</span>
+            <div style={{ flex: 1, height: 8, background: "var(--card)", borderRadius: 4, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${pct}%`, background: item.tone || "var(--indigo)", borderRadius: 4, minWidth: item.value > 0 ? 2 : 0 }} />
+            </div>
+            <span className="num" style={{ fontSize: 11, color: "var(--ink-3)", minWidth: 50, textAlign: "right" }}>{fmtMRR(item.value)}</span>
+            {item.subLabel && <span className="num" style={{ fontSize: 11, color: "var(--ink-4)", minWidth: 30, textAlign: "right" }}>{item.subLabel}</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---- Main component ----
+
 export default function ExecSummaryView() {
-  return <div style={{ padding: "24px 32px" }}>Loading redesign...</div>;
+  const D = useData();
+  const [range, setRange] = useState<DateRange>(() => getPresetRange("mtd"));
+  const [activePreset, setActivePreset] = useState<PresetKey>("mtd");
+  const [dealsRaw, setDealsRaw] = useState<DealRaw[]>([]);
+  const [dealsLoading, setDealsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"pae" | "pbd" | "partner" | "size">("pae");
+
+  const monthOpts = useMemo(() => getMonthOptions(), []);
+
+  const applyPreset = (key: PresetKey) => {
+    setActivePreset(key);
+    if (key !== "custom") setRange(getPresetRange(key));
+  };
+  const setFrom = (v: string) => {
+    setActivePreset("custom");
+    setRange(r => ({ from: v, to: v > r.to ? v : r.to }));
+  };
+  const setTo = (v: string) => {
+    setActivePreset("custom");
+    setRange(r => ({ from: r.from > v ? v : r.from, to: v }));
+  };
+
+  // Direct deals query for demo/hygiene/partner/cycle/size data
+  useEffect(() => {
+    let cancelled = false;
+    setDealsLoading(true);
+    (async () => {
+      const PAGE = 1000;
+      const all: DealRaw[] = [];
+      let offset = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from("deals")
+          .select("deal_id,pae,pbd,team,partner,amount,deal_stage,close_date,createdate,after_demo_date,first_meeting_at,pipeline_name,employees")
+          .range(offset, offset + PAGE - 1);
+        if (error || !data) break;
+        all.push(...(data as DealRaw[]));
+        if (data.length < PAGE) break;
+        offset += PAGE;
+      }
+      if (!cancelled) {
+        setDealsRaw(all);
+        setDealsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const prior = useMemo(() => priorRange(range), [range]);
+
+  // ---- Core data from useData() ----
+  const wonDeals = useMemo(() => D.benchmark.won.filter(d => inRange(d.closeDate, range)), [D.benchmark.won, range]);
+  const lostDeals = useMemo(() => D.benchmark.lost.filter(d => inRange(d.closeDate, range)), [D.benchmark.lost, range]);
+  const priorWon = useMemo(() => D.benchmark.won.filter(d => inRange(d.closeDate, prior)), [D.benchmark.won, prior]);
+  const priorLost = useMemo(() => D.benchmark.lost.filter(d => inRange(d.closeDate, prior)), [D.benchmark.lost, prior]);
+  const openDeals = D.forecast.allDeals;
+
+  // ---- Deals raw lookups ----
+  const dealsMap = useMemo(() => {
+    const m = new Map<string, DealRaw>();
+    for (const d of dealsRaw) m.set(d.deal_id, d);
+    return m;
+  }, [dealsRaw]);
+
+  const demosInRange = useMemo(() => dealsRaw.filter(d => inRange(d.after_demo_date, range)), [dealsRaw, range]);
+  const priorDemosInRange = useMemo(() => dealsRaw.filter(d => inRange(d.after_demo_date, prior)), [dealsRaw, prior]);
+
+  // ---- Win Rate 6m rolling windows ----
+  const winRate6m = useMemo(() => {
+    const [ty, tm] = range.to.split("-").map(Number);
+    const endDate = new Date(ty, tm, 0); // last day of range.to month
+    const startDate = new Date(ty, tm - 6, 1);
+    const window = { from: monthKey(startDate), to: monthKey(endDate) };
+    const w = D.benchmark.won.filter(d => inRange(d.closeDate, window));
+    const l = D.benchmark.lost.filter(d => inRange(d.closeDate, window));
+    const total = w.length + l.length;
+    return total > 0 ? w.length / total : null;
+  }, [D.benchmark, range]);
+
+  const priorWinRate6m = useMemo(() => {
+    const [py, pm] = prior.to.split("-").map(Number);
+    const startDate = new Date(py, pm - 6, 1);
+    const window = { from: monthKey(startDate), to: prior.to };
+    const w = D.benchmark.won.filter(d => inRange(d.closeDate, window));
+    const l = D.benchmark.lost.filter(d => inRange(d.closeDate, window));
+    const total = w.length + l.length;
+    return total > 0 ? w.length / total : null;
+  }, [D.benchmark, prior]);
+
+  return (
+    <div style={{ padding: "24px 32px", maxWidth: 1200 }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 4 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--ink-1)", margin: 0 }}>Executive Summary</h2>
+      </div>
+      <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 16 }}>{rangeLabel(range)}</div>
+
+      {/* Period selector */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
+        {PRESETS.map(p => (
+          <button
+            key={p.key}
+            onClick={() => applyPreset(p.key)}
+            style={{
+              padding: "5px 14px", borderRadius: 8, border: "1px solid var(--line)",
+              background: activePreset === p.key ? "var(--ink-1)" : "var(--card-2)",
+              color: activePreset === p.key ? "var(--bg)" : "var(--ink-2)",
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+            }}
+          >{p.label}</button>
+        ))}
+        {activePreset === "custom" && (
+          <>
+            <select value={range.from} onChange={e => setFrom(e.target.value)} className="cz-native-select" style={{ fontSize: 12, padding: "4px 10px" }}>
+              {monthOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <span style={{ fontSize: 12, color: "var(--ink-3)" }}>to</span>
+            <select value={range.to} onChange={e => setTo(e.target.value)} className="cz-native-select" style={{ fontSize: 12, padding: "4px 10px" }}>
+              {monthOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </>
+        )}
+      </div>
+
+      {/* Sections 1-5 are added in Tasks 3-5 */}
+      <p style={{ color: "var(--ink-3)", fontSize: 13 }}>{dealsLoading ? "Loading deals data..." : `${dealsRaw.length} deals loaded.`}</p>
+    </div>
+  );
 }

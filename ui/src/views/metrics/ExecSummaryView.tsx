@@ -9,6 +9,8 @@ import { supabase } from "../../data/supabase";
 type SortCol = "team" | "mrrWon" | "demos" | "logos" | "pipeline" | "winRate" | "avgCycle";
 type SortDir = "asc" | "desc";
 type PartnerSortCol = "partner" | "mrrWon" | "deals" | "pipeline";
+type DateRange = { from: string; to: string };
+type PresetKey = "mtd" | "qtd" | "ytd" | "last3m" | "last6m" | "custom";
 
 function monthKey(d: Date): string {
   return d.toISOString().slice(0, 7);
@@ -20,16 +22,61 @@ function monthLabel(mk: string): string {
   return `${names[parseInt(m, 10) - 1]} ${y}`;
 }
 
+function rangeLabel(range: DateRange): string {
+  if (range.from === range.to) return monthLabel(range.from);
+  return `${monthLabel(range.from)} - ${monthLabel(range.to)}`;
+}
+
+function inRange(closeDate: string | null, range: DateRange): boolean {
+  if (!closeDate) return false;
+  const mk = closeDate.slice(0, 7);
+  return mk >= range.from && mk <= range.to;
+}
+
+function getPresetRange(key: PresetKey): DateRange {
+  const now = new Date();
+  const curMonth = monthKey(now);
+  switch (key) {
+    case "mtd":
+      return { from: curMonth, to: curMonth };
+    case "qtd": {
+      const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+      return { from: monthKey(qStart), to: curMonth };
+    }
+    case "ytd":
+      return { from: `${now.getFullYear()}-01`, to: curMonth };
+    case "last3m": {
+      const from = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      return { from: monthKey(from), to: curMonth };
+    }
+    case "last6m": {
+      const from = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      return { from: monthKey(from), to: curMonth };
+    }
+    default:
+      return { from: curMonth, to: curMonth };
+  }
+}
+
 function getMonthOptions(): { value: string; label: string }[] {
   const opts: { value: string; label: string }[] = [];
   const now = new Date();
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 24; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const mk = monthKey(d);
     opts.push({ value: mk, label: monthLabel(mk) });
   }
   return opts;
 }
+
+const PRESETS: { key: PresetKey; label: string }[] = [
+  { key: "mtd", label: "MTD" },
+  { key: "qtd", label: "QTD" },
+  { key: "ytd", label: "YTD" },
+  { key: "last3m", label: "3M" },
+  { key: "last6m", label: "6M" },
+  { key: "custom", label: "Custom" },
+];
 
 const CARD: React.CSSProperties = {
   background: "var(--card-2)", borderRadius: 12, padding: "20px 24px", marginBottom: 16,
@@ -57,7 +104,8 @@ type PartnerRow = { partner: string; mrrWon: number; deals: number; pipeline: nu
 
 export default function ExecSummaryView() {
   const D = useData();
-  const [month, setMonth] = useState(() => monthKey(new Date()));
+  const [range, setRange] = useState<DateRange>(() => getPresetRange("mtd"));
+  const [activePreset, setActivePreset] = useState<PresetKey>("mtd");
   const [sortCol, setSortCol] = useState<SortCol>("mrrWon");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [pSortCol, setPSortCol] = useState<PartnerSortCol>("mrrWon");
@@ -66,6 +114,19 @@ export default function ExecSummaryView() {
   const [partnerLoading, setPartnerLoading] = useState(true);
 
   const monthOpts = useMemo(() => getMonthOptions(), []);
+
+  const applyPreset = (key: PresetKey) => {
+    setActivePreset(key);
+    if (key !== "custom") setRange(getPresetRange(key));
+  };
+  const setFrom = (v: string) => {
+    setActivePreset("custom");
+    setRange(r => ({ from: v, to: v > r.to ? v : r.to }));
+  };
+  const setTo = (v: string) => {
+    setActivePreset("custom");
+    setRange(r => ({ from: r.from > v ? v : r.from, to: v }));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -91,7 +152,7 @@ export default function ExecSummaryView() {
         if (!byPartner.has(p)) byPartner.set(p, { mrrWon: 0, deals: 0, pipeline: 0 });
         const row = byPartner.get(p)!;
 
-        if (wonStages.has(stage) && close.startsWith(month)) {
+        if (wonStages.has(stage) && inRange(close, range)) {
           row.mrrWon += amt;
           row.deals += 1;
         }
@@ -110,14 +171,14 @@ export default function ExecSummaryView() {
       }
     })();
     return () => { cancelled = true; };
-  }, [month]);
+  }, [range.from, range.to]);
 
   const { wonDeals, lostDeals, openDeals } = useMemo(() => {
-    const won = D.benchmark.won.filter(d => d.closeDate && d.closeDate.startsWith(month));
-    const lost = D.benchmark.lost.filter(d => d.closeDate && d.closeDate.startsWith(month));
+    const won = D.benchmark.won.filter(d => inRange(d.closeDate, range));
+    const lost = D.benchmark.lost.filter(d => inRange(d.closeDate, range));
     const open = D.forecast.allDeals;
     return { wonDeals: won, lostDeals: lost, openDeals: open };
-  }, [D.benchmark, D.forecast.allDeals, month]);
+  }, [D.benchmark, D.forecast.allDeals, range]);
 
   const kpis = useMemo(() => {
     const mrrWon = wonDeals.reduce((s, d) => s + (d.mrr || 0), 0);
@@ -244,17 +305,37 @@ export default function ExecSummaryView() {
   return (
     <div style={{ padding: "24px 32px", maxWidth: 1100 }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--ink-1)", margin: 0 }}>Executive Summary</h2>
         <span style={{ flex: 1 }} />
-        <select
-          value={month}
-          onChange={e => setMonth(e.target.value)}
-          className="cz-native-select"
-          style={{ fontSize: 13, padding: "6px 12px" }}
-        >
-          {monthOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+        <span style={{ fontSize: 12, color: "var(--ink-3)" }}>{rangeLabel(range)}</span>
+      </div>
+
+      {/* Period selector */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
+        {PRESETS.map(p => (
+          <button
+            key={p.key}
+            onClick={() => applyPreset(p.key)}
+            style={{
+              padding: "5px 14px", borderRadius: 8, border: "1px solid var(--line)",
+              background: activePreset === p.key ? "var(--ink-1)" : "var(--card-2)",
+              color: activePreset === p.key ? "var(--bg)" : "var(--ink-2)",
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+            }}
+          >{p.label}</button>
+        ))}
+        {activePreset === "custom" && (
+          <>
+            <select value={range.from} onChange={e => setFrom(e.target.value)} className="cz-native-select" style={{ fontSize: 12, padding: "4px 10px" }}>
+              {monthOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <span style={{ fontSize: 12, color: "var(--ink-3)" }}>to</span>
+            <select value={range.to} onChange={e => setTo(e.target.value)} className="cz-native-select" style={{ fontSize: 12, padding: "4px 10px" }}>
+              {monthOpts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </>
+        )}
       </div>
 
       {/* Section 1: KPI Cards */}
@@ -273,7 +354,7 @@ export default function ExecSummaryView() {
           <Icon name="users" size={18} />
           Team Performance
           <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 400 }}>{monthLabel(month)}</span>
+          <span style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 400 }}>{rangeLabel(range)}</span>
         </div>
         {sortedTeams.length === 0 ? (
           <p style={{ color: "var(--ink-3)", fontSize: 13 }}>No team data for this period.</p>
@@ -374,7 +455,7 @@ export default function ExecSummaryView() {
           <Icon name="xCircle" size={18} />
           Loss Analysis
           <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 400 }}>{lostDeals.length} lost in {monthLabel(month)}</span>
+          <span style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 400 }}>{lostDeals.length} lost in {rangeLabel(range)}</span>
         </div>
         {lossReasons.length === 0 ? (
           <p style={{ color: "var(--ink-3)", fontSize: 13 }}>No lost deals in this period.</p>
@@ -403,7 +484,7 @@ export default function ExecSummaryView() {
           <Icon name="building" size={18} />
           Partner Performance
           <span style={{ flex: 1 }} />
-          <span style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 400 }}>{monthLabel(month)}</span>
+          <span style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 400 }}>{rangeLabel(range)}</span>
         </div>
         {partnerLoading ? (
           <p style={{ color: "var(--ink-3)", fontSize: 13 }}>Loading partner data...</p>

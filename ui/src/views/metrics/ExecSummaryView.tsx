@@ -201,9 +201,10 @@ function DeltaChip({ delta, higherIsGood, isCurrency, isPct }: {
   return <Chip tone={tone} style={{ fontSize: 11 }}>{label}</Chip>;
 }
 
-function HBar({ items, maxVal }: {
+function HBar({ items, maxVal, fmtValue }: {
   items: { label: string; value: number; subLabel?: string; tone?: string }[];
   maxVal: number;
+  fmtValue?: (v: number) => string;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -215,7 +216,7 @@ function HBar({ items, maxVal }: {
             <div style={{ flex: 1, height: 8, background: "var(--card)", borderRadius: 4, overflow: "hidden" }}>
               <div style={{ height: "100%", width: `${pct}%`, background: item.tone || "var(--indigo)", borderRadius: 4, minWidth: item.value > 0 ? 2 : 0 }} />
             </div>
-            <span className="num" style={{ fontSize: 11, color: "var(--ink-3)", minWidth: 50, textAlign: "right" }}>{fmtMRR(item.value)}</span>
+            <span className="num" style={{ fontSize: 11, color: "var(--ink-3)", minWidth: 50, textAlign: "right" }}>{(fmtValue || fmtMRR)(item.value)}</span>
             {item.subLabel && <span className="num" style={{ fontSize: 11, color: "var(--ink-4)", minWidth: 30, textAlign: "right" }}>{item.subLabel}</span>}
           </div>
         );
@@ -575,7 +576,7 @@ export default function ExecSummaryView() {
   const paeRows = useMemo(() => {
     const byPae = new Map<string, { won: BenchmarkDeal[]; demos: number }>();
     for (const d of wonDeals) {
-      const pae = d.owner || "Unknown";
+      const pae = (d.owner && d.owner !== "—") ? d.owner : "Unknown";
       const cur = byPae.get(pae) || { won: [], demos: 0 };
       cur.won.push(d);
       byPae.set(pae, cur);
@@ -633,7 +634,7 @@ export default function ExecSummaryView() {
     }
     for (const d of openDeals) {
       const raw = d.id ? dealsMap.get(d.id) : null;
-      const pbd = raw?.pbd || (d as any).owner || "Unknown";
+      const pbd = raw?.pbd || "Unknown";
       const cur = byPbd.get(pbd) || { demos: 0, pipeline: 0 };
       cur.pipeline += d.mrr || 0;
       byPbd.set(pbd, cur);
@@ -1125,6 +1126,7 @@ export default function ExecSummaryView() {
                     tone: "var(--red)",
                   }))}
                   maxVal={lossReasons.reasons[0]?.count || 1}
+                  fmtValue={v => String(v)}
                 />
                 {lossReasons.unknownPct > 0.5 && (
                   <div style={{

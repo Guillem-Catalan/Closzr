@@ -2,13 +2,13 @@ import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./closzr.css";
 import "./styles.css";
-import { AuthProvider, useAuth, LoginPage } from "./auth";
+import { AuthProvider, useAuth, LoginPage, ResetPasswordPage } from "./auth";
 import { PermissionsProvider } from "./permissions";
 import { DataProvider } from "./data/provider";
 import App from "./App";
 
 function Root() {
-  const { user, loading } = useAuth();
+  const { user, loading, passwordRecovery } = useAuth();
   const [ready, setReady] = useState(false);
 
   if (loading) {
@@ -17,6 +17,10 @@ function Root() {
         <p style={{ color: "var(--ink-3)", fontSize: 15 }}>Cargando...</p>
       </div>
     );
+  }
+
+  if (passwordRecovery) {
+    return <ResetPasswordPage />;
   }
 
   if (!user && !ready) {

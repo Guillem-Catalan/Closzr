@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode, type FormEvent } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./data/supabase";
-import { ORG_DOMAINS, KNOWN_USERS, DEFAULT_ROLE, ACTIVE_TEAMS } from "./display";
+import { ORG_DOMAINS } from "./display";
 
 // ---- Auth context ----
 type AuthCtx = {
@@ -47,35 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       return { error: error?.message ?? null };
     },
-    signUp: async (email, password, name) => {
+    signUp: async (email, password, _name) => {
       const domain = email.split("@")[1];
       if (!ORG_DOMAINS.includes(domain)) return { error: `Only @${ORG_DOMAINS[0]} emails allowed` };
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp({ email, password });
       if (error) return { error: error.message };
-      const knownUser = KNOWN_USERS[email];
-      if (data.user) {
-        await supabase.from("users").upsert({
-          id: data.user.id,
-          email,
-          name,
-          role: knownUser?.role || DEFAULT_ROLE,
-          team: knownUser?.team || ACTIVE_TEAMS[0],
-          subteam: "Unassigned",
-          visible_teams: [],
-          visible_reps: [],
-          tab_permissions: {
-            general: { enabled: true, scope: "self" },
-            todos: { enabled: true, scope: "self" },
-            deals: { enabled: true, scope: "self" },
-            benchmark: { enabled: true, scope: "self" },
-            alerts: { enabled: true, scope: "self" },
-            forecast: { enabled: true, scope: "self" },
-            oneone: { enabled: false, scope: "self" },
-            uplift: { enabled: true, scope: "self" },
-            admin: { enabled: false, scope: "all" },
-          },
-        }, { onConflict: "id" });
-      }
       return { error: null };
     },
     signOut: async () => { await supabase.auth.signOut(); },

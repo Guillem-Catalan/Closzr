@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { Icon, Avatar, getInitials } from "../views/components";
 import { track } from "../data/track";
-import { usePermissions, isTabEnabled } from "../permissions";
+import { usePermissions, isViewEnabled } from "../permissions";
+import { ROLE_LABELS } from "../display";
 import { NAV_ITEMS, type NavItem } from "./nav-items";
 
 /* ── Context ── */
@@ -52,7 +53,7 @@ function Collapsible({ item, view, onNav }: { item: NavItem; view: string; onNav
   const activeChild = item.children?.some(c => c.key === view) ?? false;
   const [open, setOpen] = useState(true);
 
-  const visibleChildren = item.children!.filter(c => c.soon || isTabEnabled(profile, c.slug));
+  const visibleChildren = item.children!.filter(c => c.soon || isViewEnabled(profile, c.slug));
 
   if (!sidebarOpen) {
     return (
@@ -108,9 +109,9 @@ function Collapsible({ item, view, onNav }: { item: NavItem; view: string; onNav
 export default function Sidebar({ view, onNav }: { view: string; onNav: (v: string) => void }) {
   const { expanded } = useSidebar();
   const { profile } = usePermissions();
-  const showAdmin = isTabEnabled(profile, "admin");
+  const showAdmin = isViewEnabled(profile, "admin");
   const name = profile?.name || profile?.email?.split("@")[0] || "";
-  const role = profile?.role || "";
+  const roleLabel = profile?.role ? (ROLE_LABELS[profile.role] || profile.role) : "";
 
   return (
     <aside className={"cz-sb" + (expanded ? "" : " collapsed")}>
@@ -161,7 +162,7 @@ export default function Sidebar({ view, onNav }: { view: string; onNav: (v: stri
             <div className="cz-sb-user-meta">
               <span className="cz-sb-user-name">{name}</span>
               <span className="cz-sb-user-role">
-                {role}{profile?.subteam && profile.subteam !== "Unassigned" ? ` · ${profile.subteam}` : ""}
+                {roleLabel}{profile?.teamName ? ` · ${profile.teamName}` : ""}
               </span>
             </div>
           )}

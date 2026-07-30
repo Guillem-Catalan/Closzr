@@ -1,0 +1,32 @@
+name: Reassign Deals
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: reassign-deals
+  cancel-in-progress: false
+
+jobs:
+  reassign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r requirements.txt
+
+      - name: Process pending reassignments
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python -c "
+          from src.pipelines.orgchart.reassign_deals import run
+          run()
+          "

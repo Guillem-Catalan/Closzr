@@ -204,22 +204,22 @@ def build_known_users() -> dict:
     users = {}
     for email, team in config2._EMAIL_TO_TEAM.items():
         if email in config2.ALL_PAE_EMAILS:
-            role = "PAE"
+            role = "pae"
         elif email in config2.ALL_PBD_EMAILS:
-            role = "PBD"
+            role = "pbd"
         elif email in config2.ALL_DS_EMAILS:
-            role = "AE"
+            role = "ae"
         elif email in config2.ALL_XL_EMAILS:
-            role = "AE"
+            role = "ae"
         else:
-            role = "PAE"
+            role = "pae"
         users[email] = {"role": role, "team": team}
 
     for email in org.MANAGER_EMAILS:
         if email not in users:
-            users[email] = {"role": "Manager", "team": "All"}
+            users[email] = {"role": "manager", "team": "All"}
         else:
-            users[email]["role"] = "Manager"
+            users[email]["role"] = "manager"
 
     return users
 
@@ -403,14 +403,20 @@ def build_methodology_name() -> str:
 
 def build_role_labels() -> dict:
     return {
-        "Admin": "Admin",
-        "Manager": "Manager",
-        "Director": "Director",
-        "TL": "TL",
-        "PAE": "PAE",
-        "PBD": "PBD",
-        "AE": "AE",
-        "SDR": "SDR",
+        "ae": "AE",
+        "pae": "PAE",
+        "pbd": "PBD",
+        "sdr": "SDR",
+        "pdm": "PDM",
+        "pre_sales": "Pre-Sales",
+        "tl": "TL",
+        "pae_tl": "PAE TL",
+        "pbd_tl": "PBD TL",
+        "director": "Director",
+        "head": "Head",
+        "country_manager": "Country Manager",
+        "c_level": "C-Level",
+        "manager": "Manager",
     }
 
 
@@ -456,7 +462,7 @@ def main():
         "methodology_name": build_methodology_name(),
         "won_label": "Won",
         "lost_label": "Lost",
-        "default_role": "AE",
+        "default_role": "ae",
         "role_labels": build_role_labels(),
         # backward compat
         "hubspot_account_id": org.CRM_ACCOUNT_ID,

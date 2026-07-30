@@ -49,9 +49,6 @@ export function ownerDisplayName(email: string): string {
   return OWNER_NAMES[email] || email.split("@")[0].split(".").map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
 }
 
-// ---- Known users for auto-signup ----
-export const KNOWN_USERS: Record<string, { role: string; team: string }> = CFG.known_users;
-
 // ---- Stages ----
 export const STAGE_DISPLAY: Record<string, { short: string; abbr: string }> = CFG.stages.display;
 export const STAGE_TONES: Record<string, string> = CFG.stages.tones;
@@ -103,8 +100,14 @@ export const STAGE_ROADMAPS: Record<string, Array<{ key: string; label: string }
 // ---- Lost reasons ----
 export const LOST_REASONS: string[] = CFG.lost_reasons;
 
-// ---- Managers ----
-export const MANAGERS: string[] = CFG.managers;
+// ---- Known partners (matches deal_ui.partner_label values) ----
+export const KNOWN_PARTNERS: string[] = [
+  "Santander",
+  "Santander Mexico",
+  "Telefonica",
+  "TIM",
+  "TELEKOM",
+];
 
 // ---- MEDDIC axes ----
 export type MeddicAxis = { key: string; short: string; label: string };
@@ -117,10 +120,36 @@ export const WON_LABEL: string = CFG.won_label;
 export const LOST_LABEL: string = CFG.lost_label;
 
 // ---- Default role for unknown users ----
-export const DEFAULT_ROLE: string = CFG.default_role;
+export const DEFAULT_ROLE: string = "ae";
 
-// ---- Role labels ----
-export const ROLE_LABELS: Record<string, string> = CFG.role_labels;
+// ---- Role labels (internal_name → display) ----
+export const ROLE_LABELS: Record<string, string> = {
+  ae: "AE",
+  pae: "PAE",
+  pbd: "PBD",
+  sdr: "SDR",
+  pdm: "PDM",
+  pre_sales: "Pre-Sales",
+  tl: "TL",
+  pae_tl: "PAE TL",
+  pbd_tl: "PBD TL",
+  director: "Director",
+  head: "Head",
+  country_manager: "Country Manager",
+  c_level: "C-Level",
+  manager: "Manager",
+};
+
+// ---- Access level labels ----
+export const ACCESS_LEVELS: Record<string, string> = {
+  admin: "Admin",
+  manager: "Manager",
+  visitor: "Visitor",
+  tree: "Tree",
+};
+
+// ---- All valid roles (for AdminView dropdowns) ----
+export const ALL_ROLES = Object.keys(ROLE_LABELS);
 export const ADMIN_ROLES = Object.keys(ROLE_LABELS);
 
 // ---- Momentum / Confidence (pure UI display) ----
@@ -168,21 +197,51 @@ export function bantLabel(status: string | null): string {
   return map[status.toLowerCase()] || status;
 }
 
-// ---- Admin: scopes + tabs (pure UI) ----
-export const ADMIN_SCOPES = [
+// ---- Scope options (for AdminView dropdowns) ----
+export const SCOPE_OPTIONS = [
   { value: "all", label: "Todo" },
   { value: "team", label: "Su equipo" },
   { value: "self", label: "Solo él/ella" },
-  { value: "custom", label: "Custom" },
+  { value: "none", label: "Oculto" },
 ];
+export const ADMIN_SCOPES = SCOPE_OPTIONS;
+
+// ---- View slug → orgchart scope column suffix ----
+// Maps the URL slug to the scope_* column in orgchart.
+// This is the bridge between UI routing and the database.
+export const SLUG_TO_SCOPE: Record<string, string> = {
+  general: "general",
+  todos: "alerts",
+  deals: "pipeline",
+  benchmark: "benchmark",
+  performance: "performance",
+  forecast: "forecast",
+  oneone: "one_one",
+  "team-analytics": "team_analytics",
+  orgchart: "orgchart",
+  uplift: "uplift",
+  insights: "insights",
+  "partner-pipeline": "partners",
+  "partner-forecast": "partners",
+  "partner-analytics": "partners",
+  admin: "admin",
+};
+
+// ---- All views with their scope key (for AdminView) ----
+// key = scope column suffix (internal name), label = display
 export const ALL_TABS = [
   { key: "general", label: "General" },
-  { key: "todos", label: "To Do's" },
-  { key: "deals", label: "Pipeline" },
-  { key: "benchmark", label: "Benchmark" },
   { key: "alerts", label: "Alerts" },
+  { key: "pipeline", label: "Pipeline" },
+  { key: "benchmark", label: "Benchmark" },
+  { key: "performance", label: "Performance" },
   { key: "forecast", label: "Forecast" },
-  { key: "oneone", label: "1:1" },
+  { key: "one_one", label: "1:1" },
+  { key: "team_analytics", label: "Analytics" },
+  { key: "orgchart", label: "Orgchart" },
   { key: "uplift", label: "Uplift" },
   { key: "closzr-usage", label: "Closzr Usage" },
+  { key: "insights", label: "Insights" },
+  { key: "partners", label: "Partners" },
+  { key: "admin", label: "Admin" },
 ];

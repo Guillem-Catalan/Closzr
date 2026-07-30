@@ -19,6 +19,7 @@ import MetricsRepView from "./views/metrics/MetricsRepView";
 import ExecSummaryView from "./views/metrics/ExecSummaryView";
 import CloszrUsageView from "./views/metrics/CloszrUsageView";
 const AdminView = lazy(() => import("./views/admin/AdminView"));
+const TeamView = lazy(() => import("./views/team/TeamView"));
 
 function SidebarToggle() {
   const { toggle, expanded } = useSidebar();
@@ -75,7 +76,7 @@ function App() {
         <Sidebar view={view} onNav={setView}/>
         <main className="cz-main">
           <SidebarToggle/>
-          {view === "todos" && <TodoView onOpen={handleOpen}/>}
+          {view === "alerts" && <TodoView onOpen={handleOpen}/>}
           {view === "pipeline" && <PipelineView onOpen={handleOpen}/>}
           {view === "forecast" && <ForecastView onOpen={handleOpen}/>}
           {view === "oneone" && <OneOnOneView onOpen={handleOpen}/>}
@@ -84,7 +85,8 @@ function App() {
           {view === "execsummary" && <ExecSummaryView />}
           {view === "repstats" && <MetricsRepView />}
           {view === "closzrusage" && <CloszrUsageView />}
-          {["general","alerts","uplift"].includes(view) && <ComingSoon label={view.charAt(0).toUpperCase() + view.slice(1)}/>}
+          {view === "orgchart" && <Suspense fallback={<p style={{color:"var(--ink-3)"}}>Cargando...</p>}><TeamView/></Suspense>}
+          {["general","performance","team-analytics","uplift","insights","partner-pipeline","partner-forecast","partner-analytics"].includes(view) && <ComingSoon label={view.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}/>}
         </main>
         {detailLoading && (
           <div className="cz-overlay" style={{background:"rgba(28,24,16,.25)"}}>

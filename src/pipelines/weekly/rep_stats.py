@@ -22,7 +22,7 @@ Data sources:
   C. Process Quality         ← pae_audits / pbd_audits (owner_name)
   D. Coaching & Gaps         ← pae_audits / pbd_audits (owner_name)
   E. Activity & Cadence      ← calls + deals (owner_email, pae, pbd)
-  F. Deal Closing Stats      ← deals (pae) — win rate, cycle time, demo rate
+  F. Demo Funnel              ← deals (pae) — demo rate, post-demo WR, days to demo
   G. Deal Sizing             ← deals (pae) — avg deal size, size distribution
   H. Contact Coverage        ← deals (pae) — contacts/deal, multi-thread rate
   J. Forecast Accuracy       ← calibration_log + snapshots (via deal FK) — deferred
@@ -1155,6 +1155,118 @@ def _compute_segment_e(calls: list[dict], trajectories: list[dict]) -> list[dict
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# SEGMENT F — DEMO FUNNEL (5 stats per rep)
+#
+# Source: deals table (after_demo_date, createdate, close_date, is_closed_won)
+# Closing pipelines only. Uses current ownership (deals.pae).
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _compute_segment_f(deals_by_rep: dict[str, list[dict]]) -> list[dict]:
+    """Demo funnel stats — per rep from deals table."""
+    patterns = []
+
+    for email, rep_deals in deals_by_rep.items():
+        slug = _email_slug(email)
+        scope = f"rep:{email}"
+
+        if len(rep_deals) < 3:
+            continue
+
+        has_demo = [d for d in rep_deals if d.get("after_demo_date")]
+        no_demo = [d for d in rep_deals if not d.get("after_demo_date")]
+        won = [d for d in rep_deals if d.get("is_closed_won")]
+        lost_stage = [d for d in rep_deals if "lost" in (d.get("deal_stage") or "").lower()]
+        won_with_demo = [d for d in won if d.get("after_demo_date")]
+
+        # ── F.1 demo_rate ──
+        dr = round(len(has_demo) / len(rep_deals) * 100, 1)
+        patterns.append({
+            "pattern_key": f"rep_demo_rate_{slug}",
+            "pattern_type": "rep_stat",
+            "scope": scope,
+            "pattern": f"Demo rate: {dr}% ({len(has_demo)}/{len(rep_deals)} deals reached demo)",
+            "confidence": min(0.90, len(rep_deals) / 30),
+            "sample_size": len(rep_deals),
+            "value": dr,
+        })
+
+        # ── F.2 post_demo_win_rate ──
+        if has_demo:
+            pdwr = round(len(won_with_demo) / len(has_demo) * 100, 1)
+            patterns.append({
+                "pattern_key": f"rep_post_demo_win_rate_{slug}",
+                "pattern_type": "rep_stat",
+                "scope": scope,
+                "pattern": f"Post-demo WR: {pdwr}% ({len(won_with_demo)}/{len(has_demo)} demo deals won)",
+                "confidence": min(0.90, len(has_demo) / 20),
+                "sample_size": len(has_demo),
+                "value": pdwr,
+            })
+
+        # ── F.3 avg_days_to_demo ──
+        days_to_demo = []
+        for d in has_demo:
+            try:
+                created = date.fromisoformat(str(d["createdate"])[:10])
+                demo = date.fromisoformat(str(d["after_demo_date"])[:10])
+                diff = (demo - created).days
+                if diff >= 0:
+                    days_to_demo.append(diff)
+            except (ValueError, TypeError, KeyError):
+                pass
+        if days_to_demo:
+            avg_dtd = round(sum(days_to_demo) / len(days_to_demo), 1)
+            patterns.append({
+                "pattern_key": f"rep_avg_days_to_demo_{slug}",
+                "pattern_type": "rep_stat",
+                "scope": scope,
+                "pattern": f"Avg days to demo: {avg_dtd}d ({len(days_to_demo)} deals)",
+                "confidence": min(0.85, len(days_to_demo) / 15),
+                "sample_size": len(days_to_demo),
+                "value": avg_dtd,
+            })
+
+        # ── F.4 demo_to_close_days (won only) ──
+        dtc_days = []
+        for d in won_with_demo:
+            try:
+                demo = date.fromisoformat(str(d["after_demo_date"])[:10])
+                close = date.fromisoformat(str(d["close_date"])[:10])
+                diff = (close - demo).days
+                if diff >= 0:
+                    dtc_days.append(diff)
+            except (ValueError, TypeError, KeyError):
+                pass
+        if dtc_days:
+            avg_dtc = round(sum(dtc_days) / len(dtc_days), 1)
+            patterns.append({
+                "pattern_key": f"rep_demo_to_close_days_{slug}",
+                "pattern_type": "rep_stat",
+                "scope": scope,
+                "pattern": f"Demo-to-close: {avg_dtc}d ({len(dtc_days)} won deals)",
+                "confidence": min(0.85, len(dtc_days) / 10),
+                "sample_size": len(dtc_days),
+                "value": avg_dtc,
+            })
+
+        # ── F.5 no_demo_loss_rate ──
+        lost_no_demo = [d for d in lost_stage if not d.get("after_demo_date")]
+        if lost_stage:
+            ndlr = round(len(lost_no_demo) / len(lost_stage) * 100, 1)
+            patterns.append({
+                "pattern_key": f"rep_no_demo_loss_rate_{slug}",
+                "pattern_type": "rep_stat",
+                "scope": scope,
+                "pattern": f"No-demo loss rate: {ndlr}% ({len(lost_no_demo)}/{len(lost_stage)} lost without demo)",
+                "confidence": min(0.85, len(lost_stage) / 15),
+                "sample_size": len(lost_stage),
+                "value": ndlr,
+            })
+
+    return patterns
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # SEGMENT J — FORECAST ACCURACY (5 stats per rep)  (was F)
 #
 # Source: calibration_log + front_deal_snapshots
@@ -1276,6 +1388,10 @@ def run() -> int:
         # Segment E — Activity & Cadence (period-filtered calls)
         print(f"    [{period}] E. Activity & Cadence...")
         all_patterns.extend(_inject_period(_compute_segment_e(calls, trajs), period))
+
+        # Segment F — Demo Funnel (period-filtered deals)
+        print(f"    [{period}] F. Demo Funnel...")
+        all_patterns.extend(_inject_period(_compute_segment_f(deals_by_rep), period))
 
         # Segment J — Forecast Accuracy (deferred, was F)
         all_patterns.extend(_inject_period(_compute_segment_j(), period))

@@ -1,8 +1,8 @@
 """
 Weekly Rep Stats — per-person performance patterns.
 
-Runs inside weekly/run2.py after patterns. Pure Python (segments A-F, H).
-Segment G (post-mortem) uses Claude and runs quarterly only.
+Runs inside weekly/run2.py after patterns. Pure Python (segments A-E, F-H, J-L).
+Segment K (post-mortem) uses Claude and runs quarterly only.
 
 Each stat is computed for THREE time windows:
   - weekly  (7 days)   — last week snapshot
@@ -22,9 +22,12 @@ Data sources:
   C. Process Quality         ← pae_audits / pbd_audits (owner_name)
   D. Coaching & Gaps         ← pae_audits / pbd_audits (owner_name)
   E. Activity & Cadence      ← calls + deals (owner_email, pae, pbd)
-  F. Forecast Accuracy       ← calibration_log + snapshots (via deal FK)
-  G. Post-mortem Patterns    ← deal_analysis (via deal FK) — Claude, quarterly
-  H. Product Knowledge       ← deal_product_signals (via deal FK)
+  F. Deal Closing Stats      ← deals (pae) — win rate, cycle time, demo rate
+  G. Deal Sizing             ← deals (pae) — avg deal size, size distribution
+  H. Contact Coverage        ← deals (pae) — contacts/deal, multi-thread rate
+  J. Forecast Accuracy       ← calibration_log + snapshots (via deal FK) — deferred
+  K. Post-mortem Patterns    ← deal_analysis (via deal FK) — Claude, quarterly, deferred
+  L. Product Knowledge       ← deal_product_signals (via deal FK) — deferred
 """
 
 import json
@@ -51,6 +54,8 @@ _TBL_PROD_SIGNALS = schema.tbl("product_signals")
 _TBL_PATTERNS     = schema.tbl("patterns")
 
 _TC = schema.TRAJECTORY_COLS
+
+CLOSING_PIPELINES = {"Partners Distribution", "XL Account Pipeline", "Sales Pipeline"}
 
 
 PERIODS = {
@@ -197,6 +202,60 @@ def _load_data() -> dict:
     print(f"      calls: {len(data['calls'])}")
 
     return data
+
+
+def _load_deals() -> list[dict]:
+    """Load deals from the deals table for segments F/G/H.
+    Uses deals.pae (current owner) — attribution follows current ownership."""
+    print("    Loading deals for segments F/G/H...")
+    deals = _fetch_all_paginated(
+        _TBL_DEALS,
+        "deal_id, pae, pipeline_name, after_demo_date, createdate, close_date, "
+        "is_closed_won, deal_stage, contact_count, contacts_info, amount, "
+        "num_employees_custom",
+        order_col="close_date",
+    )
+    deals = [d for d in deals if (d.get("pipeline_name") or "") in CLOSING_PIPELINES]
+    print(f"      deals (closing pipelines): {len(deals)}")
+    return deals
+
+
+def _filter_deals(deals: list[dict], period: str) -> list[dict]:
+    """Filter deals by close_date within the period window.
+    Open deals (no close_date or not closed) are included for demo_rate."""
+    cutoff = _cutoff_date(period)
+    result = []
+    for d in deals:
+        cd = d.get("close_date")
+        is_won = d.get("is_closed_won")
+        stage = (d.get("deal_stage") or "").lower()
+        is_closed = is_won or "lost" in stage
+
+        if is_closed and cd:
+            try:
+                if date.fromisoformat(str(cd)[:10]) >= cutoff:
+                    result.append(d)
+            except (ValueError, TypeError):
+                pass
+        elif not is_closed:
+            create = d.get("createdate")
+            if create:
+                try:
+                    if date.fromisoformat(str(create)[:10]) >= cutoff:
+                        result.append(d)
+                except (ValueError, TypeError):
+                    pass
+    return result
+
+
+def _group_deals_by_rep(deals: list[dict]) -> dict[str, list[dict]]:
+    """Group deals by pae email (current owner)."""
+    by_rep: dict[str, list[dict]] = defaultdict(list)
+    for d in deals:
+        email = (d.get("pae") or "").strip()
+        if email:
+            by_rep[email].append(d)
+    return dict(by_rep)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1096,7 +1155,7 @@ def _compute_segment_e(calls: list[dict], trajectories: list[dict]) -> list[dict
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# SEGMENT F — FORECAST ACCURACY (5 stats per rep)
+# SEGMENT J — FORECAST ACCURACY (5 stats per rep)  (was F)
 #
 # Source: calibration_log + front_deal_snapshots
 # Key stats:
@@ -1105,7 +1164,7 @@ def _compute_segment_e(calls: list[dict], trajectories: list[dict]) -> list[dict
 #   - probability_calibration (predicted vs actual)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _compute_segment_f() -> list[dict]:
+def _compute_segment_j() -> list[dict]:
     """Forecast accuracy — per rep from calibration data.
 
     Requires calibration_log table (populated by daily forecast pipeline).
@@ -1119,7 +1178,7 @@ def _compute_segment_f() -> list[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# SEGMENT G — POST-MORTEM PATTERNS (5 stats per rep, QUARTERLY, Claude)
+# SEGMENT K — POST-MORTEM PATTERNS (was G)
 #
 # Source: deal_analysis
 # Key stats:
@@ -1129,7 +1188,7 @@ def _compute_segment_f() -> list[dict]:
 #   - key turning points patterns
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _compute_segment_g() -> list[dict]:
+def _compute_segment_k() -> list[dict]:
     """Post-mortem patterns — per rep, quarterly, uses Claude.
 
     Reads deal_analysis table (what_worked, what_failed, products_missed,
@@ -1142,7 +1201,7 @@ def _compute_segment_g() -> list[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# SEGMENT H — PRODUCT KNOWLEDGE (4 stats per rep)
+# SEGMENT L — PRODUCT KNOWLEDGE (was H)
 #
 # Source: deal_product_signals
 # Key stats:
@@ -1152,7 +1211,7 @@ def _compute_segment_g() -> list[dict]:
 #   - upsell_detection_rate
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _compute_segment_h() -> list[dict]:
+def _compute_segment_l() -> list[dict]:
     """Product knowledge — per rep from deal_product_signals.
 
     Each row has products_discussed, upsell_opportunity, pitch_quality
@@ -1173,6 +1232,7 @@ def run() -> int:
     today = date.today().isoformat()
 
     data = _load_data()
+    all_deals_raw = _load_deals()
     all_trajectories = data["trajectories"]
 
     if len(all_trajectories) < 10:
@@ -1188,6 +1248,9 @@ def run() -> int:
         pae = _filter_audits(data["pae_audits"], period)
         pbd = _filter_audits(data["pbd_audits"], period)
         calls = _filter_calls(data["calls"], period)
+        deals = _filter_deals(all_deals_raw, period)
+        deals_by_rep = _group_deals_by_rep(deals)
+        print(f"      deals: {len(deals)} ({len(deals_by_rep)} reps)")
 
         closed_count = sum(1 for t in trajs if t.get(_TC["outcome"]) in ("won", "lost"))
         print(f"      data: {closed_count} closed trajectories, {len(pae)} pae_audits, {len(pbd)} pbd_audits, {len(calls)} calls")
@@ -1214,16 +1277,15 @@ def run() -> int:
         print(f"    [{period}] E. Activity & Cadence...")
         all_patterns.extend(_inject_period(_compute_segment_e(calls, trajs), period))
 
-        # Segment F — Forecast Accuracy (deferred)
-        all_patterns.extend(_inject_period(_compute_segment_f(), period))
+        # Segment J — Forecast Accuracy (deferred, was F)
+        all_patterns.extend(_inject_period(_compute_segment_j(), period))
 
-        # Segment G — Post-mortem (quarterly only, deferred)
-        # TODO: enable when Claude prompt is ready
+        # Segment K — Post-mortem (quarterly only, deferred, was G)
         # if period == "quarterly":
-        #     all_patterns.extend(_inject_period(_compute_segment_g(), period))
+        #     all_patterns.extend(_inject_period(_compute_segment_k(), period))
 
-        # Segment H — Product Knowledge (deferred)
-        all_patterns.extend(_inject_period(_compute_segment_h(), period))
+        # Segment L — Product Knowledge (deferred, was H)
+        all_patterns.extend(_inject_period(_compute_segment_l(), period))
 
     # Upsert all
     upserted = 0

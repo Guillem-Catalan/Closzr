@@ -24,19 +24,25 @@ CREATE INDEX IF NOT EXISTS idx_usage_events_resource
 -- 3. RLS — enable but only allow authenticated inserts of own rows
 ALTER TABLE usage_events ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY usage_events_insert ON usage_events
-  FOR INSERT TO authenticated
-  WITH CHECK (true);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'usage_events_insert') THEN
+    CREATE POLICY usage_events_insert ON usage_events
+      FOR INSERT TO authenticated
+      WITH CHECK (true);
+  END IF;
+END $$;
 
 -- No SELECT policy — reads go through security-definer RPCs only.
 
 -- 4. RPC functions (all security definer)
+-- All functions accept optional filter_email for per-user drill-down.
 
 -- 4a. DAU
 CREATE OR REPLACE FUNCTION usage_dau(
-  from_date timestamptz,
-  to_date   timestamptz,
-  filter_role text DEFAULT NULL
+  from_date    timestamptz,
+  to_date      timestamptz,
+  filter_role  text DEFAULT NULL,
+  filter_email text DEFAULT NULL
 )
 RETURNS TABLE(date date, count bigint)
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -48,15 +54,17 @@ AS $$
     AND (filter_role IS NULL OR EXISTS (
       SELECT 1 FROM users u WHERE u.email = e.email AND u.role = filter_role
     ))
+    AND (filter_email IS NULL OR e.email = filter_email)
   GROUP BY d::date
   ORDER BY d::date;
 $$;
 
 -- 4b. WAU
 CREATE OR REPLACE FUNCTION usage_wau(
-  from_date timestamptz,
-  to_date   timestamptz,
-  filter_role text DEFAULT NULL
+  from_date    timestamptz,
+  to_date      timestamptz,
+  filter_role  text DEFAULT NULL,
+  filter_email text DEFAULT NULL
 )
 RETURNS TABLE(week_start date, count bigint)
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -68,15 +76,17 @@ AS $$
     AND (filter_role IS NULL OR EXISTS (
       SELECT 1 FROM users u WHERE u.email = e.email AND u.role = filter_role
     ))
+    AND (filter_email IS NULL OR e.email = filter_email)
   GROUP BY week_start
   ORDER BY week_start;
 $$;
 
 -- 4c. MAU
 CREATE OR REPLACE FUNCTION usage_mau(
-  from_date timestamptz,
-  to_date   timestamptz,
-  filter_role text DEFAULT NULL
+  from_date    timestamptz,
+  to_date      timestamptz,
+  filter_role  text DEFAULT NULL,
+  filter_email text DEFAULT NULL
 )
 RETURNS TABLE(month text, count bigint)
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -88,16 +98,18 @@ AS $$
     AND (filter_role IS NULL OR EXISTS (
       SELECT 1 FROM users u WHERE u.email = e.email AND u.role = filter_role
     ))
+    AND (filter_email IS NULL OR e.email = filter_email)
   GROUP BY month
   ORDER BY month;
 $$;
 
 -- 4d. Top users
 CREATE OR REPLACE FUNCTION usage_top_users(
-  from_date   timestamptz,
-  to_date     timestamptz,
-  lim         int DEFAULT 20,
-  filter_role text DEFAULT NULL
+  from_date    timestamptz,
+  to_date      timestamptz,
+  lim          int DEFAULT 20,
+  filter_role  text DEFAULT NULL,
+  filter_email text DEFAULT NULL
 )
 RETURNS TABLE(email text, role text, action_count bigint, last_active timestamptz)
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -110,6 +122,7 @@ AS $$
   LEFT JOIN users u ON u.email = e.email
   WHERE e.created_at >= from_date AND e.created_at < to_date + '1 day'::interval
     AND (filter_role IS NULL OR u.role = filter_role)
+    AND (filter_email IS NULL OR e.email = filter_email)
   GROUP BY e.email, u.role
   ORDER BY action_count DESC
   LIMIT lim;
@@ -117,9 +130,10 @@ $$;
 
 -- 4e. By resource
 CREATE OR REPLACE FUNCTION usage_by_resource(
-  from_date   timestamptz,
-  to_date     timestamptz,
-  filter_role text DEFAULT NULL
+  from_date    timestamptz,
+  to_date      timestamptz,
+  filter_role  text DEFAULT NULL,
+  filter_email text DEFAULT NULL
 )
 RETURNS TABLE(resource text, users bigint, actions bigint)
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -132,16 +146,18 @@ AS $$
     AND (filter_role IS NULL OR EXISTS (
       SELECT 1 FROM users u WHERE u.email = e.email AND u.role = filter_role
     ))
+    AND (filter_email IS NULL OR e.email = filter_email)
   GROUP BY e.resource
   ORDER BY users DESC;
 $$;
 
 -- 4f. Heatmap
 CREATE OR REPLACE FUNCTION usage_heatmap(
-  from_date   timestamptz,
-  to_date     timestamptz,
-  tz          text DEFAULT 'UTC',
-  filter_role text DEFAULT NULL
+  from_date    timestamptz,
+  to_date      timestamptz,
+  tz           text DEFAULT 'UTC',
+  filter_role  text DEFAULT NULL,
+  filter_email text DEFAULT NULL
 )
 RETURNS TABLE(dow int, hour int, count bigint)
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -154,15 +170,17 @@ AS $$
     AND (filter_role IS NULL OR EXISTS (
       SELECT 1 FROM users u WHERE u.email = e.email AND u.role = filter_role
     ))
+    AND (filter_email IS NULL OR e.email = filter_email)
   GROUP BY dow, hour
   ORDER BY dow, hour;
 $$;
 
 -- 4g. Activation rate
 CREATE OR REPLACE FUNCTION usage_activation_rate(
-  from_date   timestamptz,
-  to_date     timestamptz,
-  filter_role text DEFAULT NULL
+  from_date    timestamptz,
+  to_date      timestamptz,
+  filter_role  text DEFAULT NULL,
+  filter_email text DEFAULT NULL
 )
 RETURNS TABLE(total_users bigint, activated_users bigint, rate numeric)
 LANGUAGE sql STABLE SECURITY DEFINER
@@ -174,6 +192,7 @@ AS $$
       AND (filter_role IS NULL OR EXISTS (
         SELECT 1 FROM users u WHERE u.email = e.email AND u.role = filter_role
       ))
+      AND (filter_email IS NULL OR e.email = filter_email)
     GROUP BY e.email
   )
   SELECT count(*) AS total_users,

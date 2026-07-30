@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { useData } from "../../data/store";
 import type { BenchmarkDeal, ForecastDeal } from "../../data/store";
-import { Chip, fmtMRR, Icon } from "../components";
+import { Chip, fmtMRR, Icon, MultiSelectTeam } from "../components";
 import { ACTIVE_TEAMS, ownerDisplayName, TEAM_HIERARCHY } from "../../display";
 import { expandTeam } from "../../data/filters";
 import { supabase } from "../../data/supabase";
+import { usePermissions } from "../../permissions";
 
 // ---- Types ----
 
@@ -46,11 +47,11 @@ const LOST_STAGES = new Set(["closed lost", "closedlost", "lost"]);
 const CLOSED_STAGES = new Set([...WON_STAGES, ...LOST_STAGES]);
 
 const SIZE_BUCKETS: { label: string; min: number; max: number }[] = [
-  { label: "XS (<50)", min: 0, max: 49 },
-  { label: "S (50–200)", min: 50, max: 200 },
-  { label: "M (200–1K)", min: 201, max: 1000 },
-  { label: "L (1K–5K)", min: 1001, max: 5000 },
-  { label: "XL (5K+)", min: 5001, max: Infinity },
+  { label: "XS (1–10)", min: 1, max: 10 },
+  { label: "S (11–50)", min: 11, max: 50 },
+  { label: "M (51–250)", min: 51, max: 250 },
+  { label: "L (251–800)", min: 251, max: 800 },
+  { label: "XL (801+)", min: 801, max: Infinity },
 ];
 
 const NOISE_THRESHOLD = 0.05;
@@ -228,12 +229,15 @@ function HBar({ items, maxVal, fmtValue }: {
 // ---- Main component ----
 
 export default function ExecSummaryView() {
+  const { profile } = usePermissions();
+  const isAdmin = profile?.accessLevel === "admin";
   const D = useData();
   const [range, setRange] = useState<DateRange>(() => getPresetRange("mtd"));
   const [activePreset, setActivePreset] = useState<PresetKey>("mtd");
   const [dealsRaw, setDealsRaw] = useState<DealRaw[]>([]);
   const [dealsLoading, setDealsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"pae" | "pbd" | "partner" | "size">("pae");
+  const [selectedTeams, setSelectedTeams] = useState<Set<string>>(new Set());
 
   const monthOpts = useMemo(() => getMonthOptions(), []);
 
@@ -278,12 +282,21 @@ export default function ExecSummaryView() {
 
   const prior = useMemo(() => priorRange(range), [range]);
 
+  // ---- Team filter ----
+  const teamPassesFilter = useMemo(() => {
+    if (selectedTeams.size === 0) return (_t: string | null) => true;
+    return (t: string | null) => t != null && selectedTeams.has(t);
+  }, [selectedTeams]);
+
   // ---- Core data from useData() ----
-  const wonDeals = useMemo(() => D.benchmark.won.filter(d => inRange(d.closeDate, range)), [D.benchmark.won, range]);
-  const lostDeals = useMemo(() => D.benchmark.lost.filter(d => inRange(d.closeDate, range)), [D.benchmark.lost, range]);
-  const priorWon = useMemo(() => D.benchmark.won.filter(d => inRange(d.closeDate, prior)), [D.benchmark.won, prior]);
-  const priorLost = useMemo(() => D.benchmark.lost.filter(d => inRange(d.closeDate, prior)), [D.benchmark.lost, prior]);
-  const openDeals = D.forecast.allDeals;
+  const wonDeals = useMemo(() => D.benchmark.won.filter(d => inRange(d.closeDate, range) && teamPassesFilter(d.team)), [D.benchmark.won, range, teamPassesFilter]);
+  const lostDeals = useMemo(() => D.benchmark.lost.filter(d => inRange(d.closeDate, range) && teamPassesFilter(d.team)), [D.benchmark.lost, range, teamPassesFilter]);
+  const priorWon = useMemo(() => D.benchmark.won.filter(d => inRange(d.closeDate, prior) && teamPassesFilter(d.team)), [D.benchmark.won, prior, teamPassesFilter]);
+  const priorLost = useMemo(() => D.benchmark.lost.filter(d => inRange(d.closeDate, prior) && teamPassesFilter(d.team)), [D.benchmark.lost, prior, teamPassesFilter]);
+  const openDeals = useMemo(() =>
+    selectedTeams.size === 0 ? D.forecast.allDeals : D.forecast.allDeals.filter(d => teamPassesFilter(d.team || null)),
+    [D.forecast.allDeals, selectedTeams, teamPassesFilter]
+  );
 
   // ---- Deals raw lookups ----
   const dealsMap = useMemo(() => {
@@ -292,30 +305,35 @@ export default function ExecSummaryView() {
     return m;
   }, [dealsRaw]);
 
-  const demosInRange = useMemo(() => dealsRaw.filter(d => inRange(d.after_demo_date, range)), [dealsRaw, range]);
-  const priorDemosInRange = useMemo(() => dealsRaw.filter(d => inRange(d.after_demo_date, prior)), [dealsRaw, prior]);
+  const filteredDealsRaw = useMemo(() =>
+    selectedTeams.size === 0 ? dealsRaw : dealsRaw.filter(d => teamPassesFilter(d.team)),
+    [dealsRaw, selectedTeams, teamPassesFilter]
+  );
+
+  const demosInRange = useMemo(() => filteredDealsRaw.filter(d => inRange(d.after_demo_date, range)), [filteredDealsRaw, range]);
+  const priorDemosInRange = useMemo(() => filteredDealsRaw.filter(d => inRange(d.after_demo_date, prior)), [filteredDealsRaw, prior]);
 
   // ---- Win Rate 6m rolling windows ----
   const winRate6m = useMemo(() => {
     const [ty, tm] = range.to.split("-").map(Number);
-    const endDate = new Date(ty, tm, 0); // last day of range.to month
+    const endDate = new Date(ty, tm, 0);
     const startDate = new Date(ty, tm - 6, 1);
     const window = { from: monthKey(startDate), to: monthKey(endDate) };
-    const w = D.benchmark.won.filter(d => inRange(d.closeDate, window));
-    const l = D.benchmark.lost.filter(d => inRange(d.closeDate, window));
+    const w = D.benchmark.won.filter(d => inRange(d.closeDate, window) && teamPassesFilter(d.team));
+    const l = D.benchmark.lost.filter(d => inRange(d.closeDate, window) && teamPassesFilter(d.team));
     const total = w.length + l.length;
     return total > 0 ? w.length / total : null;
-  }, [D.benchmark, range]);
+  }, [D.benchmark, range, teamPassesFilter]);
 
   const priorWinRate6m = useMemo(() => {
     const [py, pm] = prior.to.split("-").map(Number);
     const startDate = new Date(py, pm - 6, 1);
     const window = { from: monthKey(startDate), to: prior.to };
-    const w = D.benchmark.won.filter(d => inRange(d.closeDate, window));
-    const l = D.benchmark.lost.filter(d => inRange(d.closeDate, window));
+    const w = D.benchmark.won.filter(d => inRange(d.closeDate, window) && teamPassesFilter(d.team));
+    const l = D.benchmark.lost.filter(d => inRange(d.closeDate, window) && teamPassesFilter(d.team));
     const total = w.length + l.length;
     return total > 0 ? w.length / total : null;
-  }, [D.benchmark, prior]);
+  }, [D.benchmark, prior, teamPassesFilter]);
 
   // ---- Section 1: KPI computations ----
   const kpis = useMemo(() => {
@@ -334,7 +352,7 @@ export default function ExecSummaryView() {
     const priorMedianCycle = priorCycles.length > 0 ? median(priorCycles) : null;
 
     // Attainment
-    const targetMonths = D.forecast.targets.filter(t => t.month >= range.from && t.month <= range.to);
+    const targetMonths = D.forecast.targets.filter(t => t.month >= range.from && t.month <= range.to && teamPassesFilter(t.team));
     const totalTarget = targetMonths.reduce((s, t) => s + t.monthly_target, 0);
 
     // Post-demo / pre-demo pipeline split
@@ -353,7 +371,7 @@ export default function ExecSummaryView() {
       medianCycle, priorMedianCycle,
       totalTarget,
     };
-  }, [wonDeals, priorWon, lostDeals, demosInRange, priorDemosInRange, openDeals, dealsMap, D.forecast.targets, range, winRate6m, priorWinRate6m]);
+  }, [wonDeals, priorWon, lostDeals, demosInRange, priorDemosInRange, openDeals, dealsMap, D.forecast.targets, range, winRate6m, priorWinRate6m, teamPassesFilter]);
 
   // ---- Section 2: Team Scorecard ----
   type TeamSortCol = "team" | "mrrWon" | "demos" | "demoWon" | "logos" | "pipeline" | "winRate" | "avgDealSize" | "avgCycle" | "hygiene";
@@ -361,7 +379,7 @@ export default function ExecSummaryView() {
   const [teamSortDir, setTeamSortDir] = useState<SortDir>("desc");
 
   const teamRows = useMemo(() => {
-    const teams = ACTIVE_TEAMS as unknown as string[];
+    const teams = (ACTIVE_TEAMS as unknown as string[]).filter(t => selectedTeams.size === 0 || selectedTeams.has(t));
     const rows = teams.map(team => {
       const teamEmails = expandTeam(team);
       const tw = wonDeals.filter(d => teamEmails.has(d.team));
@@ -391,7 +409,7 @@ export default function ExecSummaryView() {
         const s = (d.stage || "").toLowerCase();
         return s.includes("reschedul") || s === "to reschedule";
       }).length;
-      const missingFirstMeeting = dealsRaw.filter(d => {
+      const missingFirstMeeting = filteredDealsRaw.filter(d => {
         if (!teamEmails.has(d.team || "")) return false;
         const stage = (d.deal_stage || "").toLowerCase();
         if (CLOSED_STAGES.has(stage)) return false;
@@ -410,7 +428,7 @@ export default function ExecSummaryView() {
     }).filter(r => r.mrrWon > 0 || r.pipeline > 0 || r.logos > 0 || r.demos > 0);
 
     return rows;
-  }, [wonDeals, lostDeals, openDeals, demosInRange, dealsRaw, D.benchmark, range]);
+  }, [wonDeals, lostDeals, openDeals, demosInRange, filteredDealsRaw, D.benchmark, range, selectedTeams]);
 
   // TOTAL row
   const totalRow = useMemo(() => {
@@ -514,14 +532,14 @@ export default function ExecSummaryView() {
       const s = (d.stage || "").toLowerCase();
       return s.includes("reschedul") || s === "to reschedule";
     }).length;
-    const missingFirstMeeting = dealsRaw.filter(d => {
+    const missingFirstMeeting = filteredDealsRaw.filter(d => {
       const stage = (d.deal_stage || "").toLowerCase();
       if (CLOSED_STAGES.has(stage)) return false;
       if (stage === "prospecting" || stage === "new" || stage === "") return false;
       return !d.first_meeting_at;
     }).length;
     return { stale, toReschedule, missingFirstMeeting };
-  }, [openDeals, dealsRaw]);
+  }, [openDeals, filteredDealsRaw]);
 
   // ---- Section 4: Monthly Trends (trailing 6 months) ----
   const monthlyTrends = useMemo(() => {
@@ -535,18 +553,18 @@ export default function ExecSummaryView() {
 
     const mrrByMonth = months.map(m => {
       const mrr = D.benchmark.won
-        .filter(d => d.closeDate && d.closeDate.slice(0, 7) === m)
+        .filter(d => d.closeDate && d.closeDate.slice(0, 7) === m && teamPassesFilter(d.team))
         .reduce((s, d) => s + (d.mrr || 0), 0);
       return { month: m, value: mrr, isCurrent: m === curMonth };
     });
 
     const demosByMonth = months.map(m => {
-      const count = dealsRaw.filter(d => d.after_demo_date && d.after_demo_date.slice(0, 7) === m).length;
+      const count = filteredDealsRaw.filter(d => d.after_demo_date && d.after_demo_date.slice(0, 7) === m).length;
       return { month: m, value: count, isCurrent: m === curMonth };
     });
 
     return { months, mrrByMonth, demosByMonth };
-  }, [D.benchmark.won, dealsRaw]);
+  }, [D.benchmark.won, filteredDealsRaw, teamPassesFilter]);
 
   // ---- Section 4: Loss Reasons ----
   const lossReasons = useMemo(() => {
@@ -667,7 +685,7 @@ export default function ExecSummaryView() {
   type PartnerRow = { partner: string; mrrWon: number; wonDeals: number; pipeline: number; avgDealSize: number | null; avgCycle: number | null };
   const partnerRows = useMemo(() => {
     const byPartner = new Map<string, { wonMrr: number; wonCount: number; pipeline: number; cycles: number[] }>();
-    for (const d of dealsRaw) {
+    for (const d of filteredDealsRaw) {
       const p = (d.partner || "").trim();
       if (!p) continue;
       const stage = (d.deal_stage || "").toLowerCase().trim();
@@ -697,7 +715,7 @@ export default function ExecSummaryView() {
       }))
       .filter(r => r.mrrWon > 0 || r.pipeline > 0)
       .sort((a, b) => b.mrrWon - a.mrrWon);
-  }, [dealsRaw, range]);
+  }, [filteredDealsRaw, range]);
 
   type PartnerSortCol = "partner" | "mrrWon" | "wonDeals" | "pipeline" | "avgDealSize" | "avgCycle";
   const [partnerSortCol, setPartnerSortCol] = useState<PartnerSortCol>("mrrWon");
@@ -768,6 +786,15 @@ export default function ExecSummaryView() {
     return rows;
   }, [sizeRows, sizeSortCol, sizeSortDir]);
 
+  if (!isAdmin) {
+    return (
+      <div style={{ padding: "24px 32px" }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--ink-1)", margin: 0 }}>Executive Summary</h2>
+        <p style={{ color: "var(--ink-3)", fontSize: 14, marginTop: 12 }}>This section is available for administrators only.</p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: "24px 32px", maxWidth: 1200 }}>
       {/* Header */}
@@ -776,7 +803,7 @@ export default function ExecSummaryView() {
       </div>
       <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 16 }}>{rangeLabel(range)}</div>
 
-      {/* Period selector */}
+      {/* Period selector + team filter */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
         {PRESETS.map(p => (
           <button
@@ -801,6 +828,12 @@ export default function ExecSummaryView() {
             </select>
           </>
         )}
+        <span style={{ flex: 1 }} />
+        <MultiSelectTeam
+          teams={ACTIVE_TEAMS as unknown as string[]}
+          selected={selectedTeams}
+          onChange={setSelectedTeams}
+        />
       </div>
 
       {/* Section 1: Headline KPI Row */}

@@ -25,7 +25,7 @@ export type UsageData = {
 
 const EMPTY_ACTIVATION: ActivationData = { totalUsers: 0, activatedUsers: 0, rate: 0 };
 
-export function useUsageData(range: UsageDateRange, role: string | null): UsageData {
+export function useUsageData(range: UsageDateRange, role: string | null, email: string | null = null): UsageData {
   const [data, setData] = useState<Omit<UsageData, "loading">>({
     dau: [], wau: [], mau: [], topUsers: [], byResource: [],
     heatmap: [], activation: EMPTY_ACTIVATION, totalActions: 0,
@@ -40,15 +40,16 @@ export function useUsageData(range: UsageDateRange, role: string | null): UsageD
     const from = range.from;
     const to = range.to;
     const r = role || undefined;
+    const e = email || undefined;
 
     Promise.all([
-      supabase.rpc("usage_dau", { from_date: from, to_date: to, filter_role: r }),
-      supabase.rpc("usage_wau", { from_date: from, to_date: to, filter_role: r }),
-      supabase.rpc("usage_mau", { from_date: from, to_date: to, filter_role: r }),
-      supabase.rpc("usage_top_users", { from_date: from, to_date: to, lim: 20, filter_role: r }),
-      supabase.rpc("usage_by_resource", { from_date: from, to_date: to, filter_role: r }),
-      supabase.rpc("usage_heatmap", { from_date: from, to_date: to, tz, filter_role: r }),
-      supabase.rpc("usage_activation_rate", { from_date: from, to_date: to, filter_role: r }),
+      supabase.rpc("usage_dau", { from_date: from, to_date: to, filter_role: r, filter_email: e }),
+      supabase.rpc("usage_wau", { from_date: from, to_date: to, filter_role: r, filter_email: e }),
+      supabase.rpc("usage_mau", { from_date: from, to_date: to, filter_role: r, filter_email: e }),
+      supabase.rpc("usage_top_users", { from_date: from, to_date: to, lim: 20, filter_role: r, filter_email: e }),
+      supabase.rpc("usage_by_resource", { from_date: from, to_date: to, filter_role: r, filter_email: e }),
+      supabase.rpc("usage_heatmap", { from_date: from, to_date: to, tz, filter_role: r, filter_email: e }),
+      supabase.rpc("usage_activation_rate", { from_date: from, to_date: to, filter_role: r, filter_email: e }),
     ]).then(([dauRes, wauRes, mauRes, topRes, resRes, heatRes, actRes]) => {
       if (cancelled) return;
 
@@ -77,7 +78,7 @@ export function useUsageData(range: UsageDateRange, role: string | null): UsageD
     });
 
     return () => { cancelled = true; };
-  }, [range.from, range.to, role]);
+  }, [range.from, range.to, role, email]);
 
   return { ...data, loading };
 }

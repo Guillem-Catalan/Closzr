@@ -89,27 +89,38 @@ function KpiCard({ label, value, sub, tone }: { label: string; value: string; su
   );
 }
 
+function computeYTicks(maxVal: number): number[] {
+  if (maxVal <= 0) return [0];
+  if (maxVal <= 5) return Array.from({ length: maxVal + 1 }, (_, i) => i);
+  const step = Math.ceil(maxVal / 4);
+  const ticks: number[] = [];
+  for (let v = 0; v <= maxVal; v += step) ticks.push(v);
+  if (ticks[ticks.length - 1] < maxVal) ticks.push(maxVal);
+  return ticks;
+}
+
 function UsageLineChart({ data, height = 180 }: { data: { label: string; value: number }[]; height?: number }) {
   if (data.length === 0) return <p style={{ color: "var(--ink-4)", fontSize: 12, textAlign: "center" }}>No data yet. Activity will appear here once users start using the app.</p>;
 
   const w = 500, pad = 40, padRight = 10, padBottom = 30, padTop = 10;
   const iw = w - pad - padRight, ih = height - padTop - padBottom;
   const maxVal = Math.max(...data.map(d => d.value), 1);
+  const ticks = computeYTicks(maxVal);
+  const ceilVal = ticks[ticks.length - 1] || 1;
   const xs = data.map((_, i) => pad + (data.length === 1 ? iw / 2 : iw * i / (data.length - 1)));
-  const ys = data.map(d => padTop + ih * (1 - d.value / maxVal));
+  const ys = data.map(d => padTop + ih * (1 - d.value / ceilVal));
   const line = xs.map((x, i) => (i ? "L" : "M") + x.toFixed(1) + " " + ys[i].toFixed(1)).join(" ");
   const area = line + ` L${xs[xs.length - 1].toFixed(1)} ${padTop + ih} L${xs[0].toFixed(1)} ${padTop + ih} Z`;
 
-  const gridLines = [0, 0.25, 0.5, 0.75, 1];
   const labelStep = Math.max(1, Math.floor(data.length / 6));
 
   return (
     <svg width="100%" viewBox={`0 0 ${w} ${height}`} style={{ display: "block" }}>
-      {gridLines.map(f => {
-        const y = padTop + ih * (1 - f);
-        return <g key={f}>
+      {ticks.map(v => {
+        const y = padTop + ih * (1 - v / ceilVal);
+        return <g key={v}>
           <line x1={pad} y1={y} x2={w - padRight} y2={y} stroke="var(--line)" strokeWidth="1" />
-          <text x={pad - 6} y={y + 4} fontSize="10" fill="var(--ink-4)" textAnchor="end" fontFamily="var(--font-mono)">{Math.round(maxVal * f)}</text>
+          <text x={pad - 6} y={y + 4} fontSize="10" fill="var(--ink-4)" textAnchor="end" fontFamily="var(--font-mono)">{v}</text>
         </g>;
       })}
       <path d={area} fill="rgba(59,75,216,.10)" />
@@ -169,6 +180,7 @@ export default function CloszrUsageView() {
   const [preset, setPreset] = useState<PresetKey>("30d");
   const [range, setRange] = useState<UsageDateRange>(() => getPresetRange("30d"));
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const [userFilter, setUserFilter] = useState<string | null>(null);
   const [gran, setGran] = useState<GranKey>("dau");
   const [userSort, setUserSort] = useState<UserSortCol>("actionCount");
   const [userSortDir, setUserSortDir] = useState<SortDir>("desc");
@@ -182,8 +194,15 @@ export default function CloszrUsageView() {
   const [logSearch, setLogSearch] = useState("");
   const [logResource, setLogResource] = useState("");
   const [logHasMore, setLogHasMore] = useState(true);
+  const [allUsers, setAllUsers] = useState<{ email: string; name: string }[]>([]);
 
-  const D = useUsageData(range, roleFilter);
+  useEffect(() => {
+    supabase.from("users").select("email,name").order("name").then(({ data }) => {
+      setAllUsers((data || []).map((u: any) => ({ email: u.email, name: u.name || u.email.split("@")[0] })));
+    });
+  }, []);
+
+  const D = useUsageData(range, roleFilter, userFilter);
 
   if (profile && profile.role !== "Admin") {
     return <p style={{ color: "var(--ink-3)", padding: 32 }}>Admin access required.</p>;
@@ -200,14 +219,18 @@ export default function CloszrUsageView() {
     return D.mau.length > 0 ? D.mau[D.mau.length - 1].count : 0;
   }, [D.dau, D.wau, D.mau, gran]);
 
-  const stickiness = useMemo(() => {
+  const stickinessData = useMemo(() => {
     if (D.dau.length === 0 || D.mau.length === 0) return null;
-    const avgDau = D.dau.reduce((s, d) => s + d.count, 0) / D.dau.length;
+    const activeDays = D.dau.filter(d => d.count > 0).length;
+    const totalDays = D.dau.length;
+    const avgDau = D.dau.reduce((s, d) => s + d.count, 0) / totalDays;
     const avgMau = D.mau.reduce((s, d) => s + d.count, 0) / D.mau.length;
     if (avgMau === 0) return null;
-    return Math.round((avgDau / avgMau) * 100);
+    const pct = Math.round((avgDau / avgMau) * 100);
+    return { pct, activeDays, totalDays };
   }, [D.dau, D.mau]);
 
+  const stickiness = stickinessData?.pct ?? null;
   const stickinessColor = stickiness === null ? undefined : stickiness > 25 ? "var(--green-ink)" : stickiness >= 15 ? "var(--amber-ink)" : "var(--red-ink)";
 
   const chartData = useMemo(() => {
@@ -282,6 +305,7 @@ export default function CloszrUsageView() {
       .lte("created_at", range.to + "T23:59:59")
       .order("created_at", { ascending: false })
       .range(logPage * PAGE_SIZE, (logPage + 1) * PAGE_SIZE - 1);
+    if (userFilter) q = q.eq("email", userFilter);
     if (logResource) q = q.eq("resource", logResource);
     if (logSearch) q = q.or(`email.ilike.%${logSearch}%,resource.ilike.%${logSearch}%`);
 
@@ -290,7 +314,7 @@ export default function CloszrUsageView() {
       setLogHasMore((data || []).length === PAGE_SIZE);
       setLogLoading(false);
     });
-  }, [logOpen, logPage, logSearch, logResource, range]);
+  }, [logOpen, logPage, logSearch, logResource, range, userFilter]);
 
   const GranToggle = (
     <div style={{ display: "inline-flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1px solid var(--line)" }}>
@@ -311,6 +335,11 @@ export default function CloszrUsageView() {
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--ink-1)", margin: 0 }}>Closzr Usage</h2>
         <span style={{ flex: 1 }} />
+        <select value={userFilter || ""} onChange={e => setUserFilter(e.target.value || null)}
+          className="cz-native-select" style={{ fontSize: 12, padding: "4px 10px" }}>
+          <option value="">All users</option>
+          {allUsers.map(u => <option key={u.email} value={u.email}>{u.name}</option>)}
+        </select>
         <select value={roleFilter || "All"} onChange={e => setRoleFilter(e.target.value === "All" ? null : e.target.value)}
           className="cz-native-select" style={{ fontSize: 12, padding: "4px 10px" }}>
           {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
@@ -356,7 +385,7 @@ export default function CloszrUsageView() {
           label="Stickiness (DAU/MAU)"
           value={stickiness === null ? "—" : `${stickiness}%`}
           tone={stickinessColor}
-          sub={stickiness === null ? "No activity in this period" : stickiness > 25 ? ">25% very sticky" : stickiness >= 15 ? "15-25% healthy B2B" : "<15% low-frequency"}
+          sub={stickinessData === null ? "No activity in this period" : `${stickinessData.activeDays}/${stickinessData.totalDays} days with activity`}
         />
         <KpiCard label="Total Actions" value={D.loading ? "—" : D.totalActions.toLocaleString()} sub={D.totalActions === 0 && !D.loading ? "No activity in this period" : undefined} />
         <KpiCard
@@ -514,6 +543,9 @@ export default function CloszrUsageView() {
           )}
         </div>
         <UsageHeatmap data={D.heatmap} />
+        <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 8 }}>
+          Event count by day of week and hour (your timezone). Darker = more activity. Hover cells for details.
+        </div>
       </section>
 
       {/* Row 5: Raw Log */}

@@ -24,7 +24,7 @@ Data sources:
   E. Activity & Cadence      ← calls + deals (owner_email, pae, pbd)
   F. Demo Funnel              ← deals (pae) — demo rate, post-demo WR, days to demo
   G. Deal Sizing             ← deals (pae) — avg deal size, size distribution
-  H. Contact Coverage        ← deals (pae) — contacts/deal, multi-thread rate
+  H. Segment Performance     ← deals (pae) — WR by employee size, sweet spot, avg deal size
   J. Forecast Accuracy       ← calibration_log + snapshots (via deal FK) — deferred
   K. Post-mortem Patterns    ← deal_analysis (via deal FK) — Claude, quarterly, deferred
   L. Product Knowledge       ← deal_product_signals (via deal FK) — deferred
@@ -56,6 +56,14 @@ _TBL_PATTERNS     = schema.tbl("patterns")
 _TC = schema.TRAJECTORY_COLS
 
 CLOSING_PIPELINES = {"Partners Distribution", "XL Account Pipeline", "Sales Pipeline"}
+
+EMPLOYEE_SIZE_BUCKETS = [
+    ("XS", 1, 10),
+    ("S", 11, 50),
+    ("M", 51, 250),
+    ("L", 251, 800),
+    ("XL", 801, float("inf")),
+]
 
 
 PERIODS = {
@@ -1404,6 +1412,112 @@ def _compute_segment_g(deals_by_rep: dict[str, list[dict]]) -> list[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# SEGMENT H — SEGMENT PERFORMANCE (3 stats per rep)
+#
+# Source: deals table (amount, num_employees_custom, is_closed_won)
+# Closing pipelines only. Closed deals within period.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _employee_bucket(count: int | None) -> str | None:
+    """Classify employee count into size bucket."""
+    if not count or count < 1:
+        return None
+    for label, lo, hi in EMPLOYEE_SIZE_BUCKETS:
+        if lo <= count <= hi:
+            return label
+    return None
+
+
+def _compute_segment_h(deals_by_rep: dict[str, list[dict]]) -> list[dict]:
+    """Segment performance stats — per rep from deals table."""
+    patterns = []
+
+    for email, rep_deals in deals_by_rep.items():
+        slug = _email_slug(email)
+        scope = f"rep:{email}"
+
+        closed = [d for d in rep_deals
+                  if d.get("is_closed_won") or "lost" in (d.get("deal_stage") or "").lower()]
+        won = [d for d in closed if d.get("is_closed_won")]
+
+        if len(closed) < 5:
+            continue
+
+        # ── H.1 wr_by_employee_size ──
+        bucket_stats: dict[str, dict[str, int]] = {}
+        for label, _, _ in EMPLOYEE_SIZE_BUCKETS:
+            bucket_stats[label] = {"won": 0, "total": 0}
+
+        for d in closed:
+            emp = d.get("num_employees_custom")
+            try:
+                emp_int = int(emp) if emp else None
+            except (ValueError, TypeError):
+                emp_int = None
+            b = _employee_bucket(emp_int)
+            if b:
+                bucket_stats[b]["total"] += 1
+                if d.get("is_closed_won"):
+                    bucket_stats[b]["won"] += 1
+
+        parts = []
+        for label, _, _ in EMPLOYEE_SIZE_BUCKETS:
+            s = bucket_stats[label]
+            if s["total"] > 0:
+                wr = round(s["won"] / s["total"] * 100)
+                parts.append(f"{label}: {wr}% ({s['total']}d)")
+            else:
+                parts.append(f"{label}: — (0d)")
+
+        patterns.append({
+            "pattern_key": f"rep_wr_by_employee_size_{slug}",
+            "pattern_type": "rep_stat",
+            "scope": scope,
+            "pattern": f"WR by size: {', '.join(parts)}",
+            "confidence": min(0.80, len(closed) / 30),
+            "sample_size": len(closed),
+            "value": None,
+        })
+
+        # ── H.2 sweet_spot_segment ──
+        best_label = None
+        best_wr = -1
+        for label, _, _ in EMPLOYEE_SIZE_BUCKETS:
+            s = bucket_stats[label]
+            if s["total"] >= 5:
+                wr = s["won"] / s["total"]
+                if wr > best_wr:
+                    best_wr = wr
+                    best_label = label
+        if best_label:
+            patterns.append({
+                "pattern_key": f"rep_sweet_spot_segment_{slug}",
+                "pattern_type": "rep_stat",
+                "scope": scope,
+                "pattern": f"Sweet spot: {best_label} ({round(best_wr * 100)}% WR, {bucket_stats[best_label]['total']} deals)",
+                "confidence": min(0.75, bucket_stats[best_label]["total"] / 10),
+                "sample_size": bucket_stats[best_label]["total"],
+                "value": round(best_wr * 100, 1),
+            })
+
+        # ── H.3 avg_deal_size_won ──
+        won_amounts = [d.get("amount") for d in won if d.get("amount") and d["amount"] > 0]
+        if won_amounts:
+            avg_size = round(sum(won_amounts) / len(won_amounts))
+            patterns.append({
+                "pattern_key": f"rep_avg_deal_size_won_{slug}",
+                "pattern_type": "rep_stat",
+                "scope": scope,
+                "pattern": f"Avg deal size (won): €{avg_size} ({len(won_amounts)} deals)",
+                "confidence": min(0.85, len(won_amounts) / 10),
+                "sample_size": len(won_amounts),
+                "value": avg_size,
+            })
+
+    return patterns
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # SEGMENT J — FORECAST ACCURACY (5 stats per rep)  (was F)
 #
 # Source: calibration_log + front_deal_snapshots
@@ -1533,6 +1647,10 @@ def run() -> int:
         # Segment G — Contact & Multi-threading (period-filtered deals)
         print(f"    [{period}] G. Contact & Multi-threading...")
         all_patterns.extend(_inject_period(_compute_segment_g(deals_by_rep), period))
+
+        # Segment H — Segment Performance (period-filtered deals)
+        print(f"    [{period}] H. Segment Performance...")
+        all_patterns.extend(_inject_period(_compute_segment_h(deals_by_rep), period))
 
         # Segment J — Forecast Accuracy (deferred, was F)
         all_patterns.extend(_inject_period(_compute_segment_j(), period))

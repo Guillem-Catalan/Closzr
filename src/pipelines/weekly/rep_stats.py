@@ -258,6 +258,39 @@ def _group_deals_by_rep(deals: list[dict]) -> dict[str, list[dict]]:
     return dict(by_rep)
 
 
+def _classify_contact_role(role_str: str) -> str:
+    """Classify a contact role string into a category."""
+    role = (role_str or "").lower().strip()
+    if any(w in role for w in ("ceo", "coo", "cfo", "cto", "fundador", "founder",
+                                "director general", "gerente", "managing director")):
+        return "C-suite"
+    if any(w in role for w in ("director", "directora", "head of", "vp ", "vice president")):
+        return "Director"
+    if any(w in role for w in ("hr ", "rrhh", "recursos humanos", "people", "talent",
+                                "human resources")):
+        return "HR"
+    if any(w in role for w in ("manager", "responsable", "jefe", "lead", "coordinador")):
+        return "Manager"
+    return "Other"
+
+
+def _parse_contacts(contacts_info: str | None) -> list[dict]:
+    """Parse contacts_info field: 'Name | Role | email' per line."""
+    if not contacts_info:
+        return []
+    contacts = []
+    for line in contacts_info.split("\n"):
+        parts = [p.strip() for p in line.strip().split("|")]
+        if len(parts) >= 2:
+            contacts.append({
+                "name": parts[0],
+                "role_raw": parts[1] if len(parts) > 1 else "",
+                "email": parts[2] if len(parts) > 2 else "",
+                "role": _classify_contact_role(parts[1] if len(parts) > 1 else ""),
+            })
+    return contacts
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # UPSERT (reuses same pattern as patterns2.py)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1267,6 +1300,110 @@ def _compute_segment_f(deals_by_rep: dict[str, list[dict]]) -> list[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# SEGMENT G — CONTACT & MULTI-THREADING (5 stats per rep)
+#
+# Source: deals table (contact_count, contacts_info, after_demo_date)
+# Closing pipelines only. Uses current ownership (deals.pae).
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _compute_segment_g(deals_by_rep: dict[str, list[dict]]) -> list[dict]:
+    """Contact & multi-threading stats — per rep from deals table."""
+    patterns = []
+
+    for email, rep_deals in deals_by_rep.items():
+        slug = _email_slug(email)
+        scope = f"rep:{email}"
+
+        if len(rep_deals) < 3:
+            continue
+
+        # ── G.1 avg_contacts_per_deal ──
+        contact_counts = [d.get("contact_count") or 0 for d in rep_deals]
+        avg_cc = round(sum(contact_counts) / len(contact_counts), 1)
+        patterns.append({
+            "pattern_key": f"rep_avg_contacts_per_deal_{slug}",
+            "pattern_type": "rep_stat",
+            "scope": scope,
+            "pattern": f"Avg contacts/deal: {avg_cc} ({len(rep_deals)} deals)",
+            "confidence": min(0.90, len(rep_deals) / 30),
+            "sample_size": len(rep_deals),
+            "value": avg_cc,
+        })
+
+        # ── G.2 multi_thread_rate ──
+        multi = sum(1 for cc in contact_counts if cc >= 2)
+        mtr = round(multi / len(rep_deals) * 100, 1)
+        patterns.append({
+            "pattern_key": f"rep_multi_thread_rate_{slug}",
+            "pattern_type": "rep_stat",
+            "scope": scope,
+            "pattern": f"Multi-thread rate: {mtr}% ({multi}/{len(rep_deals)} deals with 2+ contacts)",
+            "confidence": min(0.90, len(rep_deals) / 30),
+            "sample_size": len(rep_deals),
+            "value": mtr,
+        })
+
+        # ── G.3 multi_thread_demo_rate ──
+        demo_deals = [d for d in rep_deals if d.get("after_demo_date")]
+        if demo_deals:
+            demo_multi = sum(1 for d in demo_deals if (d.get("contact_count") or 0) >= 2)
+            mtdr = round(demo_multi / len(demo_deals) * 100, 1)
+            patterns.append({
+                "pattern_key": f"rep_multi_thread_demo_rate_{slug}",
+                "pattern_type": "rep_stat",
+                "scope": scope,
+                "pattern": f"Multi-thread on demo deals: {mtdr}% ({demo_multi}/{len(demo_deals)})",
+                "confidence": min(0.85, len(demo_deals) / 20),
+                "sample_size": len(demo_deals),
+                "value": mtdr,
+            })
+
+        # ── G.4 dm_access_rate ──
+        dm_roles = {"C-suite", "Director"}
+        deals_with_dm = 0
+        for d in rep_deals:
+            contacts = _parse_contacts(d.get("contacts_info"))
+            if any(c["role"] in dm_roles for c in contacts):
+                deals_with_dm += 1
+        dm_rate = round(deals_with_dm / len(rep_deals) * 100, 1)
+        patterns.append({
+            "pattern_key": f"rep_dm_access_rate_{slug}",
+            "pattern_type": "rep_stat",
+            "scope": scope,
+            "pattern": f"DM access rate: {dm_rate}% ({deals_with_dm}/{len(rep_deals)} deals with C-suite/Director)",
+            "confidence": min(0.85, len(rep_deals) / 20),
+            "sample_size": len(rep_deals),
+            "value": dm_rate,
+        })
+
+        # ── G.5 contact_role_distribution ──
+        role_counts: dict[str, int] = defaultdict(int)
+        total_contacts = 0
+        for d in rep_deals:
+            contacts = _parse_contacts(d.get("contacts_info"))
+            for c in contacts:
+                role_counts[c["role"]] += 1
+                total_contacts += 1
+        if total_contacts > 0:
+            parts = []
+            for role in ("C-suite", "Director", "HR", "Manager", "Other"):
+                pct = round(role_counts[role] / total_contacts * 100)
+                parts.append(f"{role}: {pct}%")
+            dist_text = ", ".join(parts)
+            patterns.append({
+                "pattern_key": f"rep_contact_role_distribution_{slug}",
+                "pattern_type": "rep_stat",
+                "scope": scope,
+                "pattern": f"Role distribution: {dist_text} ({total_contacts} total contacts)",
+                "confidence": min(0.80, total_contacts / 50),
+                "sample_size": total_contacts,
+                "value": None,
+            })
+
+    return patterns
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # SEGMENT J — FORECAST ACCURACY (5 stats per rep)  (was F)
 #
 # Source: calibration_log + front_deal_snapshots
@@ -1392,6 +1529,10 @@ def run() -> int:
         # Segment F — Demo Funnel (period-filtered deals)
         print(f"    [{period}] F. Demo Funnel...")
         all_patterns.extend(_inject_period(_compute_segment_f(deals_by_rep), period))
+
+        # Segment G — Contact & Multi-threading (period-filtered deals)
+        print(f"    [{period}] G. Contact & Multi-threading...")
+        all_patterns.extend(_inject_period(_compute_segment_g(deals_by_rep), period))
 
         # Segment J — Forecast Accuracy (deferred, was F)
         all_patterns.extend(_inject_period(_compute_segment_j(), period))

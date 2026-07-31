@@ -220,9 +220,10 @@ function KpiCard({ label, value, history, delta, rank, rankColor }: {
 
 function parseWrBySize(pattern: string): { label: string; pct: number; count: string }[] {
   if (!pattern) return [];
-  // Pattern format: "XS(1-10): 15% (8d), S(11-50): 22% (12d), ..."
+  // Pattern format: "WR by size: XS(1-10): 15% (8d), S(11-50): 22% (12d), ..."
+  const data = pattern.replace(/^[^:]+:\s*/, "");
   const results: { label: string; pct: number; count: string }[] = [];
-  const segments = pattern.split(",").map(s => s.trim());
+  const segments = data.split(",").map(s => s.trim());
   for (const seg of segments) {
     const m = seg.match(/^([^:]+):\s*([\d.]+)%\s*\((\d+)d\)/);
     if (m) {
@@ -236,12 +237,13 @@ function parseWrBySize(pattern: string): { label: string; pct: number; count: st
 
 function parseRoleDistribution(pattern: string): { label: string; pct: number; tone: string }[] {
   if (!pattern) return [];
-  // Pattern format: "C-suite: 15%, Director: 20%, HR: 10%, Manager: 25%, Other: 30%"
+  // Pattern format: "Role distribution: C-suite: 15%, Director: 20%, HR: 10%, Manager: 25%, Other: 30%"
+  const data = pattern.replace(/^[^:]+:\s*/, "");
   const ROLE_TONES: Record<string, string> = {
     "C-suite": "indigo", "Director": "blue", "HR": "violet", "Manager": "amber", "Other": "ink",
   };
   const results: { label: string; pct: number; tone: string }[] = [];
-  const segments = pattern.split(",").map(s => s.trim());
+  const segments = data.split(",").map(s => s.trim());
   for (const seg of segments) {
     const m = seg.match(/^([^:]+):\s*([\d.]+)%/);
     if (m) {
@@ -263,8 +265,9 @@ export default function RepDetail({
   /* ── Compute trend deltas from history ── */
   const trendDelta = (key: string): number | null => {
     const h = getHistory(stats, key);
-    if (h.length < 2) return null;
-    return h[h.length - 1] - h[h.length - 2];
+    const current = getStat(stats, key);
+    if (!h.length || current == null) return null;
+    return current - h[h.length - 1];
   };
 
   /* ── Team reference shorthand ── */
@@ -283,6 +286,10 @@ export default function RepDetail({
   const teamMedianRatio = (key: string) => {
     const v = getTeamStat(teamStats, key, "median");
     return v != null ? fmtRatio(v) : null;
+  };
+  const teamMedianMin = (key: string) => {
+    const v = getTeamStat(teamStats, key, "median");
+    return v != null ? fmtMin(v) : null;
   };
 
   /* ── Alerts ── */
@@ -486,7 +493,7 @@ export default function RepDetail({
           <div style={{ ...HEADING, fontSize: 12, color: "var(--ink-3)" }}>Activity & Cadence</div>
           <div style={GRID}>
             <Stat label="Calls/Week" value={fmtDec(getStat(stats, "calls_per_week"))} teamRef={teamMedianDec("calls_per_week") ?? undefined} />
-            <Stat label="Avg Call Duration" value={fmtMin(getStat(stats, "avg_call_duration"))} teamRef={teamMedianDec("avg_call_duration") ?? undefined} />
+            <Stat label="Avg Call Duration" value={fmtMin(getStat(stats, "avg_call_duration"))} teamRef={teamMedianMin("avg_call_duration") ?? undefined} />
             <Stat label="Calls/Deal" value={fmtDec(getStat(stats, "calls_per_deal"))} teamRef={teamMedianDec("calls_per_deal") ?? undefined} />
           </div>
         </section>

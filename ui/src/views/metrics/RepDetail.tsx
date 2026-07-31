@@ -44,6 +44,7 @@ function getTeamRank(
   teamName: string,
   email: string,
   statKey: string,
+  lowerIsBetter = false,
 ): string {
   if (!teamName) return "";
   const teamValues: { email: string; value: number }[] = [];
@@ -53,7 +54,7 @@ function getTeamRank(
     if (v != null) teamValues.push({ email: repEmail, value: v });
   }
   if (teamValues.length < 2) return "";
-  teamValues.sort((a, b) => b.value - a.value);
+  teamValues.sort((a, b) => lowerIsBetter ? a.value - b.value : b.value - a.value);
   const rank = teamValues.findIndex(t => t.email === email) + 1;
   if (rank === 0) return "";
   return `${rank}/${teamValues.length}`;
@@ -338,14 +339,14 @@ export default function RepDetail({
         <SectionLabel letter="A" tone="indigo">PERFORMANCE SUMMARY</SectionLabel>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
           {([
-            { label: "Win Rate", key: "win_rate", fmt: fmtPct },
-            { label: "Post-Demo WR", key: "post_demo_win_rate", fmt: fmtPct },
-            { label: "Avg Cycle (Won)", key: "avg_cycle_won", fmt: fmtDays },
-            { label: "Pipeline Value", key: "pipeline_value", fmt: fmtMRR },
-            { label: "Demo Rate", key: "demo_rate", fmt: fmtPct },
+            { label: "Win Rate", key: "win_rate", fmt: fmtPct, lowerIsBetter: false },
+            { label: "Post-Demo WR", key: "post_demo_win_rate", fmt: fmtPct, lowerIsBetter: false },
+            { label: "Avg Cycle (Won)", key: "avg_cycle_won", fmt: fmtDays, lowerIsBetter: true },
+            { label: "Pipeline Value", key: "pipeline_value", fmt: fmtMRR, lowerIsBetter: false },
+            { label: "Demo Rate", key: "demo_rate", fmt: fmtPct, lowerIsBetter: false },
           ] as const).map(kpi => {
             const v = getStat(stats, kpi.key);
-            const rank = getTeamRank(allRepStats, emailToTeam, teamName, email, kpi.key);
+            const rank = getTeamRank(allRepStats, emailToTeam, teamName, email, kpi.key, kpi.lowerIsBetter);
             return (
               <KpiCard
                 key={kpi.key}

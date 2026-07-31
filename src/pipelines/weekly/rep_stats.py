@@ -1724,7 +1724,7 @@ def run_alerts() -> int:
         while True:
             resp = (
                 supabase.table(_TBL_PATTERNS)
-                .select("pattern_key, pattern_type, value, scope, history")
+                .select("pattern_key, pattern_type, value, scope, history, pattern, sample_size")
                 .eq("pattern_type", ptype)
                 .range(offset, offset + 999)
                 .execute()

@@ -1673,3 +1673,201 @@ def run() -> int:
 
     print(f"\n    {upserted}/{len(all_patterns)} rep patterns upserted (across {len(PERIODS)} periods)")
     return upserted
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SEGMENT I — COACHING ALERTS
+#
+# Runs as a separate pass after team_stats.py.
+# Compares each rep's stats against team benchmarks to generate alerts.
+# ═══════════════════════════════════════════════════════════════════════════
+
+_ALERT_RULES = [
+    # (slug, stat_key, comparison, threshold, severity, template)
+    # comparison: "lt_team_p25" = rep < team P25, "gt_team_p75" = rep > team P75
+    # "gt_abs" = rep > absolute threshold, "lt_abs" = rep < absolute threshold
+    # "decline_pp" = dropped >N pp vs prior history
+    ("wr_below_team", "win_rate", "lt_team_p25", None, 3,
+     "Win rate {val}% is below team P25 of {team_val}%"),
+    ("wr_declining", "win_rate", "decline_pp", 10, 3,
+     "Win rate dropped {delta}pp vs prior period ({prev}% → {val}%)"),
+    ("post_demo_wr_weak", "post_demo_win_rate", "lt_team_p25", None, 3,
+     "Post-demo WR {val}% is below team P25 of {team_val}%"),
+    ("low_multi_thread_demo", "multi_thread_demo_rate", "lt_abs", 20, 2,
+     "Multi-thread rate on demo deals is {val}% (below 20% threshold)"),
+    ("slow_to_demo", "avg_days_to_demo", "gt_team_p75", None, 2,
+     "Avg {val}d to demo — above team P75 of {team_val}d"),
+    ("stale_pipeline", "stale_deals", "gt_abs", 50, 2,
+     "Stale pipeline: {val}% of deals are stale (above 50%)"),
+    ("cycle_waste", "cycle_waste_ratio", "gt_abs", 1.5, 2,
+     "Cycle waste ratio {val}x — lost deals take {val}x longer than won"),
+    ("size_mismatch", "wr_by_employee_size", "size_mismatch", None, 1,
+     "WR below 5% in {bucket} segment ({bucket_wr}%, {bucket_n} deals)"),
+    ("meddic_weakness", "avg_meddic_per_pillar", "lt_team_p25", None, 1,
+     "MEDDIC avg {val} is below team P25 of {team_val}"),
+]
+
+
+def run_alerts() -> int:
+    """Generate coaching alerts by comparing rep stats vs team benchmarks."""
+    today = date.today().isoformat()
+    print("\n  COACHING ALERTS: generating alerts...")
+
+    # Load orgchart
+    org_resp = supabase.table("orgchart").select("email, team_name, is_active").eq("is_active", True).execute()
+    email_to_team = {r["email"]: r["team_name"] for r in (org_resp.data or [])}
+
+    # Load all rep_stat and team_stat patterns
+    all_patterns_data = []
+    for ptype in ("rep_stat", "team_stat"):
+        offset = 0
+        while True:
+            resp = (
+                supabase.table(_TBL_PATTERNS)
+                .select("pattern_key, pattern_type, value, scope, history")
+                .eq("pattern_type", ptype)
+                .range(offset, offset + 999)
+                .execute()
+            )
+            batch = resp.data or []
+            all_patterns_data.extend(batch)
+            if len(batch) < 1000:
+                break
+            offset += 1000
+
+    # Index rep stats by (period, email, stat_key)
+    rep_index: dict[tuple, dict] = {}
+    for r in all_patterns_data:
+        if r["pattern_type"] != "rep_stat":
+            continue
+        pk = r.get("pattern_key") or ""
+        scope = r.get("scope") or ""
+        email = scope[4:] if scope.startswith("rep:") else ""
+        if not email:
+            continue
+        for period in PERIODS:
+            prefix = f"rep_{period}_"
+            if pk.startswith(prefix):
+                slug = _email_slug(email)
+                after = pk[len(prefix):]
+                if after.endswith("_" + slug):
+                    stat_key = after[:-(len(slug) + 1)]
+                    rep_index[(period, email, stat_key)] = r
+                break
+
+    # Index team stats by (period, team, stat_key, aggregate)
+    team_index: dict[tuple, float] = {}
+    for r in all_patterns_data:
+        if r["pattern_type"] != "team_stat":
+            continue
+        pk = r.get("pattern_key") or ""
+        scope = r.get("scope") or ""
+        team = scope[5:] if scope.startswith("team:") else ""
+        if not team or r.get("value") is None:
+            continue
+        for period in PERIODS:
+            prefix = f"team_{period}_"
+            if pk.startswith(prefix):
+                after = pk[len(prefix):]
+                # Pattern: {stat_key}_{aggregate}_{team_slug}
+                # We need to find the aggregate (avg/median/p25/p75)
+                for agg in ("avg", "median", "p25", "p75"):
+                    marker = f"_{agg}_"
+                    idx = after.rfind(marker)
+                    if idx >= 0:
+                        stat_key = after[:idx]
+                        team_index[(period, team, stat_key, agg)] = float(r["value"])
+                        break
+                break
+
+    # Generate alerts
+    alert_patterns = []
+
+    for period in PERIODS:
+        for email, team in email_to_team.items():
+            slug = _email_slug(email)
+            scope = f"rep:{email}"
+
+            for rule in _ALERT_RULES:
+                alert_slug, stat_key, comparison, threshold, severity, template = rule
+
+                if comparison == "size_mismatch":
+                    # Special case: parse wr_by_employee_size pattern text
+                    r = rep_index.get((period, email, stat_key))
+                    if not r or not r.get("pattern"):
+                        continue
+                    import re as _re
+                    for match in _re.finditer(r"(\w+):\s*(\d+)%\s*\((\d+)d\)", r.get("pattern", "")):
+                        bucket, wr_str, n_str = match.group(1), match.group(2), match.group(3)
+                        wr_val, n_val = int(wr_str), int(n_str)
+                        if wr_val < 5 and n_val >= 10:
+                            alert_patterns.append({
+                                "pattern_key": f"rep_{period}_alert_{alert_slug}_{bucket.lower()}_{slug}",
+                                "pattern_type": "rep_stat",
+                                "scope": scope,
+                                "pattern": template.format(bucket=bucket, bucket_wr=wr_val, bucket_n=n_val),
+                                "confidence": 0.70,
+                                "sample_size": n_val,
+                                "value": severity,
+                            })
+                    continue
+
+                r = rep_index.get((period, email, stat_key))
+                if not r or r.get("value") is None:
+                    continue
+                val = float(r["value"])
+
+                fired = False
+                fmt_kwargs = {"val": round(val, 1)}
+
+                if comparison == "lt_team_p25":
+                    team_val = team_index.get((period, team, stat_key, "p25"))
+                    if team_val is not None and val < team_val:
+                        fired = True
+                        fmt_kwargs["team_val"] = round(team_val, 1)
+                elif comparison == "gt_team_p75":
+                    team_val = team_index.get((period, team, stat_key, "p75"))
+                    if team_val is not None and val > team_val:
+                        fired = True
+                        fmt_kwargs["team_val"] = round(team_val, 1)
+                elif comparison == "lt_abs":
+                    if val < threshold:
+                        fired = True
+                elif comparison == "gt_abs":
+                    if val > threshold:
+                        fired = True
+                elif comparison == "decline_pp":
+                    history = _parse_json(r.get("history") or [])
+                    if isinstance(history, list) and history:
+                        prev_val = history[-1].get("value")
+                        if prev_val is not None:
+                            delta = val - float(prev_val)
+                            if delta < -threshold:
+                                fired = True
+                                fmt_kwargs["delta"] = round(abs(delta), 1)
+                                fmt_kwargs["prev"] = round(float(prev_val), 1)
+
+                if fired:
+                    alert_patterns.append({
+                        "pattern_key": f"rep_{period}_alert_{alert_slug}_{slug}",
+                        "pattern_type": "rep_stat",
+                        "scope": scope,
+                        "pattern": template.format(**fmt_kwargs),
+                        "confidence": 0.80,
+                        "sample_size": r.get("sample_size") or 0,
+                        "value": severity,
+                    })
+
+        print(f"    [{period}] {sum(1 for p in alert_patterns if p['pattern_key'].startswith(f'rep_{period}_'))} alerts")
+
+    # Upsert alerts
+    upserted = 0
+    for p in alert_patterns:
+        try:
+            _upsert_rep_pattern(p, today)
+            upserted += 1
+        except Exception as e:
+            print(f"    ! alert upsert failed ({p.get('pattern_key')}): {e}")
+
+    print(f"\n    {upserted}/{len(alert_patterns)} alerts upserted")
+    return upserted

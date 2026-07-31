@@ -1,7 +1,7 @@
 """
 Weekly Rep Stats — per-person performance patterns.
 
-Runs inside weekly/run2.py after patterns. Pure Python (segments A-E, F-H, J-L).
+Runs inside weekly/run2.py after patterns. Pure Python (segments A-H, I alerts).
 Segment K (post-mortem) uses Claude and runs quarterly only.
 
 Each stat is computed for THREE time windows:
@@ -9,7 +9,7 @@ Each stat is computed for THREE time windows:
   - monthly (28 days)  — last 4 weeks review
   - quarterly (90 days) — last 3 months review
 
-Pattern key format: rep_{stat}_{period}_{email_slug}
+Pattern key format: rep_{period}_{stat}_{email_slug}
 Scope: "rep:{email}"
 History JSONB accumulates weekly executions.
 
@@ -22,12 +22,13 @@ Data sources:
   C. Process Quality         ← pae_audits / pbd_audits (owner_name)
   D. Coaching & Gaps         ← pae_audits / pbd_audits (owner_name)
   E. Activity & Cadence      ← calls + deals (owner_email, pae, pbd)
-  F. Demo Funnel              ← deals (pae) — demo rate, post-demo WR, days to demo
-  G. Deal Sizing             ← deals (pae) — avg deal size, size distribution
-  H. Segment Performance     ← deals (pae) — WR by employee size, sweet spot, avg deal size
-  J. Forecast Accuracy       ← calibration_log + snapshots (via deal FK) — deferred
-  K. Post-mortem Patterns    ← deal_analysis (via deal FK) — Claude, quarterly, deferred
-  L. Product Knowledge       ← deal_product_signals (via deal FK) — deferred
+  F. Demo Funnel             ← deals (after_demo_date, createdate, close_date)
+  G. Contact & Multi-threading ← deals (contact_count, contacts_info)
+  H. Segment Performance     ← deals (amount, num_employees_custom)
+  I. Coaching Alerts          ← learned_patterns (rep_stat + team_stat) — runs after team_stats
+  J. Forecast Accuracy        ← calibration_log + snapshots (TODO)
+  K. Post-mortem Patterns     ← deal_analysis — Claude, quarterly (TODO)
+  L. Product Knowledge        ← deal_product_signals (TODO)
 """
 
 import json

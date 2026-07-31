@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
 import { useRepStats, type Period, type RepStatRow } from "../../data/useRepStats";
+import { useTeamStats } from "../../data/useTeamStats";
+import { useOrgchartMap } from "../../data/useOrgchartMap";
 import { Icon, MultiSelectTeam, fmtMRR } from "../components";
 import { ownerDisplayName, ACTIVE_TEAMS } from "../../display";
 import { expandTeams } from "../../data/filters";
@@ -9,12 +11,7 @@ type SortCol = "name" | "winRate" | "avgCycle" | "pipeline" | "deals" | "calls" 
 type SortDir = "asc" | "desc";
 
 function getStat(stats: RepStatRow[], key: string): number | null {
-  const s = stats.find(s => s.key === key);
-  return s?.value ?? null;
-}
-
-function getStatPattern(stats: RepStatRow[], key: string): string {
-  return stats.find(s => s.key === key)?.pattern ?? "";
+  return stats.find(s => s.key === key)?.value ?? null;
 }
 
 type RepRow = {
@@ -54,6 +51,8 @@ export default function MetricsRepView() {
   const [selectedRep, setSelectedRep] = useState<string | null>(null);
 
   const { stats, loading, error } = useRepStats(period);
+  const { stats: teamStatsMap, loading: teamLoading } = useTeamStats(period);
+  const { emailToTeam } = useOrgchartMap();
 
   const rows = useMemo(() => {
     const expanded = expandTeams(teams);
@@ -61,13 +60,14 @@ export default function MetricsRepView() {
 
     for (const [email, repStats] of stats) {
       const name = ownerDisplayName(email);
-      const scope = repStats[0]?.scope || "";
-      const team = scope.startsWith("rep:") ? "" : "";
+      const team = emailToTeam.get(email) || "";
+
+      if (expanded && !expanded.has(team)) continue;
 
       result.push({
         email,
         name,
-        team: "",
+        team,
         winRate: getStat(repStats, "win_rate"),
         avgCycle: getStat(repStats, "avg_cycle_won"),
         pipeline: getStat(repStats, "pipeline_value"),
@@ -88,7 +88,7 @@ export default function MetricsRepView() {
     });
 
     return result;
-  }, [stats, teams, sortCol, sortDir]);
+  }, [stats, teams, sortCol, sortDir, emailToTeam]);
 
   const toggleSort = (col: SortCol) => {
     if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -97,12 +97,18 @@ export default function MetricsRepView() {
 
   if (selectedRep) {
     const repStats = stats.get(selectedRep) || [];
+    const repTeam = emailToTeam.get(selectedRep) || "";
+    const repTeamStats = teamStatsMap.get(repTeam) || [];
     return (
       <div style={{ padding: "24px 32px" }}>
         <RepDetail
           email={selectedRep}
           name={ownerDisplayName(selectedRep)}
           stats={repStats}
+          teamStats={repTeamStats}
+          allRepStats={stats}
+          teamName={repTeam}
+          emailToTeam={emailToTeam}
           period={period}
           onBack={() => setSelectedRep(null)}
           onPeriodChange={setPeriod}
@@ -115,16 +121,12 @@ export default function MetricsRepView() {
   const fmtDays = (v: number | null) => v != null ? `${Math.round(v)}d` : "—";
   const fmtInt = (v: number | null) => v != null ? String(Math.round(v)) : "—";
   const fmtDec = (v: number | null) => v != null ? v.toFixed(1) : "—";
-  const fmtScore = (v: number | null) => v != null ? v.toFixed(1) : "—";
 
   return (
     <div style={{ padding: "24px 32px" }}>
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--ink-1)", margin: 0 }}>Rep Stats</h2>
         <span style={{ flex: 1 }} />
-
-        {/* Period toggle */}
         <div style={{
           display: "inline-flex", borderRadius: "var(--r-pill)", background: "var(--card-2)",
           padding: 3, gap: 2,
@@ -145,7 +147,6 @@ export default function MetricsRepView() {
             </button>
           ))}
         </div>
-
         <MultiSelectTeam
           teams={ACTIVE_TEAMS as unknown as string[]}
           selected={teams}
@@ -153,14 +154,13 @@ export default function MetricsRepView() {
         />
       </div>
 
-      {/* Content */}
-      {loading && <p style={{ color: "var(--ink-3)", fontSize: 14 }}>Loading rep stats...</p>}
+      {(loading || teamLoading) && <p style={{ color: "var(--ink-3)", fontSize: 14 }}>Loading rep stats...</p>}
       {error && <p style={{ color: "var(--red)", fontSize: 14 }}>Error: {error}</p>}
-      {!loading && !error && rows.length === 0 && (
+      {!loading && !teamLoading && !error && rows.length === 0 && (
         <p style={{ color: "var(--ink-3)", fontSize: 14 }}>No rep stats found for this period.</p>
       )}
 
-      {!loading && !error && rows.length > 0 && (
+      {!loading && !teamLoading && !error && rows.length > 0 && (
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -201,7 +201,7 @@ export default function MetricsRepView() {
                   <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--ink-2)" }} className="num">{fmtMRR(r.pipeline)}</td>
                   <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--ink-2)" }} className="num">{fmtInt(r.deals)}</td>
                   <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--ink-2)" }} className="num">{fmtDec(r.calls)}</td>
-                  <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--ink-2)" }} className="num">{fmtScore(r.meddic)}</td>
+                  <td style={{ padding: "10px 12px", textAlign: "right", color: "var(--ink-2)" }} className="num">{fmtDec(r.meddic)}</td>
                 </tr>
               ))}
             </tbody>

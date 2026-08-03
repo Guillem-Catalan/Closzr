@@ -43,14 +43,14 @@ TIMEZONES = {
     "America/Mexico_City": ZoneInfo("America/Mexico_City"),  # México
 }
 
-# Claude (Azure AI Foundry)
-MODEL_SONNET = "claudio-claude-sonnet-4-6"
-MODEL_OPUS = "claudio-claude-opus-4-6"
-MODEL_DEFAULT = MODEL_SONNET
+# Azure AI Foundry — GPT 5.6 via OpenAI SDK
+MODEL_TERRA = "claudio-gpt-5.6-terra"
+MODEL_SOL = "claudio-gpt-5.6-sol"
+MODEL_DEFAULT = MODEL_TERRA
 
-# GPT (Azure AI Foundry — requiere OpenAI SDK, no Anthropic SDK)
-MODEL_GPT_55 = "claudio-gpt-5.5"
-MODEL_GPT_54_MINI = "claudio-gpt-5.4-mini"
+# Aliases used by pipelines
+MODEL_SONNET = MODEL_TERRA
+MODEL_OPUS = MODEL_SOL
 
 # Idioma de los outputs generados por Claude.
 # Cada equipo puede tener el suyo (definido en PARTNER_IDENTITY.lang).

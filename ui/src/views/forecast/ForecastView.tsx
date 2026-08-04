@@ -9,8 +9,6 @@ import { useData } from "../../data/store";
 import type { ForecastDeal, ClosedDeal, LostDeal } from "../../data/store";
 import { hubspotDealUrl, CRM_SHORT, CRM_FORECAST_CATEGORIES, ROLE_LABELS, WON_LABEL, LOST_LABEL, WON_DISPLAY_LABEL } from "../../display";
 import { normalize, distinctTeams, distinctOwners, distinctPipelines, expandTeams } from "../../data/filters";
-import { usePermissions } from "../../permissions";
-import { supabase } from "../../data/supabase";
 
 function fmtEur(v: number | null | undefined): string {
   if (v == null || v === 0) return "—";
@@ -44,8 +42,6 @@ function HsLogo({ size = 14 }: { size?: number }) {
     </svg>
   );
 }
-
-const CAN_EDIT_TARGET_ACCESS = new Set(["admin", "manager"]);
 
 type Panel = "m0" | "m1" | "m2" | "closed";
 
@@ -232,47 +228,6 @@ function LostRow({ d, open, onToggle, onOpen }: { d: LostDeal; open: boolean; on
 }
 
 
-/* ---- Editable target ---- */
-function EditableTarget({ value, teamFilter, targets, teams, canEdit, fontSize }: { value: number; teamFilter: string; targets: { team: string; month: string; monthly_target: number }[]; teams: string[]; canEdit: boolean; fontSize?: number }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const cm = new Date().toISOString().slice(0, 7);
-  const fs = fontSize ?? 30;
-
-  const handleSave = async () => {
-    const num = parseInt(draft.replace(/[^\d]/g, ""), 10);
-    if (isNaN(num) || num <= 0) { setEditing(false); return; }
-    if (teamFilter) {
-      await supabase.from("forecast_targets").upsert({ team: teamFilter, month: cm, monthly_target: num }, { onConflict: "team,month" });
-    } else {
-      const teamTargets = targets.filter(t => t.month === cm);
-      if (teamTargets.length === 0 && teams.length > 0) {
-        const perTeam = Math.round(num / teams.length);
-        for (const team of teams) await supabase.from("forecast_targets").upsert({ team, month: cm, monthly_target: perTeam }, { onConflict: "team,month" });
-      } else {
-        const ratio = num / (value || 1);
-        for (const t of teamTargets) await supabase.from("forecast_targets").upsert({ team: t.team, month: cm, monthly_target: Math.round(t.monthly_target * ratio) }, { onConflict: "team,month" });
-      }
-    }
-    setEditing(false);
-    window.location.reload();
-  };
-
-  if (editing) {
-    return (
-      <input autoFocus value={draft} onChange={e => setDraft(e.target.value)}
-        onBlur={handleSave} onKeyDown={e => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
-        className="display" style={{ width: 120, border: "none", borderBottom: "2px solid var(--indigo)", background: "transparent", fontSize: fs, fontWeight: 700, padding: 0, outline: "none", textAlign: "center" }} />
-    );
-  }
-  return (
-    <span className="display" onClick={() => { if (canEdit) { setDraft(String(value)); setEditing(true); } }}
-      style={{ fontSize: fs, fontWeight: 700, letterSpacing: "-.02em", color: "var(--indigo)", cursor: canEdit ? "pointer" : "default" }} title={canEdit ? "Click to edit" : undefined}>
-      {fmtEur(value)}
-    </span>
-  );
-}
-
 /* ---- KPI title style ---- */
 const kpiTitle: React.CSSProperties = { fontSize: 15, fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase" as const, textAlign: "center" as const, display: "block" };
 
@@ -280,7 +235,6 @@ const kpiTitle: React.CSSProperties = { fontSize: 15, fontWeight: 800, letterSpa
 export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: string) => void }) {
   const D = useData();
   const F = D.forecast;
-  const { profile } = usePermissions();
   const [panel, setPanel] = useState<Panel>("m0");
   const [pipelineFilters, setPipelineFilters] = useState<Set<string>>(new Set());
   const [teamFilters, setTeamFilters] = useState<Set<string>>(new Set());
@@ -300,7 +254,6 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
     return () => document.removeEventListener("mousedown", h);
   }, [openMenu]);
 
-  const canEditTarget = profile ? CAN_EDIT_TARGET_ACCESS.has(profile.accessLevel) : false;
   const pipelines = useMemo(() => distinctPipelines(F.allDeals), [F.allDeals]);
   const teams = useMemo(() => distinctTeams(F.allDeals), [F.allDeals]);
   const reps = useMemo(() => distinctOwners(F.allDeals, teamFilters.size === 1 ? [...teamFilters][0] : undefined), [F.allDeals, teamFilters]);
@@ -323,7 +276,6 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
   const fLost = useMemo(() => applyFilters(F.lostDeals), [F.lostDeals, pipelineFilters, teamExpanded, repFilter, search]);
 
   const cm = new Date().toISOString().slice(0, 7);
-  const singleTeamFilter = teamFilters.size === 1 ? [...teamFilters][0] : "";
   const target = useMemo(() => {
     if (teamFilters.size === 0) return F.target;
     const exp = expandTeams(teamFilters)!;
@@ -503,7 +455,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
           <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 6 }}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
               <span style={{ fontSize: 10, color: "var(--indigo)", fontWeight: 800, textTransform: "uppercase", letterSpacing: ".04em" }}>M0</span>
-              <EditableTarget value={target} teamFilter={singleTeamFilter} targets={F.targets} teams={teams} canEdit={canEditTarget && teamFilters.size <= 1} fontSize={20} />
+              <span className="display" style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-.02em", color: "var(--indigo)" }}>{fmtEur(target)}</span>
             </div>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
               <span style={{ fontSize: 10, color: "var(--ink-3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em" }}>M1</span>

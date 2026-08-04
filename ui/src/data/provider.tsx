@@ -122,7 +122,8 @@ type RawDealUI = {
   key_turning_point: string | null;
 };
 
-type RawTarget = { team: string; month: string; monthly_target: number };
+type RawAeTarget = { email: string; month: string; monthly_target: number };
+type RawOrgEmail = { email: string; team_name: string };
 
 function toDealRow(d: RawDealUI): DealRow & { _macro: string; _amount: number; _closeDate: string | null; _raw: RawDealUI } {
   return {
@@ -187,10 +188,24 @@ function toForecastDeal(d: RawDealUI, row: DealRow): ForecastDeal {
 const DEAL_UI_COLS = "deal_id,hs_deal_id,company_name,deal_name_full,stage,macro_stage,pae,pbd,team,mrr,close_probability,close_date,close_date_hs,last_contact_label,trend,is_stale,stale_days,score,bucket,action_priority,action_headline,action_headline_short,action_signal,action_type,action_who,action_due_date,action_due_label,howto_body,deal_summary,deal_assessment,m_score,e_score,dc_score,dp_score,i_score,c_score,m_text,e_text,dc_text,dp_text,i_text,c_text,blockers_count,signals_count,next_steps,forecast_confidence,deal_momentum,estimated_close_date,forecast_reasoning,push_action,forecast_risks,forecast_accelerators,outcome,outcome_summary,employees,forecast_category,deal_age_days,closed_lost_reason,has_meeting_today,full_narrative,analysis_timeline,analysis_what_worked,analysis_what_failed,analysis_could_have_changed,analysis_rep_assessment,analysis_key_people,analysis_products_pitched,analysis_products_missed,analysis_product_assessment,trajectory,interactions,lessons,key_turning_point,pipeline_name";
 
 async function loadData(): Promise<CZData> {
-  const [allDeals, targets] = await Promise.all([
+  const [allDeals, aeTargets, orgEmails] = await Promise.all([
     fetchPaged<RawDealUI>("deal_ui", DEAL_UI_COLS, q => q.not("macro_stage", "is", null)),
-    fetchPaged<RawTarget>("forecast_targets", "team,month,monthly_target"),
+    fetchPaged<RawAeTarget>("ae_targets", "email,month,monthly_target"),
+    fetchPaged<RawOrgEmail>("orgchart", "email,team_name", q => q.eq("is_active", true)),
   ]);
+
+  const emailToTeam = new Map(orgEmails.map(o => [o.email, o.team_name]));
+  const teamMonthMap = new Map<string, number>();
+  for (const t of aeTargets) {
+    const team = emailToTeam.get(t.email);
+    if (!team) continue;
+    const key = `${team}|${t.month}`;
+    teamMonthMap.set(key, (teamMonthMap.get(key) || 0) + (t.monthly_target || 0));
+  }
+  const targets = [...teamMonthMap.entries()].map(([key, val]) => {
+    const [team, month] = key.split("|");
+    return { team, month, monthly_target: Math.round(val) };
+  });
 
   console.log(`[loadData] ${allDeals.length} deals from deal_ui`);
 

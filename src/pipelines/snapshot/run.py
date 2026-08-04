@@ -4,7 +4,7 @@ Snapshot pipeline — Monday and Friday at 7:50 CEST.
 Monday (snapshot_day=1): demos_booked, closing_expected, mr_expected, consecución, whales
 Friday (snapshot_day=2): demos_held, mr_closed, lost_deals + postmortem, learnings, coaching_flags
 
-Sources: deal_ui, deals (meetings), deal_analysis (postmortem), forecast_targets, orgchart
+Sources: deal_ui, deals (meetings), deal_analysis (postmortem), ae_targets, orgchart
 
 Note: deal_ui.pae/pbd store NAMES (not emails). deal_ui.stage stores internal names
 (from schema.py), deals.deal_stage stores a mix of internal and display labels.
@@ -58,21 +58,25 @@ def _won_deals(ae_names: list[str], date_from: str, date_to: str | None = None) 
     return count, total
 
 
-def _team_target(team: str, today: date) -> float:
+def _team_target(ae_emails: list[str], today: date) -> float:
+    """Sum ae_targets.monthly_target for all AE emails in the team for this month."""
+    month = today.strftime("%Y-%m")
+    total = 0.0
     try:
-        resp = (
-            supabase.table("forecast_targets")
-            .select("monthly_target")
-            .eq("team", team)
-            .eq("month", today.strftime("%Y-%m"))
-            .maybe_single()
-            .execute()
-        )
-        if resp.data:
-            return float(resp.data.get("monthly_target") or 0)
+        for i in range(0, len(ae_emails), 200):
+            batch = ae_emails[i : i + 200]
+            resp = (
+                supabase.table("ae_targets")
+                .select("monthly_target")
+                .in_("email", batch)
+                .eq("month", month)
+                .execute()
+            )
+            for r in (resp.data or []):
+                total += float(r.get("monthly_target") or 0)
     except Exception:
         pass
-    return 0.0
+    return total
 
 
 def _resolve_teams() -> list[dict]:
@@ -121,11 +125,14 @@ def _resolve_teams() -> list[dict]:
         tl_name = p.get("full_name") or ""
         ae_names = [a["name"] for a in aes] + ([tl_name] if tl_name else [])
 
+        ae_emails = [a["email"] for a in aes] + [email]
+
         teams.append({
             "tl_email": email,
             "tl_name": tl_name,
             "team": p.get("team_name") or tl_name or email,
             "ae_names": ae_names,
+            "ae_emails": ae_emails,
         })
 
     return teams
@@ -170,7 +177,7 @@ def _build_monday(team_info: dict, today: date) -> dict:
 
     # ── wons: week + month cumulative ──
     wons_month, mr_month = _won_deals(ae_names, month_start)
-    target_mrr = _team_target(team_info["team"], today)
+    target_mrr = _team_target(team_info["ae_emails"], today)
     consecucion = round(mr_month / target_mrr * 100, 1) if target_mrr > 0 else 0
 
     # ── whales: closing + evaluating deals with MRR > 2000 ──
@@ -272,7 +279,7 @@ def _build_friday(team_info: dict, today: date) -> dict:
     # ── wons: week + month cumulative ──
     wons_week, mr_closed = _won_deals(ae_names, monday.isoformat(), today.isoformat())
     wons_month, mr_month = _won_deals(ae_names, month_start)
-    target_mrr = _team_target(team_info["team"], today)
+    target_mrr = _team_target(team_info["ae_emails"], today)
     consecucion = round(mr_month / target_mrr * 100, 1) if target_mrr > 0 else 0
 
     # ── lost_deals: deals lost this week by close_date_hs, enrich with deal_analysis ──

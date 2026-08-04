@@ -1,6 +1,7 @@
 openai>=1.0.0
 supabase>=2.30.0
 requests>=2.31.0
+trino>=0.330.0
 google-api-python-client>=2.100.0
 google-auth>=2.20.0
 google-auth-oauthlib>=1.0.0

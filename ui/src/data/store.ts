@@ -127,28 +127,6 @@ export type ForecastData = {
   m2Deals: ForecastDeal[];
 };
 
-export type MethodologyItem = {
-  n: number;
-  label: string;
-  tone: string;
-  key: string;
-  deals: DealRow[];
-};
-
-export type OneOnOneData = {
-  reps: string[];
-  rep: string;
-  activeDeals: number;
-  pipeline: number;
-  top10: any[];
-  meddicBase: number;
-  meddic: { key: string; score: number }[];
-  meddicNote: string;
-  weakness: { label: string; count: number }[];
-  tlActions: any[];
-  methodologyOpen: number;
-  methodology: MethodologyItem[];
-};
 
 export type ActionItem = {
   id: string;
@@ -182,7 +160,6 @@ export type CZData = {
   pipelineAside: FunnelStage[];
   forecast: ForecastData;
   benchmark: { won: BenchmarkDeal[]; lost: BenchmarkDeal[] };
-  oneOnOne: OneOnOneData;
   todos: ActionItem[];
   loading: boolean;
 };

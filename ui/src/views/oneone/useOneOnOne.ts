@@ -1,5 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "../../data/supabase";
+import { CLOSED_WON_STAGES, CLOSED_LOST_STAGES } from "../../display";
+import { repNameToEmail } from "../../data/filters";
+import { getViewScope, type UserProfile, type Scope } from "../../permissions";
+
+const CLOSED_STAGES = new Set([...CLOSED_WON_STAGES, ...CLOSED_LOST_STAGES]);
 
 const OO_COLS = "deal_id,hs_deal_id,company_name,deal_name_full,stage,macro_stage,pae,pbd,team,mrr,close_probability,close_date_hs,estimated_close_date,is_stale,stale_days,deal_assessment,forecast_reasoning,forecast_confidence,deal_momentum,last_contact_label,deal_age_days,action_headline,deal_summary";
 
@@ -33,7 +38,7 @@ export type OOEntry = {
   deal_id: string;
   deal_name: string;
   section: string;
-  type: "change" | "note" | "commitment";
+  type: "change" | "note" | "commitment" | "fcChange";
   field?: string;
   old_val?: string;
   new_val?: string;
@@ -62,9 +67,10 @@ function inMonth(date: string | null, ym: string): boolean {
   return !!date && date.startsWith(ym);
 }
 
-export function useOneOnOne(repName: string, weekType: number, tlEmail: string, monday: string) {
+export function useOneOnOne(repName: string, weekType: number, tlEmail: string, monday: string, profile: UserProfile | null) {
   const [deals, setDeals] = useState<OODeal[]>([]);
-  const [reps, setReps] = useState<string[]>([]);
+  const [allReps, setAllReps] = useState<string[]>([]);
+  const [target, setTarget] = useState<number>(0);
   const [session, setSession] = useState<OOSession | null>(null);
   const [history, setHistory] = useState<OOSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,9 +81,21 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string, 
     supabase.from("deal_ui").select("pae").not("macro_stage", "in", "(closed,excluded)").not("pae", "is", null)
       .then(({ data }) => {
         const names = [...new Set((data || []).map((d: any) => d.pae as string).filter(Boolean))].sort();
-        setReps(names);
+        setAllReps(names);
       });
   }, []);
+
+  const reps = useMemo(() => {
+    const scope: Scope = getViewScope(profile, "oneone");
+    if (scope === "none") return [];
+    if (scope === "all" || !profile || profile.accessLevel !== "tree") return allReps;
+    if (scope === "self") {
+      const own = profile.email.toLowerCase();
+      return allReps.filter(n => repNameToEmail(n) === own);
+    }
+    const subtree = new Set(profile.subtreeEmails.map(e => e.toLowerCase()));
+    return allReps.filter(n => subtree.has(repNameToEmail(n)));
+  }, [allReps, profile]);
 
   useEffect(() => {
     if (!repName) { setDeals([]); setLoading(false); return; }
@@ -87,6 +105,14 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string, 
         setDeals((data || []) as OODeal[]);
         setLoading(false);
       });
+  }, [repName]);
+
+  useEffect(() => {
+    if (!repName) { setTarget(0); return; }
+    const email = repNameToEmail(repName);
+    const m = monthKey(0);
+    supabase.from("ae_targets").select("monthly_target").eq("email", email).eq("month", m).maybeSingle()
+      .then(({ data }) => setTarget(data?.monthly_target ?? 0));
   }, [repName]);
 
   useEffect(() => {
@@ -141,6 +167,11 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string, 
     persist(next);
   }, [persist]);
 
+  const openDeals = useMemo(
+    () => deals.filter(d => !CLOSED_STAGES.has(d.stage || "")),
+    [deals],
+  );
+
   const today = new Date().toISOString().slice(0, 10);
   const m0 = monthKey(0);
   const m1 = monthKey(1);
@@ -149,29 +180,29 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string, 
   const getDealsFor = useCallback((query: string): OODeal[] => {
     switch (query) {
       case "past_close":
-        return deals.filter(d => d.close_date_hs && d.close_date_hs < today);
+        return openDeals.filter(d => d.close_date_hs && d.close_date_hs < today);
       case "same_stage_30d":
-        return deals.filter(d => (d.stale_days || 0) >= 30);
+        return openDeals.filter(d => (d.stale_days || 0) >= 30);
       case "stale_7d":
-        return deals.filter(d => (d.stale_days || 0) >= 7);
+        return openDeals.filter(d => (d.stale_days || 0) >= 7);
       case "demo_6w":
-        return deals.filter(d => d.macro_stage === "demo" && (d.deal_age_days || 0) > 42);
+        return openDeals.filter(d => d.macro_stage === "demo" && (d.deal_age_days || 0) > 42);
       case "past_close_or_stale":
-        return deals.filter(d => (d.close_date_hs && d.close_date_hs < today) || (d.stale_days || 0) >= 7);
+        return openDeals.filter(d => (d.close_date_hs && d.close_date_hs < today) || (d.stale_days || 0) >= 7);
       case "m0":
-        return deals.filter(d => inMonth(d.close_date_hs, m0) || inMonth(d.estimated_close_date, m0));
+        return openDeals.filter(d => inMonth(d.close_date_hs, m0) || inMonth(d.estimated_close_date, m0));
       case "m1":
-        return deals.filter(d => inMonth(d.close_date_hs, m1) || inMonth(d.estimated_close_date, m1));
+        return openDeals.filter(d => inMonth(d.close_date_hs, m1) || inMonth(d.estimated_close_date, m1));
       case "m2":
-        return deals.filter(d => inMonth(d.close_date_hs, m2) || inMonth(d.estimated_close_date, m2));
+        return openDeals.filter(d => inMonth(d.close_date_hs, m2) || inMonth(d.estimated_close_date, m2));
       case "m1_m2_pusheable":
-        return deals.filter(d => {
+        return openDeals.filter(d => {
           const isM2 = inMonth(d.close_date_hs, m2) || inMonth(d.estimated_close_date, m2);
           const isLateM1 = inMonth(d.close_date_hs, m1) || inMonth(d.estimated_close_date, m1);
           return (isM2 || isLateM1) && (d.deal_momentum === "accelerating" || (d.close_probability || 0) >= 40);
         });
       case "m0_at_risk":
-        return deals.filter(d => {
+        return openDeals.filter(d => {
           const isM0 = inMonth(d.close_date_hs, m0) || inMonth(d.estimated_close_date, m0);
           return isM0 && ((d.stale_days || 0) >= 5 || d.deal_momentum === "stalling" || d.deal_momentum === "declining");
         });
@@ -179,7 +210,7 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string, 
         const nextWeek = new Date();
         nextWeek.setDate(nextWeek.getDate() + 7);
         const nw = nextWeek.toISOString().slice(0, 10);
-        return deals.filter(d => {
+        return openDeals.filter(d => {
           const isM0 = inMonth(d.close_date_hs, m0) || inMonth(d.estimated_close_date, m0);
           return isM0 && d.close_date_hs && d.close_date_hs <= nw;
         });
@@ -187,13 +218,30 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string, 
       default:
         return [];
     }
-  }, [deals, today, m0, m1, m2]);
+  }, [openDeals, today, m0, m1, m2]);
 
-  const getCoverage = useCallback((month: string): { total: number; ratio: number } => {
-    const mDeals = deals.filter(d => inMonth(d.estimated_close_date, month));
+  const getCoverage = useCallback((): { total: number; target: number; ratio: number } => {
+    const m = monthKey(0);
+    const mDeals = openDeals.filter(d => inMonth(d.close_date_hs, m) || inMonth(d.estimated_close_date, m));
     const total = mDeals.reduce((s, d) => s + (d.mrr || 0), 0);
-    return { total, ratio: 0 };
-  }, [deals]);
+    const ratio = target > 0 ? total / target : 0;
+    return { total, target, ratio };
+  }, [openDeals, target]);
 
-  return { deals, reps, session, history, loading, getDealsFor, getCoverage, toggleCheck, addEntry };
+  const callDealUpdate = useCallback(async (
+    action: string,
+    params: Record<string, string>,
+  ): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("deal-update", {
+        body: { action, ...params },
+      });
+      if (error) return { ok: false, error: error.message };
+      return data as { ok: boolean; error?: string };
+    } catch (e: any) {
+      return { ok: false, error: e.message || "Network error" };
+    }
+  }, []);
+
+  return { deals, reps, session, history, loading, getDealsFor, getCoverage, toggleCheck, addEntry, callDealUpdate };
 }

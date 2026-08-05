@@ -10,7 +10,7 @@ import { useState, useEffect, type ReactNode } from "react";
 import { DataContext, type CZData, type DealRow, type FunnelStage, type ForecastDeal, type ForecastData, type ClosedDeal, type ActionItem, type BenchmarkDeal } from "./store";
 import { supabase } from "./supabase";
 import { usePermissions, type UserProfile, type Scope } from "../permissions";
-import { PIPELINE_FUNNEL, PIPELINE_ASIDE, stageAbbr, shortStage, CLOSED_WON_STAGES, CLOSED_LOST_STAGES, STAGE_TONES, MEDDIC_AXES, WON_DISPLAY_LABEL, LOST_DISPLAY_LABEL } from "../display";
+import { PIPELINE_FUNNEL, PIPELINE_ASIDE, stageAbbr, shortStage, CLOSED_WON_STAGES, CLOSED_LOST_STAGES, STAGE_TONES, WON_DISPLAY_LABEL, LOST_DISPLAY_LABEL } from "../display";
 import { repNameToEmail } from "./filters";
 
 // ---- Paginated fetch ----
@@ -359,32 +359,6 @@ async function loadData(): Promise<CZData> {
   const benchLost = allDeals.filter(d => lostSet.has(stageLower(d))).map(d => toBenchmark(d, "lost"));
   const benchmark = { won: benchWon, lost: benchLost };
 
-  // ---- 1:1 ----
-  const reps = [...new Set(allRows.map(r => r.owner).filter(o => o !== "—"))].sort();
-  const rep = reps[0] || "—";
-  const repDeals = allRows.filter(r => r.owner === rep);
-  const repSnaps = repDeals.map(r => r._raw);
-  const avg = (f: keyof RawDealUI) => { const v = repSnaps.map(s => s[f] as number | null).filter(x => x != null) as number[]; return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length * 10) / 10 : 0; };
-  const _scoreCol: Record<string, keyof RawDealUI> = { M: "m_score", E: "e_score", DC: "dc_score", DP: "dp_score", I: "i_score", C: "c_score" };
-  const meddicScores = MEDDIC_AXES.filter(a => _scoreCol[a.key]).map(a => ({ key: a.label, score: avg(_scoreCol[a.key]!) }));
-  const weakest = [...meddicScores].sort((a, b) => a.score - b.score);
-
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const oneOnOne = {
-    reps, rep, activeDeals: repDeals.length,
-    pipeline: repDeals.reduce((s, r) => s + r._amount, 0),
-    top10: [...repDeals].sort((a, b) => b._amount - a._amount).slice(0, 10).map(r => ({ id: r.id, deal: r.deal, stage: r.stage, mrr: r.mrr, prob: r.prob })),
-    meddicBase: repSnaps.length, meddic: meddicScores,
-    meddicNote: weakest[0] && weakest[1] ? `${weakest[0].key} (${weakest[0].score}) y ${weakest[1].key} (${weakest[1].score}) son las áreas más débiles.` : "",
-    weakness: MEDDIC_AXES.filter(a => _scoreCol[a.key]).map(a => ({ label: a.label, count: repSnaps.filter(s => ((s[_scoreCol[a.key]!] as number | null) || 0) < 4).length })).sort((a, b) => b.count - a.count),
-    tlActions: repDeals.filter(r => (r._raw.blockers_count || 0) > 0 || r.stale).sort((a, b) => b._amount - a._amount).slice(0, 10).map(r => ({ id: r.id, deal: r.deal, stage: r.stage, mrr: r.mrr, prob: r.prob, flag: r.stale ? `Sin contacto ${r._raw.stale_days || "?"}d` : "Blocker activo", sev: r.stale && (r._raw.stale_days || 0) > 30 || (r._raw.blockers_count || 0) > 0 ? "alto" : "medio", text: r.signal || "Requiere revisión." })),
-    methodologyOpen: repDeals.length,
-    methodology: [
-      { n: repDeals.filter(r => r.stale).length, label: "Deals parados", tone: "amber", key: "stale", deals: repDeals.filter(r => r.stale) as DealRow[] },
-      { n: repDeals.filter(r => r._closeDate && r._closeDate < todayStr).length, label: "Fecha de cierre pasada", tone: "red", key: "past_close", deals: repDeals.filter(r => r._closeDate && r._closeDate < todayStr) as DealRow[] },
-    ].filter(m => m.n > 0),
-  };
-
   // ---- TO-DOs ----
   const todos: ActionItem[] = allDeals
     .filter(d => d.action_headline && d.action_priority != null)
@@ -403,7 +377,7 @@ async function loadData(): Promise<CZData> {
     ? [{ id: "meetings-today", title: "Meetings hoy", meta: `${meetingRows.length} deals`, tint: "indigo", rows: meetingRows }]
     : [];
 
-  return { STAGE, groups, nakiva: null, yukAtlas: null, pipeline, pipelineAside, forecast, benchmark, oneOnOne, todos, loading: false };
+  return { STAGE, groups, nakiva: null, yukAtlas: null, pipeline, pipelineAside, forecast, benchmark, todos, loading: false };
 }
 
 // ---- Permission-based filtering ----
@@ -460,7 +434,7 @@ function applyPermissions(data: CZData, profile: UserProfile | null, scope: Scop
   };
 }
 
-const EMPTY_DATA: CZData = { STAGE, groups: [], nakiva: null, yukAtlas: null, pipeline: [], pipelineAside: [], forecast: { target: 0, hsTotal: 0, closzrTotal: 0, nextMonthTotal: 0, pushableCount: 0, closedTotal: 0, lostTotal: 0, hsDeals: [], closzrDeals: [], nextMonthDeals: [], pushableDeals: [], closedDeals: [], lostDeals: [], allDeals: [], targets: [], m0Deals: [], m1Deals: [], m2Deals: [] }, benchmark: { won: [], lost: [] }, oneOnOne: { reps: [], rep: "", activeDeals: 0, pipeline: 0, top10: [], meddicBase: 0, meddic: [], meddicNote: "", weakness: [], tlActions: [], methodologyOpen: 0, methodology: [] }, todos: [], loading: true };
+const EMPTY_DATA: CZData = { STAGE, groups: [], nakiva: null, yukAtlas: null, pipeline: [], pipelineAside: [], forecast: { target: 0, hsTotal: 0, closzrTotal: 0, nextMonthTotal: 0, pushableCount: 0, closedTotal: 0, lostTotal: 0, hsDeals: [], closzrDeals: [], nextMonthDeals: [], pushableDeals: [], closedDeals: [], lostDeals: [], allDeals: [], targets: [], m0Deals: [], m1Deals: [], m2Deals: [] }, benchmark: { won: [], lost: [] }, todos: [], loading: true };
 
 // ---- Provider ----
 export function DataProvider({ children }: { children: ReactNode }) {

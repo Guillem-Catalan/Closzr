@@ -928,7 +928,7 @@ export default function OneOnOneView(_props: { onOpen: (row: any, tab?: string) 
 }
 
 /* ── Confirm Flow Component ── */
-function ConfirmFlow({ dk, deal, mode, secNum, onCancel, onConfirm, cfmLabel, chipCls, btnCls }: {
+function ConfirmFlow({ dk, mode, onCancel, onConfirm, cfmLabel, chipCls, btnCls }: {
   dk: string; deal: OODeal; mode: ActionMode; secNum: string;
   onCancel: () => void; onConfirm: () => void;
   cfmLabel: string; chipCls: string; btnCls: string;

@@ -5,6 +5,7 @@ import { repNameToEmail } from "../../data/filters";
 import { getViewScope, type UserProfile, type Scope } from "../../permissions";
 
 const CLOSED_STAGES = new Set([...CLOSED_WON_STAGES, ...CLOSED_LOST_STAGES]);
+const OO_MACRO_STAGES = new Set(["demo", "evaluating", "closing"]);
 
 const OO_COLS = "deal_id,hs_deal_id,company_name,deal_name_full,stage,macro_stage,pae,pbd,team,mrr,close_probability,close_date_hs,estimated_close_date,is_stale,stale_days,deal_assessment,forecast_reasoning,forecast_confidence,deal_momentum,last_contact_label,deal_age_days,action_headline,deal_summary";
 
@@ -168,7 +169,7 @@ export function useOneOnOne(repName: string, weekType: number, tlEmail: string, 
   }, [persist]);
 
   const openDeals = useMemo(
-    () => deals.filter(d => !CLOSED_STAGES.has(d.stage || "")),
+    () => deals.filter(d => !CLOSED_STAGES.has(d.stage || "") && OO_MACRO_STAGES.has(d.macro_stage || "")),
     [deals],
   );
 

@@ -49,6 +49,10 @@ function nameFromEmail(email: string): string {
   return email.split("@")[0].split(".").map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
 }
 
+const VISITOR_SCOPES: Record<string, Scope> = Object.fromEntries(
+  SCOPE_KEYS.map(k => [k, k === "admin" ? "none" as Scope : "all" as Scope]),
+);
+
 function makeVisitorProfile(userId: string, email: string): UserProfile {
   return {
     id: userId,
@@ -59,10 +63,27 @@ function makeVisitorProfile(userId: string, email: string): UserProfile {
     teamName: "",
     channel: "",
     reportsTo: null,
-    scopes: Object.fromEntries(SCOPE_KEYS.map(k => [k, "all" as Scope])),
+    scopes: { ...VISITOR_SCOPES },
     visiblePartners: [],
     subtreeEmails: [email],
   };
+}
+
+async function ensureInOrgchart(email: string): Promise<void> {
+  const name = nameFromEmail(email);
+  const row: Record<string, unknown> = {
+    email,
+    full_name: name,
+    role: "ae",
+    access_level: "visitor",
+    team_name: "Unassigned",
+    channel: "management",
+    is_active: true,
+  };
+  for (const k of SCOPE_KEYS) {
+    row[`scope_${k}`] = k === "admin" ? "none" : "all";
+  }
+  await supabase.from("orgchart").upsert(row, { onConflict: "email", ignoreDuplicates: true });
 }
 
 const PermCtx = createContext<{ profile: UserProfile | null; loading: boolean }>({ profile: null, loading: true });
@@ -108,6 +129,7 @@ export function PermissionsProvider({ userId, children }: { userId: string | nul
       .single();
 
     if (error || !person) {
+      ensureInOrgchart(email);
       setProfile(makeVisitorProfile(userId, email));
       setLoading(false);
       return;

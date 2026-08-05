@@ -30,6 +30,10 @@ CRM_OWNER_MAP = {
         'id': '1911202931',
         'name': 'Alejandra De Nóbregas',
     },
+    'alejandra.sotelo@factorial.co': {
+        'id': '35914049',
+        'name': 'Alejandra Sotelo',
+    },
     'alejandro.moreno@factorial.co': {
         'id': '34637474',
         'name': 'Alejandro Moreno Luna',
@@ -38,9 +42,17 @@ CRM_OWNER_MAP = {
         'id': '32980021',
         'name': 'Alejandro Soto Velasco',
     },
+    'alejandro.zaballos@factorial.co': {
+        'id': '57120543',
+        'name': 'Alejandro Zaballos',
+    },
     'alessandro.cardinale@factorial.co': {
         'id': '89052244',
         'name': 'Alessandro Cardinale',
+    },
+    'alessandro.falbo@factorial.co': {
+        'id': '32832843',
+        'name': 'Alessandro Falbo',
     },
     'alex.martinez@factorial.co': {
         'id': '79352699',
@@ -49,6 +61,10 @@ CRM_OWNER_MAP = {
     'alexander.ulrich@factorial.co': {
         'id': '86686795',
         'name': 'Alexander Ulrich',
+    },
+    'alicia.olona@factorial.co': {
+        'id': '83009086',
+        'name': 'Alicia Olona',
     },
     'amadeo.cuellar@factorial.co': {
         'id': '82431537',
@@ -101,6 +117,10 @@ CRM_OWNER_MAP = {
     'blanca.orti@factorial.co': {
         'id': '343529996',
         'name': 'Blanca Orti Morillo',
+    },
+    'borja.gomez@factorial.co': {
+        'id': '77882253',
+        'name': 'Borja Gomez',
     },
     'camila.vento@factorial.co': {
         'id': '84984313',
@@ -178,6 +198,10 @@ CRM_OWNER_MAP = {
         'id': '133287347',
         'name': 'Diego Osvaldo Hernandez Vicuña',
     },
+    'diego.pymext@factorial.co': {
+        'id': '82397798',
+        'name': 'Diego Pymext',
+    },
     'domenica.galarza@factorial.co': {
         'id': '86261613',
         'name': 'Domenica Galarza',
@@ -185,6 +209,10 @@ CRM_OWNER_MAP = {
     'edoardo.rapezzi@factorial.co': {
         'id': '86687949',
         'name': 'Edoardo Rapezzi',
+    },
+    'eduard.sasot@factorial.co': {
+        'id': '32095000',
+        'name': 'Eduard Sasot',
     },
     'eduardo.mahr@factorial.co': {
         'id': '554934310',
@@ -253,6 +281,10 @@ CRM_OWNER_MAP = {
     'guillermo.ferrer@factorial.co': {
         'id': '168739388',
         'name': 'Guillermo Ferrer',
+    },
+    'guillermo.urdiales@factorial.co': {
+        'id': '281328424',
+        'name': 'Guillermo Urdiales',
     },
     'gustavo.torres@factorial.co': {
         'id': '188140936',
@@ -422,6 +454,10 @@ CRM_OWNER_MAP = {
         'id': '645417472',
         'name': 'Nerea Urien Meizoso',
     },
+    'nicolas.barboza@factorial.co': {
+        'id': '34213381',
+        'name': 'Nicolas Barboza',
+    },
     'nicolas.gonzalez@factorial.co': {
         'id': '84394154',
         'name': 'Nicolás González-Tarrío',
@@ -514,6 +550,18 @@ CRM_OWNER_MAP = {
         'id': '390628148',
         'name': 'Teresa Santamaria',
     },
+    'vincenzo.montagna@factorial.co': {
+        'id': '81461243',
+        'name': 'Vincenzo Montagna',
+    },
+    'xavier.cuadrat@factorial.co': {
+        'id': '36496876',
+        'name': 'Xavier Cuadrat',
+    },
+    'xavier.feliu@factorial.co': {
+        'id': '86688073',
+        'name': 'Xavier Feliu',
+    },
     'xavier.fortuny@factorial.co': {
         'id': '76824216',
         'name': 'Xavier Fortuny',
@@ -533,15 +581,15 @@ PARTNERS_ORGCHART = {
         'active': True,
         'pipeline_ids': ['824790797', '3612610753'],
         'leadership': {
-            'tl_pbd': {
-                'email': 'giacomo.torresi@factorial.co',
-                'name': 'Giacomo Torresi',
-                'role': 'pbd_tl',
-            },
             'tl_pae': {
                 'email': 'nunzio.fumo@factorial.co',
                 'name': 'Nunzio Fumo',
                 'role': 'pae_tl',
+            },
+            'tl_pbd': {
+                'email': 'giacomo.torresi@factorial.co',
+                'name': 'Giacomo Torresi',
+                'role': 'pbd_tl',
             },
             'director': {
                 'email': 'andrea.galimberti@factorial.co',
@@ -602,12 +650,6 @@ PARTNERS_ORGCHART = {
         'tl': 'oriol.pesa@factorial.co',
         'tl_name': 'Oriol Pesa',
         'subteams': {
-            'Mexico Ernesto': {
-                'active': True,
-                'tl': 'ernesto.blanco@factorial.co',
-                'tl_name': 'Ernesto Blanco Sierra',
-                'ae': {"eduardo.mahr@factorial.co", "gustavo.torres@factorial.co"},
-            },
             'Mexico Francesc': {
                 'active': True,
                 'tl': 'francesc.terns@factorial.co',
@@ -631,6 +673,12 @@ PARTNERS_ORGCHART = {
                     "marta.ruiz@factorial.co",
                 },
             },
+            'Mexico Ernesto': {
+                'active': True,
+                'tl': 'ernesto.blanco@factorial.co',
+                'tl_name': 'Ernesto Blanco Sierra',
+                'ae': {"eduardo.mahr@factorial.co", "gustavo.torres@factorial.co"},
+            },
         },
         'pipeline_ids': ['default', '9048177'],
     },
@@ -649,6 +697,45 @@ DIRECT_SALES = {
                     'tl': 'antoni.grau@factorial.co',
                     'tl_name': 'Antoni Grau Zorita',
                     'subteams': {
+                        'DS Pilar': {
+                            'active': True,
+                            'tl': 'pilar.elizaga@factorial.co',
+                            'tl_name': 'Maria del Pilar Elizaga',
+                            'ae': {
+                                "alejandra.denobregas@factorial.co",
+                                "andrea.alonso@factorial.co",
+                                "cristina.tarres@factorial.co",
+                                "david.donaire@factorial.co",
+                                "julia.flaque@factorial.co",
+                                "manuel.conesa@factorial.co",
+                            },
+                        },
+                        'DS Luis': {
+                            'active': True,
+                            'tl': 'l.rodriguez@factorial.co',
+                            'tl_name': 'Luis Rodriguez de Luz',
+                            'ae': {
+                                "amadeo.cuellar@factorial.co",
+                                "daniela.hernandez@factorial.co",
+                                "iker.gordo@factorial.co",
+                                "irene.orra@factorial.co",
+                                "jordi.reina@factorial.co",
+                                "maria.reina@factorial.co",
+                                "nuria.delacerda@factorial.co",
+                            },
+                        },
+                        'DS Roberto': {
+                            'active': True,
+                            'tl': 'roberto.moran@factorial.co',
+                            'tl_name': 'Roberto Morán',
+                            'ae': {
+                                "beatriz.bravo@factorial.co",
+                                "joan.lorenzo@factorial.co",
+                                "jose.donis@factorial.co",
+                                "pol.bartolome@factorial.co",
+                                "xavier.fortuny@factorial.co",
+                            },
+                        },
                         'DS Mireia': {
                             'active': True,
                             'tl': 'mireia.bach@factorial.co',
@@ -687,45 +774,6 @@ DIRECT_SALES = {
                             },
                             'ae': {"sonia.jimenez@factorial.co"},
                         },
-                        'DS Roberto': {
-                            'active': True,
-                            'tl': 'roberto.moran@factorial.co',
-                            'tl_name': 'Roberto Morán',
-                            'ae': {
-                                "beatriz.bravo@factorial.co",
-                                "joan.lorenzo@factorial.co",
-                                "jose.donis@factorial.co",
-                                "pol.bartolome@factorial.co",
-                                "xavier.fortuny@factorial.co",
-                            },
-                        },
-                        'DS Luis': {
-                            'active': True,
-                            'tl': 'l.rodriguez@factorial.co',
-                            'tl_name': 'Luis Rodriguez de Luz',
-                            'ae': {
-                                "amadeo.cuellar@factorial.co",
-                                "daniela.hernandez@factorial.co",
-                                "iker.gordo@factorial.co",
-                                "irene.orra@factorial.co",
-                                "jordi.reina@factorial.co",
-                                "maria.reina@factorial.co",
-                                "nuria.delacerda@factorial.co",
-                            },
-                        },
-                        'DS Pilar': {
-                            'active': True,
-                            'tl': 'pilar.elizaga@factorial.co',
-                            'tl_name': 'Maria del Pilar Elizaga',
-                            'ae': {
-                                "alejandra.denobregas@factorial.co",
-                                "andrea.alonso@factorial.co",
-                                "cristina.tarres@factorial.co",
-                                "david.donaire@factorial.co",
-                                "julia.flaque@factorial.co",
-                                "manuel.conesa@factorial.co",
-                            },
-                        },
                         'DS Caterina': {
                             'active': True,
                             'tl': 'caterina.peraire@factorial.co',
@@ -739,6 +787,16 @@ DIRECT_SALES = {
                         },
                     },
                 },
+                'DS Zafra': {
+                    'active': True,
+                    'tl': 'eduardo.zafra@factorial.co',
+                    'tl_name': 'Eduardo Zafra',
+                    'ae': {
+                        "belen.lombardia@factorial.co",
+                        "daniel.terrasa@factorial.co",
+                        "yolanda.tello@factorial.co",
+                    },
+                },
                 'DS Monica': {
                     'active': True,
                     'tl': 'monica.ortiz@factorial.co',
@@ -748,16 +806,6 @@ DIRECT_SALES = {
                         "david.clemente@factorial.co",
                         "joane.fuldain@factorial.co",
                         "nerea.urien@factorial.co",
-                    },
-                },
-                'DS Zafra': {
-                    'active': True,
-                    'tl': 'eduardo.zafra@factorial.co',
-                    'tl_name': 'Eduardo Zafra',
-                    'ae': {
-                        "belen.lombardia@factorial.co",
-                        "daniel.terrasa@factorial.co",
-                        "yolanda.tello@factorial.co",
                     },
                 },
             },

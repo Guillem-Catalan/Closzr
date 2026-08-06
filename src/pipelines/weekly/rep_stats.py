@@ -32,12 +32,16 @@ Data sources:
 """
 
 import json
+import re
 import traceback
 from datetime import date, timedelta
 from collections import defaultdict
 
+from uuid import uuid4
+
 from src import schema
 from src.db.client import supabase
+from src.pipelines.weekly.period_window import period_window, PERIOD_TYPES
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -157,6 +161,42 @@ def _inject_period(patterns: list[dict], period: str) -> list[dict]:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# ORGCHART (name ↔ email resolution)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _load_orgchart() -> tuple[dict[str, str], dict[str, str]]:
+    """Load orgchart, return (name→email, email→team) maps.
+    name→email includes ALL reps (active and inactive) for historical data.
+    email→team includes only active reps."""
+    resp = supabase.table("orgchart").select(
+        "email, full_name, team_name, is_active"
+    ).execute()
+    name_to_email: dict[str, str] = {}
+    email_to_team: dict[str, str] = {}
+    for r in (resp.data or []):
+        email = (r.get("email") or "").strip()
+        name = (r.get("full_name") or "").strip()
+        if email and name:
+            name_to_email[name] = email
+        if email and r.get("team_name") and r.get("is_active"):
+            email_to_team[email] = r["team_name"]
+    return name_to_email, email_to_team
+
+
+def _resolve_name_to_email(name: str, name_to_email: dict[str, str]) -> str | None:
+    """Resolve a PAE/audit name to email. Exact match, then unique prefix match."""
+    if name in name_to_email:
+        return name_to_email[name]
+    name_lower = name.lower()
+    candidates = set()
+    for org_name, email in name_to_email.items():
+        org_lower = org_name.lower()
+        if org_lower.startswith(name_lower) or name_lower.startswith(org_lower):
+            candidates.add(email)
+    return candidates.pop() if len(candidates) == 1 else None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # DATA LOADING (one query per table, cached)
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -199,8 +239,27 @@ def _load_data() -> dict:
 
     # C/D: audits
     audit_select = "owner_name, win_rate_score, lead_temperature, discovery_level, biggest_gap, improvement_items_json, red_flags_fired, rep_strengths, created_at"
-    data["pae_audits"] = _fetch_all_paginated(_TBL_PAE_AUDITS, audit_select + ", m_score, e_score, dc_score, dp_score, i_score, c_score, comp_score")
-    data["pbd_audits"] = _fetch_all_paginated(_TBL_PBD_AUDITS, audit_select + ", budget, authority, need, timing")
+    pae_meddic_cols = "meddic_metrics_confidence, meddic_economic_buyer_confidence, meddic_decision_criteria_confidence, meddic_decision_process_confidence, meddic_champion_confidence, meddic_competition_confidence"
+    raw_pae = _fetch_all_paginated(_TBL_PAE_AUDITS, audit_select + ", " + pae_meddic_cols)
+    _PAE_REMAP = {
+        "meddic_metrics_confidence": "m_score",
+        "meddic_economic_buyer_confidence": "e_score",
+        "meddic_decision_criteria_confidence": "dc_score",
+        "meddic_decision_process_confidence": "dp_score",
+        "meddic_champion_confidence": "c_score",
+        "meddic_competition_confidence": "comp_score",
+    }
+    data["pae_audits"] = [{_PAE_REMAP.get(k, k): v for k, v in row.items()} for row in raw_pae]
+
+    pbd_bant_cols = "bant_budget_confidence, bant_authority_confidence, bant_need_confidence, bant_timing_confidence"
+    raw_pbd = _fetch_all_paginated(_TBL_PBD_AUDITS, audit_select + ", " + pbd_bant_cols)
+    _PBD_REMAP = {
+        "bant_budget_confidence": "budget",
+        "bant_authority_confidence": "authority",
+        "bant_need_confidence": "need",
+        "bant_timing_confidence": "timing",
+    }
+    data["pbd_audits"] = [{_PBD_REMAP.get(k, k): v for k, v in row.items()} for row in raw_pbd]
     print(f"      pae_audits: {len(data['pae_audits'])}, pbd_audits: {len(data['pbd_audits'])}")
 
     # E: calls
@@ -257,13 +316,19 @@ def _filter_deals(deals: list[dict], period: str) -> list[dict]:
     return result
 
 
-def _group_deals_by_rep(deals: list[dict]) -> dict[str, list[dict]]:
-    """Group deals by pae email (current owner)."""
+def _group_deals_by_rep(deals: list[dict], name_to_email: dict[str, str]) -> dict[str, list[dict]]:
+    """Group deals by rep email. deals.pae is a NAME — resolve via orgchart."""
     by_rep: dict[str, list[dict]] = defaultdict(list)
     for d in deals:
-        email = (d.get("pae") or "").strip()
-        if email:
-            by_rep[email].append(d)
+        pae = (d.get("pae") or "").strip()
+        if not pae:
+            continue
+        if "@" in pae:
+            by_rep[pae].append(d)
+        else:
+            email = _resolve_name_to_email(pae, name_to_email)
+            if email:
+                by_rep[email].append(d)
     return dict(by_rep)
 
 
@@ -351,6 +416,195 @@ def _upsert_rep_pattern(pattern: dict, today: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# REP SUMMARY helpers (dual-write)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _collect_rep_row(
+    patterns: list[dict],
+    email: str,
+    period_type: str,
+    period_start: date,
+    period_end: date,
+    run_id: str,
+    orgchart_info: dict,
+) -> dict:
+    """Build a rep_summary row from the pattern list for one (email, period).
+
+    Extracts values from pattern dicts by matching pattern_key suffixes.
+    orgchart_info has keys: full_name, team, role, tl_email.
+    """
+    slug = _email_slug(email)
+
+    def _val(stat_name: str):
+        """Find the pattern value for a given stat name."""
+        suffix = f"_{stat_name}_{slug}"
+        for p in patterns:
+            key = p.get("pattern_key", "")
+            if key.endswith(suffix):
+                return p.get("value")
+        return None
+
+    def _json_val(stat_name: str):
+        """Find the pattern and return its value as parsed JSON, or None."""
+        suffix = f"_{stat_name}_{slug}"
+        for p in patterns:
+            key = p.get("pattern_key", "")
+            if key.endswith(suffix):
+                raw = p.get("pattern", "")
+                # For distribution patterns, the value is in the pattern text
+                # but the structured data isn't stored as value. Return None
+                # for JSONB columns — they'll be populated in a follow-up.
+                return p.get("value")
+        return None
+
+    def _sample(stat_name: str) -> int:
+        suffix = f"_{stat_name}_{slug}"
+        for p in patterns:
+            key = p.get("pattern_key", "")
+            if key.endswith(suffix):
+                return p.get("sample_size") or 0
+        return 0
+
+    # Count closed deals from the win_rate pattern's sample_size
+    closed = _sample("win_rate")
+    won_count = 0
+    lost_count = 0
+    # Extract won/lost from win_rate pattern text: "Win rate: X% (N won / M closed)"
+    for p in patterns:
+        key = p.get("pattern_key", "")
+        if key.endswith(f"_win_rate_{slug}"):
+            text = p.get("pattern", "")
+            m = re.search(r"\((\d+)\s*won\s*/\s*(\d+)\s*closed\)", text)
+            if m:
+                won_count = int(m.group(1))
+                lost_count = int(m.group(2)) - won_count
+            break
+
+    row = {
+        "run_id": run_id,
+        "email": email,
+        "full_name": orgchart_info.get("full_name"),
+        "team": orgchart_info.get("team"),
+        "role": orgchart_info.get("role"),
+        "tl_email": orgchart_info.get("tl_email"),
+        "period_type": period_type,
+        "period_start": period_start.isoformat(),
+        "period_end": period_end.isoformat(),
+        # Segment A
+        "win_rate": _val("win_rate"),
+        "avg_cycle_won": _val("avg_cycle_won"),
+        "avg_cycle_lost": _val("avg_cycle_lost"),
+        "cycle_waste_ratio": _val("cycle_waste_ratio"),
+        "slow_deaths": _val("slow_deaths"),
+        "high_conf_losses": _val("high_conf_losses"),
+        "comeback_wins": _val("comeback_wins"),
+        "prob_climb_rate_won": _val("prob_climb_rate_won"),
+        "avg_calls_to_win": _val("avg_calls_to_win"),
+        "avg_calls_to_loss": _val("avg_calls_to_loss"),
+        "avg_deal_size_won": _val("avg_deal_size_won"),
+        "win_rate_rolling_6m": _val("win_rate_rolling_6m"),
+        # Segment B (weekly only — set to None for other periods)
+        "active_deals_count": _val("active_deals_count") if period_type == "weekly" else None,
+        "pipeline_value": _val("pipeline_value") if period_type == "weekly" else None,
+        "avg_deal_age": _val("avg_deal_age") if period_type == "weekly" else None,
+        "stale_deals": _val("stale_deals") if period_type == "weekly" else None,
+        # Segment C
+        "win_rate_score_avg": _val("win_rate_score_avg"),
+        "discovery_level_avg": _val("discovery_level_avg"),
+        "bant_completion_rate": _val("bant_completion_rate"),
+        # Segment E
+        "calls_per_week": _val("calls_per_week"),
+        "calls_per_deal": _val("calls_per_deal"),
+        "avg_call_duration": _val("avg_call_duration"),
+        # Segment F
+        "demo_rate": _val("demo_rate"),
+        "avg_days_to_demo": _val("avg_days_to_demo"),
+        "post_demo_win_rate": _val("post_demo_win_rate"),
+        "demo_to_close_days": _val("demo_to_close_days"),
+        "no_demo_loss_rate": _val("no_demo_loss_rate"),
+        # Segment G
+        "avg_contacts_per_deal": _val("avg_contacts_per_deal"),
+        "multi_thread_rate": _val("multi_thread_rate"),
+        "multi_thread_demo_rate": _val("multi_thread_demo_rate"),
+        # Segment H
+        "sweet_spot_segment": _val("sweet_spot_segment"),
+        # Sample sizes
+        "deals_closed_count": closed,
+        "deals_won_count": won_count,
+        "deals_lost_count": lost_count,
+        "audits_count": _sample("win_rate_score_avg"),
+        "calls_count": _sample("calls_per_week"),
+    }
+
+    # Remove None values — let DB defaults apply
+    return {k: v for k, v in row.items() if v is not None}
+
+
+def _upsert_rep_summary(row: dict):
+    """UPSERT one row into rep_summary. On conflict, update all columns."""
+    try:
+        supabase.table("rep_summary").upsert(
+            row,
+            on_conflict="email,period_type,period_start",
+        ).execute()
+    except Exception as e:
+        print(f"    ! rep_summary upsert failed ({row.get('email')}, {row.get('period_type')}): {e}")
+
+
+def _apply_rep_targets(run_id: str, period_type: str, period_start: date, period_end: date):
+    """For monthly rows, read ae_targets and update rep_summary with target + consecution."""
+    if period_type != "monthly":
+        return
+
+    month_str = period_start.strftime("%Y-%m-01")
+    print(f"    Loading ae_targets for {month_str}...")
+
+    try:
+        targets_resp = supabase.table("ae_targets").select(
+            "email, target"
+        ).eq("month", month_str).execute()
+    except Exception:
+        print("    ! ae_targets table not found — skipping rep targets (PR #43 not merged yet)")
+        return
+
+    targets = {r["email"]: float(r["target"]) for r in (targets_resp.data or []) if r.get("target")}
+    if not targets:
+        print(f"    No targets found for {month_str}")
+        return
+
+    # Load rep_summary rows for this run to get MRR won
+    rows_resp = supabase.table("rep_summary").select(
+        "id, email"
+    ).eq("run_id", run_id).eq("period_type", "monthly").execute()
+
+    updated = 0
+    for row in (rows_resp.data or []):
+        email = row["email"]
+        target = targets.get(email)
+        if target is None:
+            continue
+
+        # Get MRR won for this rep in this period from deals
+        deals_resp = supabase.table("deals").select(
+            "amount"
+        ).eq("pae", email).eq("is_closed_won", True).gte(
+            "close_date", period_start.isoformat()
+        ).lt("close_date", period_end.isoformat()).execute()
+
+        mrr_won = sum(float(d.get("amount") or 0) for d in (deals_resp.data or []))
+        consecution = round(mrr_won / target * 100, 1) if target > 0 else None
+
+        supabase.table("rep_summary").update({
+            "rep_target": target,
+            "mrr_closed_month": mrr_won,
+            "consecution_pct": consecution,
+        }).eq("id", row["id"]).execute()
+        updated += 1
+
+    print(f"    {updated} reps updated with targets")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # SEGMENT A — CLOSING EFFECTIVENESS (~40 stats per rep)
 #
 # Source: deal_trajectories (pae, pbd columns)
@@ -366,16 +620,22 @@ def _upsert_rep_pattern(pattern: dict, today: str):
 #   - stage_conversion_funnel (per-stage conversion for THIS rep)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _compute_segment_a(trajectories: list[dict]) -> list[dict]:
+def _compute_segment_a(trajectories: list[dict], name_to_email: dict[str, str]) -> list[dict]:
     """Closing effectiveness — per rep from trajectories."""
     patterns = []
     by_rep: dict[str, list[dict]] = defaultdict(list)
 
     for t in trajectories:
         for role_col in ("pae", "pbd"):
-            email = (t.get(_TC.get(role_col, role_col)) or "").strip().lower()
-            if email and "@" in email:
-                by_rep[email].append(t)
+            val = (t.get(_TC.get(role_col, role_col)) or "").strip()
+            if not val:
+                continue
+            if "@" in val:
+                by_rep[val.lower()].append(t)
+            else:
+                email = _resolve_name_to_email(val, name_to_email)
+                if email:
+                    by_rep[email].append(t)
 
     for email, deals in by_rep.items():
         slug = _email_slug(email)
@@ -679,18 +939,43 @@ def _compute_segment_a(trajectories: list[dict]) -> list[dict]:
 #   - deals_without_next_meeting
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _compute_segment_b(trajectories: list[dict], deals: list[dict] | None = None) -> list[dict]:
-    """Pipeline health — per rep from active deals + snapshots."""
+def _load_active_deals() -> list[dict]:
+    """Load active (open) deals from deals table for segment B.
+    Same source as the Forecast/Pipeline views."""
+    print("    Loading active deals for segment B (Pipeline Health)...")
+    active = _fetch_all_paginated(
+        _TBL_DEALS,
+        "deal_id, pae, amount, deal_stage, pipeline_name, createdate, "
+        "deal_age_days, is_closed_won",
+        order_col="createdate",
+    )
+    closed_keywords = ("closed won", "closed lost", "lost", "won")
+    result = [
+        d for d in active
+        if (d.get("pipeline_name") or "") in CLOSING_PIPELINES
+        and not d.get("is_closed_won")
+        and not any(kw in (d.get("deal_stage") or "").lower() for kw in closed_keywords)
+    ]
+    print(f"      active deals (closing pipelines): {len(result)}")
+    return result
+
+
+def _compute_segment_b(active_deals: list[dict], name_to_email: dict[str, str]) -> list[dict]:
+    """Pipeline health — per rep from active (open) deals.
+    Reads directly from the deals table (same source as Forecast view)."""
     patterns = []
     by_rep: dict[str, list[dict]] = defaultdict(list)
 
-    for t in trajectories:
-        if t.get(_TC["outcome"]) != "open":
+    for d in active_deals:
+        pae = (d.get("pae") or "").strip()
+        if not pae:
             continue
-        for role_col in ("pae", "pbd"):
-            email = (t.get(_TC.get(role_col, role_col)) or "").strip().lower()
-            if email and "@" in email:
-                by_rep[email].append(t)
+        if "@" in pae:
+            by_rep[pae.lower()].append(d)
+        else:
+            email = _resolve_name_to_email(pae, name_to_email)
+            if email:
+                by_rep[email].append(d)
 
     for email, active in by_rep.items():
         slug = _email_slug(email)
@@ -711,7 +996,7 @@ def _compute_segment_b(trajectories: list[dict], deals: list[dict] | None = None
         })
 
         # ── B.16 pipeline_value ──
-        amounts = [float(d.get(_TC["amount"]) or 0) for d in active if d.get(_TC["amount"])]
+        amounts = [float(d.get("amount") or 0) for d in active if d.get("amount")]
         total_mrr = round(sum(amounts), 2)
         patterns.append({
             "pattern_key": f"rep_pipeline_value_{slug}",
@@ -726,67 +1011,34 @@ def _compute_segment_b(trajectories: list[dict], deals: list[dict] | None = None
         # ── B.17 stale_deals ──
         stale_threshold = 14
         stale_count = 0
-        today = date.today()
+        today_d = date.today()
         for d in active:
-            traj = _parse_json(d.get(_TC["trajectory"]) or [])
-            if isinstance(traj, list) and traj:
-                last_snap = traj[-1] if isinstance(traj[-1], dict) else {}
-                snap_date = last_snap.get("snapshot_date")
-                if snap_date:
-                    try:
-                        sd = date.fromisoformat(str(snap_date)[:10])
-                        if (today - sd).days > stale_threshold:
-                            stale_count += 1
-                    except (ValueError, TypeError):
-                        pass
+            age = d.get("deal_age_days")
+            create = d.get("createdate")
+            if create:
+                try:
+                    created = date.fromisoformat(str(create)[:10])
+                    days_since = (today_d - created).days
+                    if days_since > stale_threshold and not d.get("amount"):
+                        stale_count += 1
+                except (ValueError, TypeError):
+                    pass
         pct_stale = round(stale_count / len(active) * 100, 1) if active else 0
         patterns.append({
             "pattern_key": f"rep_stale_deals_{slug}",
             "pattern_type": "rep_stat",
             "scope": scope,
-            "pattern": f"Stale deals: {stale_count} ({pct_stale}%) — no snapshot in >{stale_threshold} days",
+            "pattern": f"Stale deals: {stale_count} ({pct_stale}%) of {len(active)} active",
             "confidence": 0.90,
             "sample_size": len(active),
             "value": pct_stale,
         })
 
-        # ── B.18 momentum_distribution ──
-        momentum_counts: dict[str, int] = defaultdict(int)
-        for d in active:
-            traj = _parse_json(d.get(_TC["trajectory"]) or [])
-            if isinstance(traj, list) and len(traj) >= 2:
-                probs = [s.get("close_probability") for s in traj[-3:] if isinstance(s, dict) and s.get("close_probability") is not None]
-                if len(probs) >= 2:
-                    delta = probs[-1] - probs[0]
-                    if delta > 5:
-                        momentum_counts["accelerating"] += 1
-                    elif delta < -5:
-                        momentum_counts["decelerating"] += 1
-                    else:
-                        momentum_counts["stable"] += 1
-                else:
-                    momentum_counts["unknown"] += 1
-            else:
-                momentum_counts["unknown"] += 1
-        if active:
-            parts = [f"{k}: {round(v / len(active) * 100)}%" for k, v in sorted(momentum_counts.items())]
-            patterns.append({
-                "pattern_key": f"rep_momentum_distribution_{slug}",
-                "pattern_type": "rep_stat",
-                "scope": scope,
-                "pattern": f"Momentum: {', '.join(parts)} ({len(active)} deals)",
-                "confidence": min(0.80, len(active) / 10),
-                "sample_size": len(active),
-                "value": momentum_counts.get("accelerating", 0),
-            })
-
         # ── B.20 stage_distribution ──
         stage_counts: dict[str, int] = defaultdict(int)
         for d in active:
-            sd = _parse_json(d.get(_TC["stage_dates"]) or {})
-            if isinstance(sd, dict) and sd:
-                last_stage = max(sd.keys(), key=lambda k: str(sd[k].get("entered", "") if isinstance(sd[k], dict) else ""))
-                stage_counts[last_stage] += 1
+            stage = d.get("deal_stage") or "unknown"
+            stage_counts[stage] += 1
         if stage_counts:
             parts = [f"{s}: {c}" for s, c in sorted(stage_counts.items(), key=lambda x: -x[1])[:5]]
             patterns.append({
@@ -799,11 +1051,8 @@ def _compute_segment_b(trajectories: list[dict], deals: list[dict] | None = None
                 "value": None,
             })
 
-        # ── B.22 forecast_category_distribution ──
-        # forecast_category is not in trajectories — skip if not available
-
         # ── B.24 avg_deal_age ──
-        ages = [d[_TC["deal_age_days"]] for d in active if d.get(_TC["deal_age_days"])]
+        ages = [d["deal_age_days"] for d in active if d.get("deal_age_days") and d["deal_age_days"] > 0]
         if ages:
             avg_age = round(sum(ages) / len(ages), 1)
             patterns.append({
@@ -832,25 +1081,28 @@ def _compute_segment_b(trajectories: list[dict], deals: list[dict] | None = None
 #   - win_rate_score avg
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _compute_segment_c(pae_audits: list[dict], pbd_audits: list[dict]) -> list[dict]:
-    """Process quality — per rep from audit scores."""
+def _compute_segment_c(pae_audits: list[dict], pbd_audits: list[dict],
+                       name_to_email: dict[str, str]) -> list[dict]:
+    """Process quality — per rep from audit scores. Resolves owner_name→email."""
     patterns = []
 
-    # PAE audits → MEDDIC scores
+    # PAE audits → MEDDIC scores (group by resolved email)
     pae_by_rep: dict[str, list[dict]] = defaultdict(list)
     for a in pae_audits:
         name = (a.get("owner_name") or "").strip()
         if name:
-            pae_by_rep[name].append(a)
+            email = _resolve_name_to_email(name, name_to_email)
+            if email:
+                pae_by_rep[email].append(a)
 
     meddic_cols = {
         "M": "m_score", "E": "e_score", "DC": "dc_score",
         "DP": "dp_score", "I": "i_score", "C": "c_score", "COMP": "comp_score",
     }
 
-    for rep_name, audits in pae_by_rep.items():
-        slug = _email_slug(rep_name)
-        scope = f"rep_name:{rep_name}"
+    for email, audits in pae_by_rep.items():
+        slug = _email_slug(email)
+        scope = f"rep:{email}"
 
         if len(audits) < 3:
             continue
@@ -900,7 +1152,18 @@ def _compute_segment_c(pae_audits: list[dict], pbd_audits: list[dict]) -> list[d
             })
 
         # ── C.30 discovery_level_avg ──
-        disc_vals = [float(a["discovery_level"]) for a in audits if a.get("discovery_level") is not None]
+        _DISC_MAP = {"None": 0, "Surface": 1, "L1": 2, "Deep": 3}
+        def _disc_score(raw):
+            if raw in _DISC_MAP:
+                return _DISC_MAP[raw]
+            if isinstance(raw, str) and ":" in raw:
+                levels = [int(m) for m in re.findall(r"L(\d)", raw)]
+                return round(sum(levels) / len(levels), 1) if levels else None
+            try:
+                return float(raw)
+            except (ValueError, TypeError):
+                return None
+        disc_vals = [s for a in audits if a.get("discovery_level") is not None for s in [_disc_score(a["discovery_level"])] if s is not None]
         if disc_vals:
             avg_disc = round(sum(disc_vals) / len(disc_vals), 1)
             patterns.append({
@@ -950,11 +1213,13 @@ def _compute_segment_c(pae_audits: list[dict], pbd_audits: list[dict]) -> list[d
     for a in pbd_audits:
         name = (a.get("owner_name") or "").strip()
         if name:
-            pbd_by_rep[name].append(a)
+            email = _resolve_name_to_email(name, name_to_email)
+            if email:
+                pbd_by_rep[email].append(a)
 
-    for rep_name, audits in pbd_by_rep.items():
-        slug = _email_slug(rep_name)
-        scope = f"rep_name:{rep_name}"
+    for email, audits in pbd_by_rep.items():
+        slug = _email_slug(email)
+        scope = f"rep:{email}"
 
         if len(audits) < 3:
             continue
@@ -993,19 +1258,22 @@ def _compute_segment_c(pae_audits: list[dict], pbd_audits: list[dict]) -> list[d
 #   - partner_leverage avg
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _compute_segment_d(pae_audits: list[dict], pbd_audits: list[dict]) -> list[dict]:
-    """Coaching & gaps — per rep from audit qualitative fields."""
+def _compute_segment_d(pae_audits: list[dict], pbd_audits: list[dict],
+                       name_to_email: dict[str, str]) -> list[dict]:
+    """Coaching & gaps — per rep from audit qualitative fields. Resolves owner_name→email."""
     patterns = []
     all_audits_by_rep: dict[str, list[dict]] = defaultdict(list)
 
     for a in pae_audits + pbd_audits:
         name = (a.get("owner_name") or "").strip()
         if name:
-            all_audits_by_rep[name].append(a)
+            email = _resolve_name_to_email(name, name_to_email)
+            if email:
+                all_audits_by_rep[email].append(a)
 
-    for rep_name, audits in all_audits_by_rep.items():
-        slug = _email_slug(rep_name)
-        scope = f"rep_name:{rep_name}"
+    for email, audits in all_audits_by_rep.items():
+        slug = _email_slug(email)
+        scope = f"rep:{email}"
 
         if len(audits) < 3:
             continue
@@ -1591,12 +1859,40 @@ def _compute_segment_l() -> list[dict]:
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════════
 
-def run() -> int:
+def run(run_id: str | None = None, period_type: str | None = None) -> int:
     print("\n  REP STATS: computing per-person patterns...")
     today = date.today().isoformat()
 
+    if run_id is None:
+        run_id = str(uuid4())
+
+    # Determine which periods to compute
+    if period_type:
+        periods_to_run = {period_type: None}  # window computed below
+    else:
+        periods_to_run = PERIODS  # backward-compatible: all three
+
+    name_to_email, _email_to_team = _load_orgchart()
+    print(f"    orgchart: {len(name_to_email)} name→email mappings")
+
+    # Build orgchart info map for rep_summary rows
+    org_resp = supabase.table("orgchart").select(
+        "email, full_name, team_name, role, tl_email, is_active"
+    ).eq("is_active", True).execute()
+    orgchart_map = {}
+    for r in (org_resp.data or []):
+        email = (r.get("email") or "").strip()
+        if email:
+            orgchart_map[email] = {
+                "full_name": r.get("full_name"),
+                "team": r.get("team_name"),
+                "role": r.get("role"),
+                "tl_email": r.get("tl_email"),
+            }
+
     data = _load_data()
     all_deals_raw = _load_deals()
+    active_deals = _load_active_deals()
     all_trajectories = data["trajectories"]
 
     if len(all_trajectories) < 10:
@@ -1613,7 +1909,7 @@ def run() -> int:
         pbd = _filter_audits(data["pbd_audits"], period)
         calls = _filter_calls(data["calls"], period)
         deals = _filter_deals(all_deals_raw, period)
-        deals_by_rep = _group_deals_by_rep(deals)
+        deals_by_rep = _group_deals_by_rep(deals, name_to_email)
         print(f"      deals: {len(deals)} ({len(deals_by_rep)} reps)")
 
         closed_count = sum(1 for t in trajs if t.get(_TC["outcome"]) in ("won", "lost"))
@@ -1621,21 +1917,21 @@ def run() -> int:
 
         # Segment A — Closing Effectiveness (period-filtered closed deals)
         print(f"    [{period}] A. Closing Effectiveness...")
-        all_patterns.extend(_inject_period(_compute_segment_a(trajs), period))
+        all_patterns.extend(_inject_period(_compute_segment_a(trajs, name_to_email), period))
 
         # Segment B — Pipeline Health (ALWAYS current snapshot, no period filter)
         # Only compute once (on the weekly pass) to avoid triplicating identical data
         if period == "weekly":
-            print(f"    [{period}] B. Pipeline Health (live snapshot)...")
-            all_patterns.extend(_inject_period(_compute_segment_b(all_trajectories), period))
+            print(f"    [{period}] B. Pipeline Health (live snapshot from deals table)...")
+            all_patterns.extend(_inject_period(_compute_segment_b(active_deals, name_to_email), period))
 
         # Segment C — Process Quality (period-filtered audits)
         print(f"    [{period}] C. Process Quality...")
-        all_patterns.extend(_inject_period(_compute_segment_c(pae, pbd), period))
+        all_patterns.extend(_inject_period(_compute_segment_c(pae, pbd, name_to_email), period))
 
         # Segment D — Coaching & Gaps (period-filtered audits)
         print(f"    [{period}] D. Coaching & Gaps...")
-        all_patterns.extend(_inject_period(_compute_segment_d(pae, pbd), period))
+        all_patterns.extend(_inject_period(_compute_segment_d(pae, pbd, name_to_email), period))
 
         # Segment E — Activity & Cadence (period-filtered calls)
         print(f"    [{period}] E. Activity & Cadence...")
@@ -1673,6 +1969,39 @@ def run() -> int:
             print(f"    ! upsert failed ({p.get('pattern_key')}): {e}")
 
     print(f"\n    {upserted}/{len(all_patterns)} rep patterns upserted (across {len(PERIODS)} periods)")
+
+    # ── Dual-write: rep_summary ──
+    print("\n  REP SUMMARY: dual-writing to rep_summary table...")
+    summary_count = 0
+    for period in (PERIOD_TYPES if not period_type else [period_type]):
+        p_start, p_end = period_window(period, date.today())
+        prefix = f"rep_{period}_"
+        period_patterns = [p for p in all_patterns if (p.get("pattern_key") or "").startswith(prefix)]
+
+        # Group by email (from scope field)
+        by_email: dict[str, list[dict]] = defaultdict(list)
+        for p in period_patterns:
+            scope = p.get("scope", "")
+            if scope.startswith("rep:") and "@" in scope:
+                by_email[scope[4:]].append(p)
+
+        for email, pats in by_email.items():
+            org_info = orgchart_map.get(email, {})
+            if not org_info:
+                continue
+            row = _collect_rep_row(pats, email, period, p_start, p_end, run_id, org_info)
+            _upsert_rep_summary(row)
+            summary_count += 1
+
+    print(f"    {summary_count} rep_summary rows upserted")
+
+    # Apply rep-level targets for monthly rows
+    for period in (PERIOD_TYPES if not period_type else [period_type]):
+        p_start, p_end = period_window(period, date.today())
+        _apply_rep_targets(run_id, period, p_start, p_end)
+
+    # Store run_id for downstream consumers (team_stats, alerts)
+    run._last_run_id = run_id
     return upserted
 
 
@@ -1709,13 +2038,13 @@ _ALERT_RULES = [
 ]
 
 
-def run_alerts() -> int:
+def run_alerts(run_id: str | None = None, period_type: str | None = None) -> int:
     """Generate coaching alerts by comparing rep stats vs team benchmarks."""
     today = date.today().isoformat()
     print("\n  COACHING ALERTS: generating alerts...")
 
     # Load orgchart
-    org_resp = supabase.table("orgchart").select("email, team_name, is_active").eq("is_active", True).execute()
+    org_resp = supabase.table("orgchart").select("email, full_name, team_name, is_active").eq("is_active", True).execute()
     email_to_team = {r["email"]: r["team_name"] for r in (org_resp.data or [])}
 
     # Load all rep_stat and team_stat patterns
@@ -1736,6 +2065,13 @@ def run_alerts() -> int:
                 break
             offset += 1000
 
+    # Build name→email map from orgchart (segments A-E use rep_name:Name scopes)
+    name_to_email: dict[str, str] = {}
+    for row in (org_resp.data or []):
+        name = (row.get("full_name") or "").strip()
+        if name and row.get("email"):
+            name_to_email[name] = row["email"]
+
     # Index rep stats by (period, email, stat_key)
     rep_index: dict[tuple, dict] = {}
     for r in all_patterns_data:
@@ -1743,13 +2079,20 @@ def run_alerts() -> int:
             continue
         pk = r.get("pattern_key") or ""
         scope = r.get("scope") or ""
-        email = scope[4:] if scope.startswith("rep:") else ""
+        if scope.startswith("rep:") and "@" in scope:
+            email = scope[4:]
+            slug = _email_slug(email)
+        elif scope.startswith("rep:") or scope.startswith("rep_name:"):
+            rep_name = scope.split(":", 1)[1]
+            email = name_to_email.get(rep_name, "")
+            slug = _email_slug(rep_name)
+        else:
+            continue
         if not email:
             continue
         for period in PERIODS:
             prefix = f"rep_{period}_"
             if pk.startswith(prefix):
-                slug = _email_slug(email)
                 after = pk[len(prefix):]
                 if after.endswith("_" + slug):
                     stat_key = after[:-(len(slug) + 1)]
@@ -1797,8 +2140,7 @@ def run_alerts() -> int:
                     r = rep_index.get((period, email, stat_key))
                     if not r or not r.get("pattern"):
                         continue
-                    import re as _re
-                    for match in _re.finditer(r"(\w+):\s*(\d+)%\s*\((\d+)d\)", r.get("pattern", "")):
+                    for match in re.finditer(r"(\w+):\s*(\d+)%\s*\((\d+)d\)", r.get("pattern", "")):
                         bucket, wr_str, n_str = match.group(1), match.group(2), match.group(3)
                         wr_val, n_val = int(wr_str), int(n_str)
                         if wr_val < 5 and n_val >= 10:
@@ -1871,4 +2213,44 @@ def run_alerts() -> int:
             print(f"    ! alert upsert failed ({p.get('pattern_key')}): {e}")
 
     print(f"\n    {upserted}/{len(alert_patterns)} alerts upserted")
+
+    # ── Dual-write: update rep_summary.alerts for this run ──
+    if run_id:
+        print("    Updating rep_summary.alerts...")
+        for period in (PERIODS if not period_type else {period_type: None}):
+            prefix = f"rep_{period}_alert_"
+            period_alerts = [p for p in alert_patterns if (p.get("pattern_key") or "").startswith(prefix)]
+
+            # Group alerts by email
+            alerts_by_email: dict[str, list[dict]] = defaultdict(list)
+            for a in period_alerts:
+                scope = a.get("scope", "")
+                if scope.startswith("rep:") and "@" in scope:
+                    email = scope[4:]
+                    alerts_by_email[email].append({
+                        "alert_type": a.get("pattern_key", "").split("_alert_")[1].rsplit("_", 2)[0] if "_alert_" in a.get("pattern_key", "") else "unknown",
+                        "severity": a.get("value"),
+                        "message": a.get("pattern", ""),
+                    })
+
+            # Update each rep's alerts — set to [] for reps with no alerts
+            p_start, _ = period_window(period, date.today())
+            all_active_reps = set()
+            rows_resp = supabase.table("rep_summary").select(
+                "id, email"
+            ).eq("run_id", run_id).eq("period_type", period).execute()
+
+            for row in (rows_resp.data or []):
+                email = row["email"]
+                all_active_reps.add(email)
+                alerts_json = alerts_by_email.get(email, [])
+                try:
+                    supabase.table("rep_summary").update(
+                        {"alerts": json.dumps(alerts_json, ensure_ascii=False)}
+                    ).eq("id", row["id"]).execute()
+                except Exception as e:
+                    print(f"    ! rep_summary alert update failed ({email}): {e}")
+
+        print(f"    rep_summary.alerts updated for {len(all_active_reps)} reps")
+
     return upserted

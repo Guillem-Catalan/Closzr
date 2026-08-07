@@ -198,8 +198,17 @@ def _fetch_forecasts(year: int, month: int, pipeline_id: str) -> list[dict]:
         if after:
             body["after"] = after
 
-        resp = requests.post(url, headers=headers, json=body, timeout=30)
-        resp.raise_for_status()
+        for attempt in range(3):
+            resp = requests.post(url, headers=headers, json=body, timeout=30)
+            if resp.status_code == 429:
+                wait = int(resp.headers.get("Retry-After", 10))
+                print(f"    rate-limited, waiting {wait}s (attempt {attempt+1}/3)")
+                time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            break
+        else:
+            resp.raise_for_status()
         data = resp.json()
         results.extend(data.get("results", []))
 
@@ -291,9 +300,18 @@ def _upsert_batch(sb: Client, rows: list[dict]) -> int:
     if not rows:
         return 0
 
+    seen: dict[tuple, dict] = {}
+    for r in rows:
+        key = (r["owner_id"], r["month"], r["pipeline_id"], r["submission_type"])
+        if key in seen:
+            seen[key]["forecast_amount"] += r["forecast_amount"]
+        else:
+            seen[key] = dict(r)
+    deduped = list(seen.values())
+
     total = 0
-    for i in range(0, len(rows), BATCH_SIZE):
-        batch = rows[i : i + BATCH_SIZE]
+    for i in range(0, len(deduped), BATCH_SIZE):
+        batch = deduped[i : i + BATCH_SIZE]
         sb.table("forecast_submissions").upsert(
             batch,
             on_conflict="owner_id,month,pipeline_id,submission_type",
@@ -365,7 +383,9 @@ def run(months: list[str] | None = None) -> dict:
         year = int(parts[0])
         month_num = int(parts[1])
 
-        for pipeline_id in PIPELINES:
+        for pi, pipeline_id in enumerate(PIPELINES):
+            if pi > 0 or month_str != months[0]:
+                time.sleep(1)
             print(f"\n  fetching: {month_str} / pipeline={pipeline_id}")
             forecasts = _fetch_forecasts(year, month_num, pipeline_id)
             fetch_count += len(forecasts)
@@ -402,11 +422,14 @@ def run(months: list[str] | None = None) -> dict:
         upserted = _upsert_batch(sb, all_rows)
         print(f"  upserted: {upserted} rows")
 
-    # 6. Insert history
+    # 6. Insert history (non-fatal — table may not exist yet)
     if all_rows:
         print("\ninserting to forecast_submissions_history...")
-        inserted = _insert_history(sb, all_rows)
-        print(f"  inserted: {inserted} history rows")
+        try:
+            inserted = _insert_history(sb, all_rows)
+            print(f"  inserted: {inserted} history rows")
+        except Exception as e:
+            print(f"  skipped history insert: {e}")
 
     elapsed = time.time() - t0
     summary = {

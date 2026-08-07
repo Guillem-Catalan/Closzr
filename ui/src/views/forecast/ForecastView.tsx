@@ -581,7 +581,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
         </div>
 
         {/* Arrow */}
-        <div style={{ display: "flex", alignItems: "center", color: "var(--ink-4)", fontSize: 18, padding: "0 2px" }}>&#x2192;</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-4)", fontSize: 18, padding: "0 2px", flex: "none", width: 28 }}>&#x2192;</div>
 
         {/* Step 2: HS Forecast */}
         <div style={{ flex: 1.2, padding: "14px 16px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", gap: 4, borderLeft: "1px solid var(--line)", borderRight: "1px solid var(--line)" }}>
@@ -602,7 +602,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
         </div>
 
         {/* Arrow */}
-        <div style={{ display: "flex", alignItems: "center", color: "var(--ink-4)", fontSize: 18, padding: "0 2px" }}>&#x2192;</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-4)", fontSize: 18, padding: "0 2px", flex: "none", width: 28 }}>&#x2192;</div>
 
         {/* Step 3: Open Pipeline (clickable — selects m0 panel) */}
         <div
@@ -619,7 +619,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
         </div>
 
         {/* Arrow */}
-        <div style={{ display: "flex", alignItems: "center", color: "var(--ink-4)", fontSize: 18, padding: "0 2px" }}>&#x2192;</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-4)", fontSize: 18, padding: "0 2px", flex: "none", width: 28 }}>&#x2192;</div>
 
         {/* Step 4: Closzr Forecast */}
         <div style={{ flex: 1.2, padding: "14px 16px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", gap: 4, borderLeft: "1px solid var(--line)", borderRight: "1px solid var(--line)" }}>
@@ -633,7 +633,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
         </div>
 
         {/* Arrow */}
-        <div style={{ display: "flex", alignItems: "center", color: "var(--ink-4)", fontSize: 18, padding: "0 2px" }}>&#x2192;</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-4)", fontSize: 18, padding: "0 2px", flex: "none", width: 28 }}>&#x2192;</div>
 
         {/* Step 5: Closed (clickable — selects closed panel) */}
         <div

@@ -106,6 +106,17 @@ export type BenchmarkDeal = {
   pipeline?: string;
 };
 
+export type ForecastSubmission = {
+  owner_email: string | null;
+  team_name: string | null;
+  month: string;
+  pipeline_id: string;
+  forecast_amount: number;
+  submission_type: "rep" | "team";
+  submission_notes: string | null;
+  last_modified: string | null;
+};
+
 export type ForecastData = {
   target: number;
   hsTotal: number;
@@ -125,6 +136,8 @@ export type ForecastData = {
   m0Deals: ForecastDeal[];
   m1Deals: ForecastDeal[];
   m2Deals: ForecastDeal[];
+  submissions: ForecastSubmission[];
+  nameToEmail: Map<string, string>;
 };
 
 export type MethodologyItem = {

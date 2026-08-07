@@ -11,7 +11,7 @@ import { DataContext, type CZData, type DealRow, type FunnelStage, type Forecast
 import { supabase } from "./supabase";
 import { usePermissions, type UserProfile, type Scope } from "../permissions";
 import { PIPELINE_FUNNEL, PIPELINE_ASIDE, stageAbbr, shortStage, CLOSED_WON_STAGES, CLOSED_LOST_STAGES, STAGE_TONES, MEDDIC_AXES, WON_DISPLAY_LABEL, LOST_DISPLAY_LABEL } from "../display";
-import { repNameToEmail } from "./filters";
+import { repNameToEmail, normalize } from "./filters";
 
 // ---- Paginated fetch ----
 async function fetchPaged<T>(table: string, cols: string, filter?: (q: any) => any): Promise<T[]> {
@@ -124,6 +124,17 @@ type RawDealUI = {
 
 type RawTarget = { team: string; month: string; monthly_target: number };
 
+type RawSubmission = {
+  owner_email: string | null;
+  team_name: string | null;
+  month: string;
+  pipeline_id: string;
+  forecast_amount: number;
+  submission_type: "rep" | "team";
+  submission_notes: string | null;
+  last_modified: string | null;
+};
+
 function toDealRow(d: RawDealUI): DealRow & { _macro: string; _amount: number; _closeDate: string | null; _raw: RawDealUI } {
   return {
     id: d.deal_id,
@@ -187,12 +198,24 @@ function toForecastDeal(d: RawDealUI, row: DealRow): ForecastDeal {
 const DEAL_UI_COLS = "deal_id,hs_deal_id,company_name,deal_name_full,stage,macro_stage,pae,pbd,team,mrr,close_probability,close_date,close_date_hs,last_contact_label,trend,is_stale,stale_days,score,bucket,action_priority,action_headline,action_headline_short,action_signal,action_type,action_who,action_due_date,action_due_label,howto_body,deal_summary,deal_assessment,m_score,e_score,dc_score,dp_score,i_score,c_score,m_text,e_text,dc_text,dp_text,i_text,c_text,blockers_count,signals_count,next_steps,forecast_confidence,deal_momentum,estimated_close_date,forecast_reasoning,push_action,forecast_risks,forecast_accelerators,outcome,outcome_summary,employees,forecast_category,deal_age_days,closed_lost_reason,has_meeting_today,full_narrative,analysis_timeline,analysis_what_worked,analysis_what_failed,analysis_could_have_changed,analysis_rep_assessment,analysis_key_people,analysis_products_pitched,analysis_products_missed,analysis_product_assessment,trajectory,interactions,lessons,key_turning_point,pipeline_name";
 
 async function loadData(): Promise<CZData> {
-  const [allDeals, targets] = await Promise.all([
+  const [allDeals, targets, rawSubmissions, orgchartNames] = await Promise.all([
     fetchPaged<RawDealUI>("deal_ui", DEAL_UI_COLS, q => q.not("macro_stage", "is", null)),
     fetchPaged<RawTarget>("forecast_targets", "team,month,monthly_target"),
+    fetchPaged<RawSubmission>("forecast_submissions",
+      "owner_email,team_name,month,pipeline_id,forecast_amount,submission_type,submission_notes,last_modified"),
+    fetchPaged<{ email: string; full_name: string }>("orgchart", "email,full_name",
+      q => q.eq("is_active", true)),
   ]);
 
   console.log(`[loadData] ${allDeals.length} deals from deal_ui`);
+
+  const nameToEmail = new Map<string, string>();
+  for (const o of orgchartNames) {
+    if (o.email && o.full_name) {
+      const key = normalize(o.full_name);
+      if (!nameToEmail.has(key)) nameToEmail.set(key, o.email);
+    }
+  }
 
   const allRows = allDeals.map(toDealRow);
 
@@ -301,6 +324,8 @@ async function loadData(): Promise<CZData> {
     hsDeals, closzrDeals, nextMonthDeals, pushableDeals, closedDeals, lostDeals,
     allDeals: allFcDeals, targets,
     m0Deals, m1Deals, m2Deals,
+    submissions: rawSubmissions,
+    nameToEmail,
   };
 
   // ---- Benchmark (all-time won/lost) ----
@@ -398,7 +423,7 @@ function applyPermissions(data: CZData, profile: UserProfile | null, scope: Scop
   if (profile.accessLevel !== "tree") return data;
   if (scope === "all") return data;
   if (scope === "none") {
-    return { ...data, groups: [], pipeline: [], pipelineAside: [], todos: [], benchmark: { won: [], lost: [] }, forecast: { ...data.forecast, hsDeals: [], closzrDeals: [], nextMonthDeals: [], pushableDeals: [], closedDeals: [], lostDeals: [], allDeals: [], m0Deals: [], m1Deals: [], m2Deals: [] } };
+    return { ...data, groups: [], pipeline: [], pipelineAside: [], todos: [], benchmark: { won: [], lost: [] }, forecast: { ...data.forecast, hsDeals: [], closzrDeals: [], nextMonthDeals: [], pushableDeals: [], closedDeals: [], lostDeals: [], allDeals: [], m0Deals: [], m1Deals: [], m2Deals: [], submissions: [], nameToEmail: new Map() } };
   }
 
   const ownerEmail = profile.email.toLowerCase();
@@ -407,6 +432,12 @@ function applyPermissions(data: CZData, profile: UserProfile | null, scope: Scop
     const email = repNameToEmail(name);
     if (scope === "self") return email === ownerEmail;
     return subtreeSet!.has(email);
+  };
+  const matchesEmail = (email: string | null): boolean => {
+    if (!email) return false;
+    const e = email.toLowerCase();
+    if (scope === "self") return e === ownerEmail;
+    return subtreeSet!.has(e);
   };
   const filterRow = (r: DealRow): boolean => matchesScope(r.owner || "");
   const filterFc = (d: { owner?: string; mrr?: number | null }): boolean => matchesScope(d.owner || "");
@@ -441,11 +472,15 @@ function applyPermissions(data: CZData, profile: UserProfile | null, scope: Scop
       m0Deals: data.forecast.m0Deals.filter(filterFc),
       m1Deals: data.forecast.m1Deals.filter(filterFc),
       m2Deals: data.forecast.m2Deals.filter(filterFc),
+      submissions: data.forecast.submissions.filter(s =>
+        s.submission_type === "team" || matchesEmail(s.owner_email)
+      ),
+      nameToEmail: data.forecast.nameToEmail,
     },
   };
 }
 
-const EMPTY_DATA: CZData = { STAGE, groups: [], nakiva: null, yukAtlas: null, pipeline: [], pipelineAside: [], forecast: { target: 0, hsTotal: 0, closzrTotal: 0, nextMonthTotal: 0, pushableCount: 0, closedTotal: 0, lostTotal: 0, hsDeals: [], closzrDeals: [], nextMonthDeals: [], pushableDeals: [], closedDeals: [], lostDeals: [], allDeals: [], targets: [], m0Deals: [], m1Deals: [], m2Deals: [] }, benchmark: { won: [], lost: [] }, oneOnOne: { reps: [], rep: "", activeDeals: 0, pipeline: 0, top10: [], meddicBase: 0, meddic: [], meddicNote: "", weakness: [], tlActions: [], methodologyOpen: 0, methodology: [] }, todos: [], loading: true };
+const EMPTY_DATA: CZData = { STAGE, groups: [], nakiva: null, yukAtlas: null, pipeline: [], pipelineAside: [], forecast: { target: 0, hsTotal: 0, closzrTotal: 0, nextMonthTotal: 0, pushableCount: 0, closedTotal: 0, lostTotal: 0, hsDeals: [], closzrDeals: [], nextMonthDeals: [], pushableDeals: [], closedDeals: [], lostDeals: [], allDeals: [], targets: [], m0Deals: [], m1Deals: [], m2Deals: [], submissions: [], nameToEmail: new Map() }, benchmark: { won: [], lost: [] }, oneOnOne: { reps: [], rep: "", activeDeals: 0, pipeline: 0, top10: [], meddicBase: 0, meddic: [], meddicNote: "", weakness: [], tlActions: [], methodologyOpen: 0, methodology: [] }, todos: [], loading: true };
 
 // ---- Provider ----
 export function DataProvider({ children }: { children: ReactNode }) {

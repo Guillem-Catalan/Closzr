@@ -241,18 +241,17 @@ def _parse_submissions(
         except (ValueError, TypeError):
             amount = 0.0
 
-        hs_team_id = props.get("hs_team_id") or props.get("hubspot_team_id")
+        hs_team_only = props.get("hs_team_id")
         hs_owner_id = props.get("hubspot_owner_id")
         notes = props.get("hs_submission_notes")
         last_mod = props.get("hs_lastmodifieddate")
 
-        if hs_team_id:
-            # Team submission (TL)
-            tid = str(hs_team_id)
+        if hs_team_only and not hs_owner_id:
+            # TL team submission: hs_team_id present, no hubspot_owner_id
+            tid = str(hs_team_only)
             closzr_team = team_id_map.get(tid)
             if not closzr_team:
-                continue  # Unknown team — skip
-
+                continue
             row = {
                 "owner_id": f"team_{tid}",
                 "owner_email": None,

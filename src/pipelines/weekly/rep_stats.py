@@ -239,14 +239,13 @@ def _load_data() -> dict:
 
     # C/D: audits
     audit_select = "owner_name, win_rate_score, lead_temperature, discovery_level, biggest_gap, improvement_items_json, red_flags_fired, rep_strengths, created_at"
-    pae_meddic_cols = "meddic_metrics_confidence, meddic_economic_buyer_confidence, meddic_decision_criteria_confidence, meddic_decision_process_confidence, meddic_identify_pain_confidence, meddic_champion_confidence, meddic_competition_confidence"
+    pae_meddic_cols = "meddic_metrics_confidence, meddic_economic_buyer_confidence, meddic_decision_criteria_confidence, meddic_decision_process_confidence, meddic_champion_confidence, meddic_competition_confidence"
     raw_pae = _fetch_all_paginated(_TBL_PAE_AUDITS, audit_select + ", " + pae_meddic_cols)
     _PAE_REMAP = {
         "meddic_metrics_confidence": "m_score",
         "meddic_economic_buyer_confidence": "e_score",
         "meddic_decision_criteria_confidence": "dc_score",
         "meddic_decision_process_confidence": "dp_score",
-        "meddic_identify_pain_confidence": "i_score",
         "meddic_champion_confidence": "c_score",
         "meddic_competition_confidence": "comp_score",
     }

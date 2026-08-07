@@ -426,11 +426,14 @@ def run(run_id: str | None = None, period_type: str | None = None) -> int:
             tl_map[team] = email
             tl_name_map[team] = r.get("full_name") or ""
     # Fallback: for teams without an explicit TL, use reports_to of first rep
+    # reports_to is a name — resolve to email via name_to_email
     for r in org_rows:
         team = r.get("team_name")
-        if team and team not in tl_map and r.get("reports_to"):
-            tl_map[team] = r["reports_to"]
-            tl_name_map[team] = email_to_fullname.get(r["reports_to"], "")
+        reports_to_name = (r.get("reports_to") or "").strip()
+        if team and team not in tl_map and reports_to_name:
+            tl_email = name_to_email.get(reports_to_name, "")
+            tl_map[team] = tl_email
+            tl_name_map[team] = reports_to_name
 
     for period in (PERIOD_TYPES if not period_type else [period_type]):
         p_start, p_end = period_window(period, date.today())

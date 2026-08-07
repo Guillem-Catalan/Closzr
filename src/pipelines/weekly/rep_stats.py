@@ -1871,17 +1871,25 @@ def run(run_id: str | None = None, period_type: str | None = None) -> int:
 
     # Build orgchart info map for rep_summary rows
     org_resp = supabase.table("orgchart").select(
-        "email, full_name, team_name, role, tl_email, is_active"
+        "email, full_name, team_name, role, reports_to, is_active"
     ).eq("is_active", True).execute()
+    org_rows = org_resp.data or []
+    # Build reports_to (name) → email lookup for TL resolution
+    _name_to_email_org = {}
+    for r in org_rows:
+        name = (r.get("full_name") or "").strip()
+        if name and r.get("email"):
+            _name_to_email_org[name] = r["email"]
     orgchart_map = {}
-    for r in (org_resp.data or []):
+    for r in org_rows:
         email = (r.get("email") or "").strip()
         if email:
+            tl_name = (r.get("reports_to") or "").strip()
             orgchart_map[email] = {
                 "full_name": r.get("full_name"),
                 "team": r.get("team_name"),
                 "role": r.get("role"),
-                "tl_email": r.get("tl_email"),
+                "tl_email": _name_to_email_org.get(tl_name, ""),
             }
 
     data = _load_data()

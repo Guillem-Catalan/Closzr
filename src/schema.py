@@ -258,6 +258,10 @@ TABLES = {
 
     # ── Factus ──
     "team_snapshots":       {"name": "team_snapshots",       "upsert_key": "tl_email,iso_week,snapshot_day"},
+
+    # ── Forecast submissions ──
+    "forecast_submissions":         {"name": "forecast_submissions",         "upsert_key": "owner_id,month,pipeline_id,submission_type"},
+    "forecast_submissions_history": {"name": "forecast_submissions_history", "upsert_key": None},
 }
 
 

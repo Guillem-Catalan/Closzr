@@ -1,13 +1,14 @@
 /* ============================================================
-   CLOSZR — FORECAST v5
-   KPI cards: Target | M0 (rep/closzr) | M1 | M2 (rep/closzr + pushable) | Closed (won/lost)
+   CLOSZR — FORECAST v6
+   Flow strip: Target → HS Forecast → Open Pipeline → Closzr Forecast → Closed
+   KPI cards: Targets (M0/M1/M2) | M1 detail | M2 detail
    Deal rows unified with Pipeline style
    ============================================================ */
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Icon, Chip, ProbBadge, fmtMRR, MultiSelectTeam } from "../components";
 import { useData } from "../../data/store";
 import type { ForecastDeal, ClosedDeal, LostDeal } from "../../data/store";
-import { hubspotDealUrl, CRM_SHORT, CRM_FORECAST_CATEGORIES, ROLE_LABELS, WON_LABEL, LOST_LABEL, WON_DISPLAY_LABEL } from "../../display";
+import { hubspotDealUrl, CRM_SHORT, CRM_FORECAST_CATEGORIES, ROLE_LABELS, WON_LABEL, LOST_LABEL, WON_DISPLAY_LABEL, TEAM_HIERARCHY } from "../../display";
 import { normalize, distinctTeams, distinctOwners, distinctPipelines, expandTeams } from "../../data/filters";
 import { usePermissions } from "../../permissions";
 import { supabase } from "../../data/supabase";
@@ -34,6 +35,75 @@ function closeDateTone(hs: string | null, claudio: string | null): string {
   const diff = Math.abs((cd.getFullYear() - hd.getFullYear()) * 12 + cd.getMonth() - hd.getMonth());
   if (diff <= 1) return "var(--amber)";
   return "var(--red)";
+}
+
+function filterSubsForMonth(
+  submissions: import("../../data/store").ForecastSubmission[],
+  month: string,
+  pipelineFilters: Set<string>,
+  teamExpanded: Set<string> | null,
+  repFilter: string,
+  nameToEmail: Map<string, string>,
+): import("../../data/store").ForecastSubmission[] {
+  let subs = submissions.filter(s => s.month === month);
+  if (pipelineFilters.size) {
+    const pipeMap = new Map([["Sales Pipeline", "default"], ["Partners Distribution", "11834984"]]);
+    const pids = new Set([...pipelineFilters].map(name => pipeMap.get(name) || name));
+    subs = subs.filter(s => pids.has(s.pipeline_id));
+  }
+  if (teamExpanded) subs = subs.filter(s => s.team_name && teamExpanded.has(s.team_name));
+  if (repFilter) {
+    const repEmail = nameToEmail.get(normalize(repFilter));
+    subs = subs.filter(s => {
+      if (s.submission_type === "team") return true;
+      return !!repEmail && s.owner_email === repEmail;
+    });
+  }
+  return subs;
+}
+
+function computeHierarchicalForecast(
+  subs: import("../../data/store").ForecastSubmission[],
+  teamExpanded: Set<string> | null,
+) {
+  const teamSubs = subs.filter(s => s.submission_type === "team");
+  const repSubs = subs.filter(s => s.submission_type === "rep");
+
+  const teamSubByTeam = new Map<string, number>();
+  for (const s of teamSubs) {
+    if (s.team_name) teamSubByTeam.set(s.team_name, (teamSubByTeam.get(s.team_name) || 0) + s.forecast_amount);
+  }
+
+  const repSumByTeam = new Map<string, number>();
+  for (const s of repSubs) {
+    if (s.team_name) repSumByTeam.set(s.team_name, (repSumByTeam.get(s.team_name) || 0) + s.forecast_amount);
+  }
+
+  const bestForTeam = (team: string): number => {
+    if (teamSubByTeam.has(team)) return teamSubByTeam.get(team)!;
+    const children = TEAM_HIERARCHY[team];
+    if (children?.length) {
+      let sum = repSumByTeam.get(team) || 0;
+      for (const child of children) sum += bestForTeam(child);
+      return sum;
+    }
+    return repSumByTeam.get(team) || 0;
+  };
+
+  const selectedTeams = teamExpanded || new Set([...repSumByTeam.keys(), ...teamSubByTeam.keys()]);
+  const topTeams = [...selectedTeams].filter(t => {
+    for (const [parent, children] of Object.entries(TEAM_HIERARCHY)) {
+      if (children.includes(t) && selectedTeams.has(parent)) return false;
+    }
+    return true;
+  });
+
+  return {
+    total: Math.round(topTeams.reduce((s, t) => s + bestForTeam(t), 0)),
+    repTotal: Math.round(repSubs.reduce((s, sub) => s + sub.forecast_amount, 0)),
+    teamTotal: Math.round(teamSubs.reduce((s, sub) => s + sub.forecast_amount, 0)),
+    hasTeamSub: teamSubs.length > 0,
+  };
 }
 
 function HsLogo({ size = 14 }: { size?: number }) {
@@ -333,6 +403,11 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
   const nmKey = (() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 7); })();
   const m2Key = (() => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 7); })();
 
+  const m0Subs = useMemo(() => filterSubsForMonth(F.submissions, cm, pipelineFilters, teamExpanded, repFilter, F.nameToEmail), [F.submissions, cm, pipelineFilters, teamExpanded, repFilter, F.nameToEmail]);
+  const m0HsForecast = useMemo(() => computeHierarchicalForecast(m0Subs, teamExpanded), [m0Subs, teamExpanded]);
+  const nmSubs = useMemo(() => filterSubsForMonth(F.submissions, nmKey, pipelineFilters, teamExpanded, repFilter, F.nameToEmail), [F.submissions, nmKey, pipelineFilters, teamExpanded, repFilter, F.nameToEmail]);
+  const nmHsForecast = useMemo(() => computeHierarchicalForecast(nmSubs, teamExpanded), [nmSubs, teamExpanded]);
+
   const m0HsTotal = Math.round(fm0.filter(d => d.closeDate?.startsWith(cm)).reduce((s, d) => s + (d.mrr || 0), 0));
   const m0CloszrTotal = Math.round(fm0.filter(d => d.claudioCloseDate?.startsWith(cm)).reduce((s, d) => s + (d.mrr || 0), 0));
   const m1HsTotal = Math.round(fm1.filter(d => d.closeDate?.startsWith(nmKey)).reduce((s, d) => s + (d.mrr || 0), 0));
@@ -495,71 +570,124 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
         </label>
       </div>
 
-      {/* KPI Cards */}
-      <div className="cz-fc-kpis" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
-        {/* Target */}
+      {/* Flow Strip — 5 steps: Target → HS Forecast → Open Pipeline → Closzr Forecast → Closed */}
+      <div style={{ display: "flex", alignItems: "stretch", border: "1px solid var(--line)", borderRadius: "var(--r-sm)", background: "var(--card)", marginBottom: 10, overflow: "hidden" }}>
+        {/* Step 1: Target */}
+        <div style={{ flex: 1, padding: "14px 16px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", gap: 4 }}>
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--ink-3)" }}>
+            M0 / {monthLabel(0).toUpperCase()} / TARGET
+          </span>
+          <EditableTarget value={target} teamFilter={singleTeamFilter} targets={F.targets} teams={teams} canEdit={canEditTarget && teamFilters.size <= 1} fontSize={22} />
+        </div>
+
+        {/* Arrow */}
+        <div style={{ display: "flex", alignItems: "center", color: "var(--ink-4)", fontSize: 18, padding: "0 2px" }}>&#x2192;</div>
+
+        {/* Step 2: HS Forecast */}
+        <div style={{ flex: 1.2, padding: "14px 16px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", gap: 4, borderLeft: "1px solid var(--line)", borderRight: "1px solid var(--line)" }}>
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "#ff7a59", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+            <HsLogo size={12} /> HS Forecast
+          </span>
+          <span className="display" style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-.02em", color: "#ff7a59" }}>
+            {fmtEur(m0HsForecast.total)}
+          </span>
+          {target > 0 && (
+            <span style={{ fontSize: 12, fontWeight: 700, color: pctTone(pct(m0HsForecast.total, target)) }}>
+              {pct(m0HsForecast.total, target)}%
+            </span>
+          )}
+          <span style={{ fontSize: 10, color: "var(--ink-3)" }}>
+            Rep sum: {fmtEur(m0HsForecast.repTotal)}
+          </span>
+        </div>
+
+        {/* Arrow */}
+        <div style={{ display: "flex", alignItems: "center", color: "var(--ink-4)", fontSize: 18, padding: "0 2px" }}>&#x2192;</div>
+
+        {/* Step 3: Open Pipeline (clickable — selects m0 panel) */}
+        <div
+          onClick={() => toggle("m0")}
+          style={{ flex: 1.2, padding: "14px 16px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", gap: 4, borderLeft: "1px solid var(--line)", borderRight: "1px solid var(--line)", cursor: "pointer", background: panel === "m0" ? "var(--card-2)" : undefined, transition: "background .15s" }}
+        >
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--ink-2)" }}>Open Pipeline</span>
+          <span className="display" style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-.02em" }}>{fmtEur(m0HsTotal)}</span>
+          {target > 0 && (
+            <span style={{ fontSize: 12, fontWeight: 700, color: pctTone(pct(m0HsTotal, target)) }}>
+              {pct(m0HsTotal, target)}%
+            </span>
+          )}
+        </div>
+
+        {/* Arrow */}
+        <div style={{ display: "flex", alignItems: "center", color: "var(--ink-4)", fontSize: 18, padding: "0 2px" }}>&#x2192;</div>
+
+        {/* Step 4: Closzr Forecast */}
+        <div style={{ flex: 1.2, padding: "14px 16px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", gap: 4, borderLeft: "1px solid var(--line)", borderRight: "1px solid var(--line)" }}>
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--indigo)" }}>Closzr Forecast</span>
+          <span className="display" style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-.02em", color: "var(--indigo)" }}>{fmtEur(m0CloszrTotal)}</span>
+          {target > 0 && (
+            <span style={{ fontSize: 12, fontWeight: 700, color: pctTone(pct(m0CloszrTotal, target)) }}>
+              {pct(m0CloszrTotal, target)}%
+            </span>
+          )}
+        </div>
+
+        {/* Arrow */}
+        <div style={{ display: "flex", alignItems: "center", color: "var(--ink-4)", fontSize: 18, padding: "0 2px" }}>&#x2192;</div>
+
+        {/* Step 5: Closed (clickable — selects closed panel) */}
+        <div
+          onClick={() => toggle("closed")}
+          style={{ flex: 1.3, padding: "14px 16px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", gap: 4, borderLeft: "1px solid var(--line)", cursor: "pointer", background: panel === "closed" ? "var(--card-2)" : undefined, transition: "background .15s" }}
+        >
+          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: closedTotal > 0 ? "var(--green)" : "var(--ink-2)" }}>Closed</span>
+          <span className="display" style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-.02em", color: closedTotal > 0 ? "var(--green)" : "var(--ink)" }}>{fmtEur(closedTotal)}</span>
+          {target > 0 && (
+            <span style={{ fontSize: 12, fontWeight: 700, color: pctTone(pct(closedTotal, target)) }}>
+              {pct(closedTotal, target)}%
+            </span>
+          )}
+          <span style={{ fontSize: 10, color: "var(--ink-3)" }}>
+            {fClosed.length} {WON_LABEL.toLowerCase()} · {fLost.length} {LOST_LABEL.toLowerCase()} · {fmtEur(lostTotal)}
+          </span>
+        </div>
+      </div>
+
+      {/* KPI Cards — 3 columns: Targets | M1 | M2 */}
+      <div className="cz-fc-kpis" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+        {/* Targets card */}
         <div className="cz-fc-kpi" style={{ textAlign: "center", justifyContent: "center" }}>
-          <span style={{ ...kpiTitle, color: "var(--ink-2)" }}>Target</span>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 6 }}>
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
-              <span style={{ fontSize: 10, color: "var(--indigo)", fontWeight: 800, textTransform: "uppercase", letterSpacing: ".04em" }}>M0</span>
-              <EditableTarget value={target} teamFilter={singleTeamFilter} targets={F.targets} teams={teams} canEdit={canEditTarget && teamFilters.size <= 1} fontSize={20} />
+          <span style={{ ...kpiTitle, color: "var(--ink-2)" }}>Targets</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", padding: "0 12px" }}>
+              <span style={{ fontSize: 11, color: "var(--indigo)", fontWeight: 800, textTransform: "uppercase", letterSpacing: ".04em" }}>M0</span>
+              <EditableTarget value={target} teamFilter={singleTeamFilter} targets={F.targets} teams={teams} canEdit={canEditTarget && teamFilters.size <= 1} fontSize={18} />
             </div>
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
-              <span style={{ fontSize: 10, color: "var(--ink-3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em" }}>M1</span>
-              <span className="display" style={{ fontSize: 14, fontWeight: 700, color: "var(--ink-3)" }}>{fmtEur(targetM1)}</span>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", padding: "0 12px" }}>
+              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em" }}>M1</span>
+              <span className="display" style={{ fontSize: 16, fontWeight: 700, color: "var(--ink-3)" }}>{fmtEur(targetM1)}</span>
             </div>
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
-              <span style={{ fontSize: 10, color: "var(--ink-3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em" }}>M2</span>
-              <span className="display" style={{ fontSize: 14, fontWeight: 700, color: "var(--ink-3)" }}>{fmtEur(targetM2)}</span>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", padding: "0 12px" }}>
+              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".04em" }}>M2</span>
+              <span className="display" style={{ fontSize: 16, fontWeight: 700, color: "var(--ink-3)" }}>{fmtEur(targetM2)}</span>
             </div>
           </div>
         </div>
 
-        {/* M0 */}
-        <button className={"cz-fc-kpi clickable" + (panel === "m0" ? " sel" : "")} onClick={() => toggle("m0")} style={{ textAlign: "center" }}>
-          <span style={{ ...kpiTitle, color: "var(--indigo)" }}>M0 · {monthLabel(0)}</span>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
-            <div style={{ flex: 1, textAlign: "center" }}>
-              <div className="cz-fc-kpi-v display" style={{ fontSize: 18 }}>{fmtEur(m0HsTotal)}</div>
-              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>{m0Split.rep} deals</span>
-            </div>
-            <span style={{ color: "var(--ink-4)" }}>|</span>
-            <div style={{ flex: 1, textAlign: "center" }}>
-              <div className="cz-fc-kpi-v display" style={{ fontSize: 18, color: "var(--indigo)" }}>{fmtEur(m0CloszrTotal)}</div>
-              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>{m0Split.closzr} deals</span>
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-            <span style={{ flex: 1, height: 1, background: "var(--line)" }} />
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--ink-3)", whiteSpace: "nowrap" }}>{m0Split.shared} shared</span>
-            <span style={{ flex: 1, height: 1, background: "var(--line)" }} />
-          </div>
-          {target > 0 && (
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 2 }}>
-              <div style={{ flex: 1, textAlign: "center" }}>
-                <span className="display" style={{ fontSize: 18, fontWeight: 700, color: pctTone(pct(m0HsTotal, target)) }}>{pct(m0HsTotal, target)}%</span>
-              </div>
-              <span style={{ color: "var(--ink-4)" }}>|</span>
-              <div style={{ flex: 1, textAlign: "center" }}>
-                <span className="display" style={{ fontSize: 18, fontWeight: 700, color: pctTone(pct(m0CloszrTotal, target)) }}>{pct(m0CloszrTotal, target)}%</span>
-              </div>
-            </div>
-          )}
-        </button>
-
-        {/* M1 */}
+        {/* M1 card */}
         <button className={"cz-fc-kpi clickable" + (panel === "m1" ? " sel" : "")} onClick={() => toggle("m1")} style={{ textAlign: "center" }}>
-          <span style={{ ...kpiTitle, color: "var(--ink-2)" }}>M1 · {monthLabel(1)}</span>
+          <span style={{ ...kpiTitle, color: "var(--ink-2)" }}>M1 · {monthLabel(1).toUpperCase()}</span>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
             <div style={{ flex: 1, textAlign: "center" }}>
               <div className="cz-fc-kpi-v display" style={{ fontSize: 18 }}>{fmtEur(m1HsTotal)}</div>
-              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>{m1Split.rep} deals</span>
+              <span style={{ fontSize: 10.5, color: "var(--ink-3)", fontWeight: 600 }}>Open Pipeline</span>
+              <div style={{ fontSize: 11, color: "var(--ink-3)" }}>{m1Split.rep} deals</div>
             </div>
             <span style={{ color: "var(--ink-4)" }}>|</span>
             <div style={{ flex: 1, textAlign: "center" }}>
               <div className="cz-fc-kpi-v display" style={{ fontSize: 18, color: "var(--indigo)" }}>{fmtEur(m1CloszrTotal)}</div>
-              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>{m1Split.closzr} deals</span>
+              <span style={{ fontSize: 10.5, color: "var(--ink-3)", fontWeight: 600 }}>Closzr</span>
+              <div style={{ fontSize: 11, color: "var(--ink-3)" }}>{m1Split.closzr} deals</div>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
@@ -567,31 +695,22 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
             <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--ink-3)", whiteSpace: "nowrap" }}>{m1Split.shared} shared</span>
             <span style={{ flex: 1, height: 1, background: "var(--line)" }} />
           </div>
-          {targetM1 > 0 && (
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 2 }}>
-              <div style={{ flex: 1, textAlign: "center" }}>
-                <span className="display" style={{ fontSize: 18, fontWeight: 700, color: pctTone(pct(m1HsTotal, targetM1)) }}>{pct(m1HsTotal, targetM1)}%</span>
-              </div>
-              <span style={{ color: "var(--ink-4)" }}>|</span>
-              <div style={{ flex: 1, textAlign: "center" }}>
-                <span className="display" style={{ fontSize: 18, fontWeight: 700, color: pctTone(pct(m1CloszrTotal, targetM1)) }}>{pct(m1CloszrTotal, targetM1)}%</span>
-              </div>
-            </div>
-          )}
         </button>
 
-        {/* M2 / Pushable */}
+        {/* M2 card */}
         <button className={"cz-fc-kpi clickable" + (panel === "m2" ? " sel amber" : "")} onClick={() => toggle("m2")} style={{ textAlign: "center" }}>
-          <span style={{ ...kpiTitle, color: "var(--ink-2)" }}>M2 · {monthLabel(2)}</span>
+          <span style={{ ...kpiTitle, color: "var(--ink-2)" }}>M2 · {monthLabel(2).toUpperCase()}</span>
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
             <div style={{ flex: 1, textAlign: "center" }}>
               <div className="cz-fc-kpi-v display" style={{ fontSize: 18 }}>{fmtEur(m2HsTotal)}</div>
-              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>{m2Split.rep} deals</span>
+              <span style={{ fontSize: 10.5, color: "var(--ink-3)", fontWeight: 600 }}>Open Pipeline</span>
+              <div style={{ fontSize: 11, color: "var(--ink-3)" }}>{m2Split.rep} deals</div>
             </div>
             <span style={{ color: "var(--ink-4)" }}>|</span>
             <div style={{ flex: 1, textAlign: "center" }}>
               <div className="cz-fc-kpi-v display" style={{ fontSize: 18, color: "var(--indigo)" }}>{fmtEur(m2CloszrTotal)}</div>
-              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>{m2Split.closzr} deals</span>
+              <span style={{ fontSize: 10.5, color: "var(--ink-3)", fontWeight: 600 }}>Closzr</span>
+              <div style={{ fontSize: 11, color: "var(--ink-3)" }}>{m2Split.closzr} deals</div>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
@@ -601,37 +720,8 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
           </div>
           {m2PushCount > 0 && (
             <div style={{ fontSize: 11, fontWeight: 700, color: "var(--amber-ink)", background: "var(--amber-tint)", padding: "3px 10px", borderRadius: "var(--r-pill)", alignSelf: "center", marginTop: 4 }}>
-              {m2PushCount} deals M2 → M1 · {fmtEur(m2PushVal)}
+              {m2PushCount} deals M2 &#x2192; M1 · {fmtEur(m2PushVal)}
             </div>
-          )}
-        </button>
-
-        {/* Closed */}
-        <button className={"cz-fc-kpi clickable" + (panel === "closed" ? " sel green" : "")} onClick={() => toggle("closed")} style={{ textAlign: "center" }}>
-          <span style={{ ...kpiTitle, color: "var(--ink-2)" }}>Closed · {monthLabel(0)}</span>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
-            <div style={{ flex: 1, textAlign: "center" }}>
-              <div className="cz-fc-kpi-v display" style={{ fontSize: 18, color: "var(--green)" }}>{fmtEur(closedTotal)}</div>
-              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>{fClosed.length} {WON_LABEL.toLowerCase()}</span>
-            </div>
-            <span style={{ color: "var(--ink-4)" }}>|</span>
-            <div style={{ flex: 1, textAlign: "center" }}>
-              <div className="cz-fc-kpi-v display" style={{ fontSize: 18, color: "var(--red)" }}>{fmtEur(lostTotal)}</div>
-              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>{fLost.length} {LOST_LABEL.toLowerCase()}</span>
-            </div>
-          </div>
-          {target > 0 && (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                <span style={{ flex: 1, height: 1, background: "var(--line)" }} />
-              </div>
-              <div style={{ position: "relative", height: 6, background: "var(--card-2)", borderRadius: 3, overflow: "hidden", marginTop: 4 }}>
-                <div style={{ height: "100%", width: `${Math.min(pct(closedTotal, target), 100)}%`, background: "var(--green)", borderRadius: 3, transition: "width .4s ease" }} />
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--green)", marginTop: 2 }}>
-                {fmtEur(closedTotal)} / {fmtEur(target)} · {pct(closedTotal, target)}%
-              </span>
-            </>
           )}
         </button>
       </div>

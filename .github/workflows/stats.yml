@@ -22,7 +22,7 @@ on:
           - quarterly
 
 concurrency:
-  group: stats-${{ github.event.inputs.period_type || 'scheduled' }}
+  group: stats-${{ github.event.inputs.period_type || github.event.schedule || 'manual' }}
   cancel-in-progress: true
 
 jobs:

@@ -197,6 +197,11 @@ def _compute_distribution_metrics(rep_rows: list[dict]) -> dict:
         result["avg_meddic_avg"] = round(mean(meddic_totals), 1)
         result["avg_meddic_p25"] = round(_percentile(meddic_totals, 25), 1)
         result["avg_meddic_p75"] = round(_percentile(meddic_totals, 75), 1)
+    elif rep_rows:
+        # JSONB columns (incl. avg_meddic_per_pillar) not yet populated in
+        # rep_summary during dual-write phase — MEDDIC distributions will be
+        # empty until Phase 4 adds structured data extraction.
+        print("      MEDDIC distribution skipped — avg_meddic_per_pillar not populated in rep_summary yet")
 
     # Simple averages for other metrics
     for field in ("demo_rate", "post_demo_win_rate", "multi_thread_rate"):

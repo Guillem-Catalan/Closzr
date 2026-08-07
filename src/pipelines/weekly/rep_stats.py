@@ -34,7 +34,7 @@ Data sources:
 import json
 import re
 import traceback
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from collections import defaultdict
 
 from uuid import uuid4
@@ -496,6 +496,7 @@ def _collect_rep_row(
         "pipeline_value": _val("pipeline_value") if period_type == "weekly" else None,
         "avg_deal_age": _val("avg_deal_age") if period_type == "weekly" else None,
         "stale_deals": _val("stale_deals") if period_type == "weekly" else None,
+        "pipeline_snapshot_at": datetime.now(timezone.utc).isoformat() if period_type == "weekly" else None,
         # Segment C
         "win_rate_score_avg": _val("win_rate_score_avg"),
         "discovery_level_avg": _val("discovery_level_avg"),
@@ -1964,6 +1965,11 @@ def run(run_id: str | None = None, period_type: str | None = None) -> int:
     print(f"\n    {upserted}/{len(all_patterns)} rep patterns upserted (across {len(PERIODS)} periods)")
 
     # ── Dual-write: rep_summary ──
+    # NOTE: During dual-write phase, monthly/quarterly patterns use trailing
+    # windows (28d/90d) but rep_summary rows are labeled with calendar period
+    # dates from period_window(). This mismatch is intentional — the calendar
+    # labels will become authoritative when computation switches to
+    # calendar-anchored windows. Weekly is already aligned (both use 7d).
     print("\n  REP SUMMARY: dual-writing to rep_summary table...")
     summary_count = 0
     for period in (PERIOD_TYPES if not period_type else [period_type]):

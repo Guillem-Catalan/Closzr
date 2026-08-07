@@ -301,9 +301,10 @@ def build_team_pipelines() -> dict:
 
 
 def build_team_hierarchy() -> dict:
-    """Derive parent → children from org.DIRECT_SALES structure."""
+    """Derive parent → children from org.DIRECT_SALES + PARTNERS_ORGCHART structures."""
     hierarchy = {}
     _walk_hierarchy(org.DIRECT_SALES.get("teams", {}), hierarchy)
+    _walk_hierarchy(org.PARTNERS_ORGCHART, hierarchy)
     return hierarchy
 
 

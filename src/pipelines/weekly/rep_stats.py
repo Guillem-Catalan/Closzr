@@ -239,13 +239,14 @@ def _load_data() -> dict:
 
     # C/D: audits
     audit_select = "owner_name, win_rate_score, lead_temperature, discovery_level, biggest_gap, improvement_items_json, red_flags_fired, rep_strengths, created_at"
-    pae_meddic_cols = "meddic_metrics_confidence, meddic_economic_buyer_confidence, meddic_decision_criteria_confidence, meddic_decision_process_confidence, meddic_champion_confidence, meddic_competition_confidence"
+    pae_meddic_cols = "meddic_metrics_confidence, meddic_economic_buyer_confidence, meddic_decision_criteria_confidence, meddic_decision_process_confidence, meddic_identify_pain_confidence, meddic_champion_confidence, meddic_competition_confidence"
     raw_pae = _fetch_all_paginated(_TBL_PAE_AUDITS, audit_select + ", " + pae_meddic_cols)
     _PAE_REMAP = {
         "meddic_metrics_confidence": "m_score",
         "meddic_economic_buyer_confidence": "e_score",
         "meddic_decision_criteria_confidence": "dc_score",
         "meddic_decision_process_confidence": "dp_score",
+        "meddic_identify_pain_confidence": "i_score",
         "meddic_champion_confidence": "c_score",
         "meddic_competition_confidence": "comp_score",
     }
@@ -444,19 +445,6 @@ def _collect_rep_row(
                 return p.get("value")
         return None
 
-    def _json_val(stat_name: str):
-        """Find the pattern and return its value as parsed JSON, or None."""
-        suffix = f"_{stat_name}_{slug}"
-        for p in patterns:
-            key = p.get("pattern_key", "")
-            if key.endswith(suffix):
-                raw = p.get("pattern", "")
-                # For distribution patterns, the value is in the pattern text
-                # but the structured data isn't stored as value. Return None
-                # for JSONB columns — they'll be populated in a follow-up.
-                return p.get("value")
-        return None
-
     def _sample(stat_name: str) -> int:
         suffix = f"_{stat_name}_{slug}"
         for p in patterns:
@@ -551,7 +539,13 @@ def _upsert_rep_summary(row: dict):
         print(f"    ! rep_summary upsert failed ({row.get('email')}, {row.get('period_type')}): {e}")
 
 
-def _apply_rep_targets(run_id: str, period_type: str, period_start: date, period_end: date):
+def _apply_rep_targets(
+    run_id: str,
+    period_type: str,
+    period_start: date,
+    period_end: date,
+    email_to_name: dict[str, str],
+):
     """For monthly rows, read ae_targets and update rep_summary with target + consecution."""
     if period_type != "monthly":
         return
@@ -584,10 +578,15 @@ def _apply_rep_targets(run_id: str, period_type: str, period_start: date, period
         if target is None:
             continue
 
+        # deals.pae is a NAME field, not email — reverse-lookup the rep's name
+        rep_name = email_to_name.get(email)
+        if not rep_name:
+            continue
+
         # Get MRR won for this rep in this period from deals
         deals_resp = supabase.table("deals").select(
             "amount"
-        ).eq("pae", email).eq("is_closed_won", True).gte(
+        ).eq("pae", rep_name).eq("is_closed_won", True).gte(
             "close_date", period_start.isoformat()
         ).lt("close_date", period_end.isoformat()).execute()
 
@@ -1866,12 +1865,6 @@ def run(run_id: str | None = None, period_type: str | None = None) -> int:
     if run_id is None:
         run_id = str(uuid4())
 
-    # Determine which periods to compute
-    if period_type:
-        periods_to_run = {period_type: None}  # window computed below
-    else:
-        periods_to_run = PERIODS  # backward-compatible: all three
-
     name_to_email, _email_to_team = _load_orgchart()
     print(f"    orgchart: {len(name_to_email)} name→email mappings")
 
@@ -1996,9 +1989,10 @@ def run(run_id: str | None = None, period_type: str | None = None) -> int:
     print(f"    {summary_count} rep_summary rows upserted")
 
     # Apply rep-level targets for monthly rows
+    email_to_name = {v: k for k, v in name_to_email.items()}
     for period in (PERIOD_TYPES if not period_type else [period_type]):
         p_start, p_end = period_window(period, date.today())
-        _apply_rep_targets(run_id, period, p_start, p_end)
+        _apply_rep_targets(run_id, period, p_start, p_end, email_to_name)
 
     # Store run_id for downstream consumers (team_stats, alerts)
     run._last_run_id = run_id
@@ -2217,6 +2211,7 @@ def run_alerts(run_id: str | None = None, period_type: str | None = None) -> int
     # ── Dual-write: update rep_summary.alerts for this run ──
     if run_id:
         print("    Updating rep_summary.alerts...")
+        all_active_reps = set()
         for period in (PERIODS if not period_type else {period_type: None}):
             prefix = f"rep_{period}_alert_"
             period_alerts = [p for p in alert_patterns if (p.get("pattern_key") or "").startswith(prefix)]
@@ -2235,7 +2230,6 @@ def run_alerts(run_id: str | None = None, period_type: str | None = None) -> int
 
             # Update each rep's alerts — set to [] for reps with no alerts
             p_start, _ = period_window(period, date.today())
-            all_active_reps = set()
             rows_resp = supabase.table("rep_summary").select(
                 "id, email"
             ).eq("run_id", run_id).eq("period_type", period).execute()

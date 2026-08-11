@@ -30,14 +30,10 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 SRC_DIR = ROOT_DIR / "src"
 PROMPTS_DIR = ROOT_DIR / "prompts"
 
-# Azure AI Foundry — GPT 5.6 via OpenAI SDK
-MODEL_TERRA = "claudio-gpt-5.6-terra"
-MODEL_SOL = "claudio-gpt-5.6-sol"
-MODEL_DEFAULT = MODEL_TERRA
-
-# Aliases used by pipelines
-MODEL_SONNET = MODEL_TERRA
-MODEL_OPUS = MODEL_SOL
+# Azure AI Foundry — Claude 4 via OpenAI SDK
+MODEL_SONNET = "claudio-claude-sonnet-4-6"
+MODEL_OPUS = "claudio-claude-opus-4-6"
+MODEL_DEFAULT = MODEL_SONNET
 
 
 # ══════════════════════════════════════════════════════════════════════════════

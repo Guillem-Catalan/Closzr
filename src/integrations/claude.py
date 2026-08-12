@@ -1,7 +1,8 @@
 import os
+import re
 import time
 
-from openai import AzureOpenAI
+from anthropic import AnthropicFoundry
 
 from src.config2 import (
     MODEL_DEFAULT,
@@ -9,12 +10,19 @@ from src.config2 import (
     CLAUDE_DEFAULT_MAX_TOKENS,
     CLAUDE_RETRY_BACKOFF_BASE,
 )
-from src.org import API_ENDPOINTS
 
-_client = AzureOpenAI(
-    azure_endpoint=os.environ["AZURE_CLAUDE_ENDPOINT"],
+
+def _resource_name() -> str:
+    endpoint = os.environ.get("AZURE_CLAUDE_ENDPOINT", "")
+    m = re.match(r"https://([^.]+)\.", endpoint)
+    if m:
+        return m.group(1)
+    return endpoint
+
+
+_client = AnthropicFoundry(
     api_key=os.environ["AZURE_CLAUDE_API_KEY"],
-    api_version=API_ENDPOINTS["azure_api_version"],
+    resource=_resource_name(),
 )
 
 
@@ -32,15 +40,15 @@ def analyze(
 
     for attempt in range(CLAUDE_MAX_RETRIES):
         try:
-            response = _client.chat.completions.create(
+            response = _client.messages.create(
                 model=use_model,
                 max_tokens=use_tokens,
+                system=system_prompt,
                 messages=[
-                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
             )
-            return response.choices[0].message.content.strip()
+            return response.content[0].text
         except Exception as e:
             last_err = e
             wait = CLAUDE_RETRY_BACKOFF_BASE * (2 ** attempt)

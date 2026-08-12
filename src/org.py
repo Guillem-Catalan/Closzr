@@ -1281,8 +1281,6 @@ API_ENDPOINTS = {
     "slack":            "https://slack.com/api",
     "google_token":     "https://oauth2.googleapis.com/token",
     "google_calendar_scope": "https://www.googleapis.com/auth/calendar.readonly",
-    "azure_api_version": "2024-12-01-preview",
-    "azure_auth_header": "api-key",
 
     # CRM API paths (HubSpot-specific)
     "deal_search":              "/crm/v3/objects/deals/search",
@@ -1310,7 +1308,7 @@ ENV_VARS = {
     "GCAL_CLIENT_ID":        "Google OAuth client ID (Google Cloud Console → Credentials)",
     "GCAL_CLIENT_SECRET":    "Google OAuth client secret",
     "GCAL_REFRESH_TOKEN":    "Google OAuth refresh token (generated during initial auth flow)",
-    "AZURE_CLAUDE_ENDPOINT": "Azure AI Foundry endpoint (e.g. https://xxx.cognitiveservices.azure.com/)",
+    "AZURE_CLAUDE_ENDPOINT": "Azure AI Foundry endpoint (e.g. https://xxx.services.ai.azure.com/anthropic)",
     "SUPABASE_URL":          "Supabase project URL (e.g. https://xxx.supabase.co)",
     "SUPABASE_KEY":          "Supabase service role key",
 }

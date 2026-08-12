@@ -30,7 +30,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 SRC_DIR = ROOT_DIR / "src"
 PROMPTS_DIR = ROOT_DIR / "prompts"
 
-# Azure AI Foundry — Claude 4 via OpenAI SDK
+# Azure AI Foundry — Claude 4 via Anthropic SDK
 MODEL_SONNET = "claudio-claude-sonnet-4-6"
 MODEL_OPUS = "claudio-claude-opus-4-6"
 MODEL_DEFAULT = MODEL_SONNET

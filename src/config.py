@@ -43,7 +43,7 @@ TIMEZONES = {
     "America/Mexico_City": ZoneInfo("America/Mexico_City"),  # México
 }
 
-# Azure AI Foundry — Claude 4 via OpenAI SDK
+# Azure AI Foundry — Claude 4 via Anthropic SDK
 MODEL_SONNET = "claudio-claude-sonnet-4-6"
 MODEL_OPUS = "claudio-claude-opus-4-6"
 MODEL_DEFAULT = MODEL_SONNET

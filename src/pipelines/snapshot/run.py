@@ -530,6 +530,8 @@ def run():
                 "wons_month": metrics["wons_month"],
                 "mr_closed_month": metrics["mr_closed_month"],
                 "consecucion_pct": metrics["consecucion_pct"],
+                "target_mrr": metrics.get("target_mrr", 0),
+                "demos_held_mrr": metrics.get("demos_held_mrr", 0),
                 "data": metrics["data"],
             }
 

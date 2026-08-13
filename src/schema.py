@@ -13,6 +13,7 @@ Estructura:
 Regla de oro: si cambias de CRM (HubSpot → Salesforce) o de empresa, este
 fichero NO se toca. Solo se cambia org.py (input → internal name).
 """
+from __future__ import annotations
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -328,7 +329,7 @@ AUDIT_BANT_PILLARS = ["budget", "authority", "need", "timing"]
 
 AUDIT_MEDDIC_PILLARS = [
     "metrics", "economic_buyer", "decision_criteria",
-    "decision_process", "champion", "competition",
+    "decision_process", "identify_pain", "champion", "competition",
 ]
 
 AUDIT_SCRIPT_COLS = [

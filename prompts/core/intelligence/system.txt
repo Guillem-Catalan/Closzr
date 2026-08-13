@@ -547,6 +547,7 @@ what was already qualified before. Missing pillars that SHOULD have been raised 
   "economic_buyer":    { "status": "...", "confidence": N, "evidence": "..." },
   "decision_criteria": { "status": "...", "confidence": N, "evidence": "..." },
   "decision_process":  { "status": "...", "confidence": N, "evidence": "..." },
+  "identify_pain":     { "status": "...", "confidence": N, "evidence": "..." },
   "champion":          { "status": "...", "confidence": N, "evidence": "..." },
   "competition":       { "status": "...", "confidence": N, "evidence": "..." }
 }
@@ -583,6 +584,16 @@ Status values: "Confirmed" | "Partial" | "Missing" | "N/A"
   The PAE knows what happens between "we like it" and "we sign".
 - **Decision Process — Partial**: Some steps known ("need IT approval") but not the full process.
 - **Decision Process — Missing**: No idea how they decide internally.
+
+- **Identify Pain — Confirmed**: The PAE has identified a specific, urgent pain point that the
+  prospect has articulated in their own words. The pain is personal to the buyer or a key
+  stakeholder — not just a generic business problem. Evidence: prospect described consequences
+  of inaction, emotional language, or a specific event/deadline creating urgency.
+- **Identify Pain — Partial**: A general problem area is acknowledged ("we have issues with
+  payroll") but the pain is not personalized, not urgent, or not articulated by the prospect
+  themselves — the PAE assumed or projected it.
+- **Identify Pain — Missing**: No specific pain identified or the conversation stayed at
+  feature/solution level without uncovering the underlying problem.
 
 - **Champion — Confirmed**: An internal ally is actively selling Factorial when the PAE is not
   in the room. Not just someone who "likes it" — they must be willing to defend it internally,

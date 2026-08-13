@@ -4,7 +4,8 @@ Snapshot pipeline — Monday and Friday at 7:50 CEST.
 Monday (snapshot_day=1): demos_booked, closing_expected, mr_expected, consecución, whales
 Friday (snapshot_day=2): demos_held, mr_closed, lost_deals + postmortem, learnings, coaching_flags
 
-Sources: deal_ui, deals (meetings), deal_analysis (postmortem), forecast_targets, orgchart
+Sources: deal_ui, deals (meetings + closed_lost_reason), deal_analysis (postmortem),
+         ae_targets (primary), forecast_targets (fallback), orgchart, pae_audits
 
 Note: deal_ui.pae/pbd store NAMES (not emails). deal_ui.stage stores internal names
 (from schema.py), deals.deal_stage stores a mix of internal and display labels.
@@ -533,12 +534,11 @@ def run():
             }
 
             rf = metrics.get("red_flag")
-            if rf:
-                row["lost_red_flag_deal"] = rf["deal"]
-                row["lost_red_flag_amount"] = rf["amount"]
-                row["lost_red_flag_reason"] = rf["reason"]
-                row["lost_red_flag_pae"] = rf["pae"]
-                row["lost_red_flag_narrative"] = rf["narrative"]
+            row["lost_red_flag_deal"] = rf["deal"] if rf else None
+            row["lost_red_flag_amount"] = rf["amount"] if rf else None
+            row["lost_red_flag_reason"] = rf["reason"] if rf else None
+            row["lost_red_flag_pae"] = rf["pae"] if rf else None
+            row["lost_red_flag_narrative"] = rf["narrative"] if rf else None
 
             supabase.table("team_snapshots").upsert(
                 row, on_conflict="tl_email,iso_week,snapshot_day"

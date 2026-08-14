@@ -81,7 +81,7 @@ export function getViewScope(profile: UserProfile | null, viewSlug: string): Sco
 
 export function isViewEnabled(profile: UserProfile | null, viewSlug: string): boolean {
   if (!profile) return true;
-  if (viewSlug === "admin") return profile.accessLevel === "admin";
+  if (viewSlug === "admin" || viewSlug === "closzrusage") return profile.accessLevel === "admin";
   if (profile.accessLevel !== "tree") return true;
   const scopeKey = SLUG_TO_SCOPE[viewSlug];
   if (!scopeKey) return false;

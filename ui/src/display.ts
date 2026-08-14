@@ -240,6 +240,7 @@ export const ALL_TABS = [
   { key: "team_analytics", label: "Analytics" },
   { key: "orgchart", label: "Orgchart" },
   { key: "uplift", label: "Uplift" },
+  { key: "closzr-usage", label: "Closzr Usage" },
   { key: "insights", label: "Insights" },
   { key: "partners", label: "Partners" },
   { key: "admin", label: "Admin" },

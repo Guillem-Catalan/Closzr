@@ -58,4 +58,14 @@ export const NAV_ITEMS: NavItem[] = [
       { key: "partner-analytics", label: "Analytics", icon: "trendUp", slug: "partner-analytics", soon: true },
     ],
   },
+  {
+    key: "metrics",
+    label: "Metrics",
+    icon: "calculator",
+    children: [
+      { key: "execsummary", label: "Exec Summary", icon: "presentation", slug: "exec-summary" },
+      { key: "repstats", label: "Rep Stats", icon: "trendUp", slug: "rep-stats" },
+      { key: "closzrusage", label: "Closzr Usage", icon: "barChart", slug: "closzr-usage" },
+    ],
+  },
 ];

@@ -258,6 +258,8 @@ TABLES = {
 
     # ── Factus ──
     "team_snapshots":       {"name": "team_snapshots",       "upsert_key": "tl_email,iso_week,snapshot_day"},
+    "rep_summary":          {"name": "rep_summary",          "upsert_key": "email,period_type,period_start"},
+    "team_summary":         {"name": "team_summary",         "upsert_key": "team,period_type,period_start"},
 }
 
 

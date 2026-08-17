@@ -73,7 +73,7 @@ function App() {
           {view === "alerts" && <TodoView onOpen={handleOpen}/>}
           {view === "pipeline" && <PipelineView onOpen={handleOpen}/>}
           {view === "forecast" && <ForecastView onOpen={handleOpen}/>}
-          {view === "oneone" && <OneOnOneView onOpen={handleOpen}/>}
+          {view === "oneone" && <OneOnOneView/>}
           {view === "admin" && <Suspense fallback={<p style={{color:"var(--ink-3)"}}>Cargando...</p>}><AdminView/></Suspense>}
           {view === "benchmark" && <BenchmarkView onOpen={handleOpen}/>}
           {view === "orgchart" && <Suspense fallback={<p style={{color:"var(--ink-3)"}}>Cargando...</p>}><TeamView/></Suspense>}

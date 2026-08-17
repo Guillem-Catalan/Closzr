@@ -1,20 +1,15 @@
 import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
-import { Icon, TONE, Avatar, getInitials, fmtMRR } from "../components";
+import { TONE, getInitials, fmtMRR } from "../components";
 import { usePermissions } from "../../permissions";
-import { hubspotDealUrl, CLOSED_LOST_STAGES, LOST_REASONS, CRM_FORECAST_CATEGORIES, stageAbbr } from "../../display";
-import { WEEKS, getWeekType, getMonday, getMondayOfWeek, currentYearMonth, PROBLEM_LABELS, type Section, type CheckItem } from "./weeks";
-import { useOneOnOne, type OODeal, type OOEntry, type OOSession } from "./useOneOnOne";
+import { hubspotDealUrl, LOST_REASONS, CRM_FORECAST_CATEGORIES, stageAbbr } from "../../display";
+import { WEEKS, getWeekType, getMondayOfWeek, currentYearMonth, PROBLEM_LABELS, type Section, type CheckItem } from "./weeks";
+import { useOneOnOne, type OODeal, type OOSession } from "./useOneOnOne";
 
 function fmtDate(d: string | null): string {
   if (!d) return "—";
   const [, m, day] = d.split("-");
   const months = ["", "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
   return `${parseInt(day)} ${months[parseInt(m)]}`;
-}
-
-function nowTime(): string {
-  const n = new Date();
-  return n.getHours().toString().padStart(2, "0") + ":" + n.getMinutes().toString().padStart(2, "0");
 }
 
 function momCls(m: string | null): string {
@@ -90,14 +85,6 @@ function fmtYM(ym: string): string {
   return `${MONTH_NAMES[m - 1]} ${y}`;
 }
 
-const HsIcon = () => (
-  <a className="hs-lnk" title="Abrir en HubSpot" onClick={e => e.stopPropagation()}>
-    <svg width="14" height="14" viewBox="0 0 512 512" fill="currentColor">
-      <path d="M391.8 197.4V133c17.2-8.3 29.1-25.8 29.1-46.1v-1.4c0-28.1-22.8-50.9-50.9-50.9h-1.4c-28.1 0-50.9 22.8-50.9 50.9v1.4c0 20.3 11.9 37.8 29.1 46.1v64.4c-25 5.1-47.9 16-67.2 31.6l-177.7-138.4c1.6-5.5 2.6-11.3 2.6-17.3C104.4 32.8 71.6 0 31.2 0S-42 32.8-42 73.2c0 40.4 32.8 73.2 73.2 73.2 6 0 11.8-1 17.3-2.6L225.8 282c-17.9 22-28.7 50-28.7 80.5 0 70.4 57.1 127.5 127.5 127.5S452 433 452 362.5 395 235 324.5 235c-.3 0-.5 0-.8 0l2.1-37.6zM324.5 427c-35.6 0-64.5-28.9-64.5-64.5s28.9-64.5 64.5-64.5 64.5 28.9 64.5 64.5-28.9 64.5-64.5 64.5z" transform="translate(42) scale(.88)"/>
-    </svg>
-  </a>
-);
-
 const SvgChev = ({ rot }: { rot: number }) => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
     style={{ color: "var(--ink-4)", transform: `rotate(${rot}deg)`, transition: "transform .15s" }}>
@@ -108,7 +95,7 @@ const SvgChev = ({ rot }: { rot: number }) => (
 /* =========================================================
    MAIN VIEW
    ========================================================= */
-export default function OneOnOneView({ onOpen }: { onOpen: (row: any, tab?: string) => void }) {
+export default function OneOnOneView() {
   const { profile } = usePermissions();
   const tlEmail = profile?.email || "";
 
@@ -309,14 +296,6 @@ export default function OneOnOneView({ onOpen }: { onOpen: (row: any, tab?: stri
     autoCheck(itemId);
   }, [noteInputs, addEntry, autoCheck]);
 
-  const validateCfm = useCallback((dk: string, mode: ActionMode): boolean => {
-    const rs = document.getElementById(`rs-${dk}`) as HTMLInputElement | null;
-    const dt = document.getElementById(`dt-${dk}`) as HTMLInputElement | null;
-    const hasText = !!rs?.value.trim();
-    if (mode === "change") return hasText && !!dt?.value;
-    return hasText;
-  }, []);
-
   /* ── render: deal card ── */
   const renderDealCard = (deal: OODeal, item: CheckItem, sec: Section) => {
     const dk = `${item.id}-${deal.deal_id}`;
@@ -420,7 +399,7 @@ export default function OneOnOneView({ onOpen }: { onOpen: (row: any, tab?: stri
                 )}
               </div>
             ) : (
-              <ConfirmFlow dk={dk} deal={deal} mode={mode} secNum={sec.num}
+              <ConfirmFlow dk={dk} mode={mode}
                 onCancel={() => setActionMode(prev => { const n = { ...prev }; delete n[dk]; return n; })}
                 onConfirm={() => doAction(dk, deal, mode, sec.num)}
                 cfmLabel={cfmLabels[mode]}
@@ -957,8 +936,8 @@ export default function OneOnOneView({ onOpen }: { onOpen: (row: any, tab?: stri
 }
 
 /* ── Confirm Flow Component ── */
-function ConfirmFlow({ dk, deal, mode, secNum, onCancel, onConfirm, cfmLabel, chipCls, btnCls }: {
-  dk: string; deal: OODeal; mode: ActionMode; secNum: string;
+function ConfirmFlow({ dk, mode, onCancel, onConfirm, cfmLabel, chipCls, btnCls }: {
+  dk: string; mode: ActionMode;
   onCancel: () => void; onConfirm: () => void;
   cfmLabel: string; chipCls: string; btnCls: string;
 }) {

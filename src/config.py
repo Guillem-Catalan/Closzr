@@ -20,6 +20,7 @@ Estructura:
   16. DERIVED SETS — generados automaticamente del orgchart
   17. HELPER FUNCTIONS
 """
+from __future__ import annotations
 
 from pathlib import Path
 from zoneinfo import ZoneInfo

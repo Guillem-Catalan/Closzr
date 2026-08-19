@@ -662,7 +662,7 @@ def _stage_to_role_key(stage: str, channel: str | None) -> str | None:
 def _fetch_product_benchmark(atlas: dict | None, deal: dict) -> str | None:
     sector = atlas.get(_ATLAS["industry"]) if atlas else None
     country = ((atlas or {}).get(_ATLAS["country"]) or "").upper()
-    seats = int((atlas or {}).get(_ATLAS["company_size"]) or 0)
+    seats = int(float((atlas or {}).get(_ATLAS["company_size"]) or 0))
 
     if seats <= 20: size = "1-20"
     elif seats <= 50: size = "21-50"
@@ -991,10 +991,12 @@ def _extract_audit_fields(raw_audit: dict, role: str) -> dict:
         fields["script_close"] = script.get("close")
         fields["two_slot_close"] = script.get("two_slot_close", False)
     elif role in ("PAE", "AE"):
+        _VALID_STATUSES = {"Confirmed", "Partial", "Missing", "N/A"}
         meddic = raw_audit.get("meddic") or {}
         for pillar in _AUDIT_MEDDIC:
             p = meddic.get(pillar) or {}
-            fields[f"meddic_{pillar}_status"] = p.get("status")
+            raw_status = p.get("status")
+            fields[f"meddic_{pillar}_status"] = raw_status if raw_status in _VALID_STATUSES else None
             fields[f"meddic_{pillar}_confidence"] = p.get("confidence")
             fields[f"meddic_{pillar}_evidence"] = p.get("evidence")
     return fields

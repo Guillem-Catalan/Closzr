@@ -217,8 +217,8 @@ def _detect_and_process_closed(start_time: float) -> tuple[list[str], int]:
                     print(f"    ✗ Parser failed: {deal_name[:40]}: {e}", flush=True)
 
                 return deal_uuid
-            except OSError as e:
-                if e.errno == 11 and attempt < 2:
+            except Exception as e:
+                if "Resource temporarily unavailable" in str(e) and attempt < 2:
                     wait = 5 * (attempt + 1)
                     print(f"    ⟳ EAGAIN retry {attempt + 1}/2 for {deal_name[:40]} (waiting {wait}s)", flush=True)
                     time.sleep(wait)
@@ -335,8 +335,8 @@ def _refresh_imminent_forecasts(start_time: float) -> tuple[list[str], int]:
                     print(f"    ✗ Parser failed for {deal_name}: {e}", flush=True)
 
                 return deal_uuid
-            except OSError as e:
-                if e.errno == 11 and attempt < 2:
+            except Exception as e:
+                if "Resource temporarily unavailable" in str(e) and attempt < 2:
                     wait = 5 * (attempt + 1)
                     print(f"    ⟳ EAGAIN retry {attempt + 1}/2 for {deal_name} (waiting {wait}s)", flush=True)
                     time.sleep(wait)

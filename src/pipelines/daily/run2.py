@@ -180,41 +180,50 @@ def _detect_and_process_closed(start_time: float) -> tuple[list[str], int]:
         new_stage = hs_stages.get(hs_id, "?")
         print(f"\n    [{idx}/{total}] [{deal_name[:40]}] {deal.get(_D_STAGE)} → {new_stage}", flush=True)
 
-        intelligence_run(deal_uuid)
-        print(f"    ✓ Final snapshot: {deal_name[:40]}", flush=True)
-
-        deal_fresh = (
-            supabase.table(_TBL_DEALS)
-            .select("*")
-            .eq(_D_UUID, deal_uuid)
-            .limit(1)
-            .execute()
-        )
-        if deal_fresh.data:
-            d = deal_fresh.data[0]
+        for attempt in range(3):
             try:
-                traj = compile_trajectory(d)
-                if traj:
-                    print(f"    ✓ Trajectory ({traj.get('outcome', '?')}): {deal_name[:40]}", flush=True)
-            except Exception as e:
-                print(f"    ✗ Trajectory failed: {deal_name[:40]}: {e}", flush=True)
+                intelligence_run(deal_uuid)
+                print(f"    ✓ Final snapshot: {deal_name[:40]}", flush=True)
 
-            try:
-                analysis = analyze_deal(d)
-                if analysis:
-                    print(f"    ✓ Analysis done: {deal_name[:40]}", flush=True)
-            except Exception as e:
-                print(f"    ✗ Analysis failed: {deal_name[:40]}: {e}", flush=True)
+                deal_fresh = (
+                    supabase.table(_TBL_DEALS)
+                    .select("*")
+                    .eq(_D_UUID, deal_uuid)
+                    .limit(1)
+                    .execute()
+                )
+                if deal_fresh.data:
+                    d = deal_fresh.data[0]
+                    try:
+                        traj = compile_trajectory(d)
+                        if traj:
+                            print(f"    ✓ Trajectory ({traj.get('outcome', '?')}): {deal_name[:40]}", flush=True)
+                    except Exception as e:
+                        print(f"    ✗ Trajectory failed: {deal_name[:40]}: {e}", flush=True)
 
-        try:
-            parser2.update_from_sync(deal_uuid)
-            parser2.update_from_intelligence(deal_uuid)
-            parser2.update_from_forecast(deal_uuid)
-            parser2.update_from_daily(deal_uuid)
-        except Exception as e:
-            print(f"    ✗ Parser failed: {deal_name[:40]}: {e}", flush=True)
+                    try:
+                        analysis = analyze_deal(d)
+                        if analysis:
+                            print(f"    ✓ Analysis done: {deal_name[:40]}", flush=True)
+                    except Exception as e:
+                        print(f"    ✗ Analysis failed: {deal_name[:40]}: {e}", flush=True)
 
-        return deal_uuid
+                try:
+                    parser2.update_from_sync(deal_uuid)
+                    parser2.update_from_intelligence(deal_uuid)
+                    parser2.update_from_forecast(deal_uuid)
+                    parser2.update_from_daily(deal_uuid)
+                except Exception as e:
+                    print(f"    ✗ Parser failed: {deal_name[:40]}: {e}", flush=True)
+
+                return deal_uuid
+            except OSError as e:
+                if e.errno == 11 and attempt < 2:
+                    wait = 5 * (attempt + 1)
+                    print(f"    ⟳ EAGAIN retry {attempt + 1}/2 for {deal_name[:40]} (waiting {wait}s)", flush=True)
+                    time.sleep(wait)
+                    continue
+                raise
 
     # ── Parallel execution (bounded-submit, same pattern as core/run2.py) ──
     ok = 0
@@ -312,18 +321,27 @@ def _refresh_imminent_forecasts(start_time: float) -> tuple[list[str], int]:
         deal_name = (deal_candidate.get("deal_name_full") or "?")[:50]
         old_date = deal_candidate.get("estimated_close_date") or "?"
 
-        intelligence_run(deal_uuid)
-        result = forecast_run(deal_uuid, use_latest=True)
-        new_date = result.get("estimated_close_date", "?") if result else "unchanged"
-        print(f"    ✓ {deal_name} ({old_date} → {new_date})", flush=True)
+        for attempt in range(3):
+            try:
+                intelligence_run(deal_uuid)
+                result = forecast_run(deal_uuid, use_latest=True)
+                new_date = result.get("estimated_close_date", "?") if result else "unchanged"
+                print(f"    ✓ {deal_name} ({old_date} → {new_date})", flush=True)
 
-        try:
-            parser2.update_from_intelligence(deal_uuid)
-            parser2.update_from_forecast(deal_uuid)
-        except Exception as e:
-            print(f"    ✗ Parser failed for {deal_name}: {e}", flush=True)
+                try:
+                    parser2.update_from_intelligence(deal_uuid)
+                    parser2.update_from_forecast(deal_uuid)
+                except Exception as e:
+                    print(f"    ✗ Parser failed for {deal_name}: {e}", flush=True)
 
-        return deal_uuid
+                return deal_uuid
+            except OSError as e:
+                if e.errno == 11 and attempt < 2:
+                    wait = 5 * (attempt + 1)
+                    print(f"    ⟳ EAGAIN retry {attempt + 1}/2 for {deal_name} (waiting {wait}s)", flush=True)
+                    time.sleep(wait)
+                    continue
+                raise
 
     # ── Parallel execution ──
     ok = 0

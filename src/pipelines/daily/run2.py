@@ -180,7 +180,7 @@ def _detect_and_process_closed(start_time: float) -> tuple[list[str], int]:
         new_stage = hs_stages.get(hs_id, "?")
         print(f"\n    [{idx}/{total}] [{deal_name[:40]}] {deal.get(_D_STAGE)} → {new_stage}", flush=True)
 
-        for attempt in range(3):
+        for attempt in range(5):
             try:
                 intelligence_run(deal_uuid)
                 print(f"    ✓ Final snapshot: {deal_name[:40]}", flush=True)
@@ -208,19 +208,16 @@ def _detect_and_process_closed(start_time: float) -> tuple[list[str], int]:
                     except Exception as e:
                         print(f"    ✗ Analysis failed: {deal_name[:40]}: {e}", flush=True)
 
-                try:
-                    parser2.update_from_sync(deal_uuid)
-                    parser2.update_from_intelligence(deal_uuid)
-                    parser2.update_from_forecast(deal_uuid)
-                    parser2.update_from_daily(deal_uuid)
-                except Exception as e:
-                    print(f"    ✗ Parser failed: {deal_name[:40]}: {e}", flush=True)
+                parser2.update_from_sync(deal_uuid)
+                parser2.update_from_intelligence(deal_uuid)
+                parser2.update_from_forecast(deal_uuid)
+                parser2.update_from_daily(deal_uuid)
 
                 return deal_uuid
             except Exception as e:
-                if "Resource temporarily unavailable" in str(e) and attempt < 2:
+                if "Resource temporarily unavailable" in str(e) and attempt < 4:
                     wait = 5 * (attempt + 1)
-                    print(f"    ⟳ EAGAIN retry {attempt + 1}/2 for {deal_name[:40]} (waiting {wait}s)", flush=True)
+                    print(f"    ⟳ EAGAIN retry {attempt + 1}/4 for {deal_name[:40]} (waiting {wait}s)", flush=True)
                     time.sleep(wait)
                     continue
                 raise
@@ -321,24 +318,21 @@ def _refresh_imminent_forecasts(start_time: float) -> tuple[list[str], int]:
         deal_name = (deal_candidate.get("deal_name_full") or "?")[:50]
         old_date = deal_candidate.get("estimated_close_date") or "?"
 
-        for attempt in range(3):
+        for attempt in range(5):
             try:
                 intelligence_run(deal_uuid)
                 result = forecast_run(deal_uuid, use_latest=True)
                 new_date = result.get("estimated_close_date", "?") if result else "unchanged"
                 print(f"    ✓ {deal_name} ({old_date} → {new_date})", flush=True)
 
-                try:
-                    parser2.update_from_intelligence(deal_uuid)
-                    parser2.update_from_forecast(deal_uuid)
-                except Exception as e:
-                    print(f"    ✗ Parser failed for {deal_name}: {e}", flush=True)
+                parser2.update_from_intelligence(deal_uuid)
+                parser2.update_from_forecast(deal_uuid)
 
                 return deal_uuid
             except Exception as e:
-                if "Resource temporarily unavailable" in str(e) and attempt < 2:
+                if "Resource temporarily unavailable" in str(e) and attempt < 4:
                     wait = 5 * (attempt + 1)
-                    print(f"    ⟳ EAGAIN retry {attempt + 1}/2 for {deal_name} (waiting {wait}s)", flush=True)
+                    print(f"    ⟳ EAGAIN retry {attempt + 1}/4 for {deal_name} (waiting {wait}s)", flush=True)
                     time.sleep(wait)
                     continue
                 raise

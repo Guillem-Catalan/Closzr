@@ -137,6 +137,8 @@ FIELDS = {
     "stage":                {"column": "deal_stage",           "type": "text",     "persist": True},
     "pipeline":             {"column": "pipeline_name",        "type": "text",     "persist": True},
     "mrr":                  {"column": "amount",               "type": "numeric",  "persist": True},
+    "mrr_eur":              {"column": "amount_in_home_currency", "type": "numeric", "persist": True},
+    "currency_code":        {"column": "deal_currency_code",   "type": "text",     "persist": True},
     "close_date":           {"column": "close_date",           "type": "date",     "persist": True},
     "create_date":          {"column": "createdate",           "type": "date",     "persist": True},
     "crm_id":               {"column": "crm_id",              "type": "text",     "persist": True},

@@ -82,6 +82,8 @@ _D_EMP_CUSTOM = schema.col("num_employees_custom")  # "num_employees_custom"
 _D_PIPELINE   = schema.col("pipeline")         # "pipeline_name"
 _D_DEMO_DATE  = schema.col("after_demo_date")  # "after_demo_date"
 _D_DEMO_FU    = schema.col("after_demo_followup")  # "after_demo_followup_date"
+_D_MRR_EUR    = schema.col("mrr_eur")          # "amount_in_home_currency"
+_D_CURRENCY   = schema.col("currency_code")    # "deal_currency_code"
 
 _UPSERT_KEY = schema.upsert_key("deal_ui")     # "deal_id"
 
@@ -581,7 +583,11 @@ def _build_sync_row(deal: dict) -> dict | None:
     stage      = deal.get(_D_STAGE) or ""
     team       = deal.get(_D_TEAM) or ""
     hs_deal_id = deal.get(_D_ID) or ""
-    mrr        = float(deal.get(_D_MRR) or 0)
+    currency   = deal.get(_D_CURRENCY) or ""
+    raw_mrr    = deal.get(_D_MRR)
+    if currency == "MXN":
+        raw_mrr = deal.get(_D_MRR_EUR) or raw_mrr
+    mrr        = float(raw_mrr or 0)
 
     macro = schema.macro_stage(stage)
 
@@ -597,7 +603,7 @@ def _build_sync_row(deal: dict) -> dict | None:
         "team": team,
         "last_contact": deal.get(_D_LAST_CONT),
         "hs_link": f"{config2.HUBSPOT_APP_URL}/contacts/{hs_deal_id}" if hs_deal_id else None,
-        "mrr": deal.get(_D_MRR),
+        "mrr": raw_mrr,
         "close_date_hs": deal.get(_D_CLOSE),
         "forecast_category": deal.get(_D_FCAT) or "",
         "macro_stage": macro,

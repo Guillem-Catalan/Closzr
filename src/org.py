@@ -69,6 +69,8 @@ CRM_DEAL_PROPERTIES = {  # ? ALL keys are HubSpot property names
     "hs_object_id":                          {"label": "Record ID",                      "internal": "deal_id",              "column": "deal_id"},
     "dealname":                              {"label": "Deal Name",                      "internal": "deal_name",            "column": "deal_name"},
     "amount":                                {"label": "Amount (MRR)",                   "internal": "mrr",                  "column": "amount"},
+    "amount_in_home_currency":               {"label": "Amount in company currency",     "internal": "mrr_eur",              "column": "amount_in_home_currency"},
+    "deal_currency_code":                    {"label": "Currency",                       "internal": "currency_code",        "column": "deal_currency_code"},
     "dealstage":                             {"label": "Deal Stage",                     "internal": "stage",                "column": "deal_stage"},
     "pipeline":                              {"label": "Pipeline",                       "internal": "pipeline",             "column": "pipeline_name"},
     "closedate":                             {"label": "Close Date",                     "internal": "close_date",           "column": "close_date"},

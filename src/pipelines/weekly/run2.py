@@ -10,6 +10,7 @@ Internal names everywhere: schema.tbl(), schema.col(), config2.*.
 import traceback
 
 from src.pipelines.weekly.patterns2 import run as patterns_run
+from src.pipelines.weekly.team_stats import run as team_stats_run
 
 
 def run():
@@ -24,6 +25,15 @@ def run():
         print(f"  {total} patterns generated/updated")
     except Exception as e:
         print(f"  ✗ Patterns failed: {e}")
+        traceback.print_exc()
+
+    # ── 2. Team Stats ──
+    print("\n▸ TEAM STATS")
+    try:
+        total = team_stats_run()
+        print(f"  {total} team patterns generated/updated")
+    except Exception as e:
+        print(f"  ✗ Team Stats failed: {e}")
         traceback.print_exc()
 
     print(f"\n{'=' * 60}")

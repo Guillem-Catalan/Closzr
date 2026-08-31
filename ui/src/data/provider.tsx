@@ -212,6 +212,7 @@ async function loadData(): Promise<CZData> {
   // ---- Forecast ----
   const cm = new Date().toISOString().slice(0, 7);
   const nmDate = new Date();
+  nmDate.setDate(1);
   nmDate.setMonth(nmDate.getMonth() + 1);
   const nmKey = nmDate.toISOString().slice(0, 7);
   const targetTotal = targets.filter(t => t.month === cm).reduce((s, t) => s + (t.monthly_target || 0), 0);

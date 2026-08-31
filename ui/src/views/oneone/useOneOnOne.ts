@@ -59,6 +59,7 @@ export type OOSession = {
 
 function monthKey(offset: number): string {
   const d = new Date();
+  d.setDate(1);
   d.setMonth(d.getMonth() + offset);
   return d.toISOString().slice(0, 7);
 }

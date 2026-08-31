@@ -330,8 +330,8 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
     return F.targets.filter(t => exp.has(t.team) && t.month === cm).reduce((s, t) => s + (t.monthly_target || 0), 0);
   }, [F.target, F.targets, teamFilters, cm]);
 
-  const nmKey = (() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 7); })();
-  const m2Key = (() => { const d = new Date(); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 7); })();
+  const nmKey = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 7); })();
+  const m2Key = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 7); })();
 
   const m0HsTotal = Math.round(fm0.filter(d => d.closeDate?.startsWith(cm)).reduce((s, d) => s + (d.mrr || 0), 0));
   const m0CloszrTotal = Math.round(fm0.filter(d => d.claudioCloseDate?.startsWith(cm)).reduce((s, d) => s + (d.mrr || 0), 0));
@@ -473,6 +473,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
 
   const monthLabel = (offset: number) => {
     const d = new Date();
+    d.setDate(1);
     d.setMonth(d.getMonth() + offset);
     return d.toLocaleString("en", { month: "short" });
   };

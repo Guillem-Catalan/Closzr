@@ -292,6 +292,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
   type SortKey = "" | "mrr-desc" | "mrr-asc" | "prob-desc" | "prob-asc" | "hs-asc" | "hs-desc" | "closzr-asc" | "closzr-desc";
   const [sortKey, setSortKey] = useState<SortKey>("hs-asc");
   const [openMenu, setOpenMenu] = useState<"" | "mrr" | "prob" | "close">("");
+  const [belowFcOpen, setBelowFcOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!openMenu) return;
@@ -334,11 +335,11 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
   const m2Key = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + 2); return d.toISOString().slice(0, 7); })();
 
   const m0HsTotal = Math.round(fm0.filter(d => d.closeDate?.startsWith(cm)).reduce((s, d) => s + (d.mrr || 0), 0));
-  const m0CloszrTotal = Math.round(fm0.filter(d => d.claudioCloseDate?.startsWith(cm)).reduce((s, d) => s + (d.mrr || 0), 0));
+  const m0CloszrTotal = Math.round(fm0.filter(d => d.claudioCloseDate?.startsWith(cm) && !d.belowForecast).reduce((s, d) => s + (d.mrr || 0), 0));
   const m1HsTotal = Math.round(fm1.filter(d => d.closeDate?.startsWith(nmKey)).reduce((s, d) => s + (d.mrr || 0), 0));
-  const m1CloszrTotal = Math.round(fm1.filter(d => d.claudioCloseDate?.startsWith(nmKey)).reduce((s, d) => s + (d.mrr || 0), 0));
+  const m1CloszrTotal = Math.round(fm1.filter(d => d.claudioCloseDate?.startsWith(nmKey) && !d.belowForecast).reduce((s, d) => s + (d.mrr || 0), 0));
   const m2HsTotal = Math.round(fm2.filter(d => d.closeDate && d.closeDate >= m2Key).reduce((s, d) => s + (d.mrr || 0), 0));
-  const m2CloszrTotal = Math.round(fm2.filter(d => d.claudioCloseDate && d.claudioCloseDate >= m2Key).reduce((s, d) => s + (d.mrr || 0), 0));
+  const m2CloszrTotal = Math.round(fm2.filter(d => d.claudioCloseDate && d.claudioCloseDate >= m2Key && !d.belowForecast).reduce((s, d) => s + (d.mrr || 0), 0));
   const m2PushCount = fm2.filter(d => d.pushable).length;
   const m2PushVal = Math.round(fm2.filter(d => d.pushable).reduce((s, d) => s + (d.mrr || 0), 0));
   const closedTotal = Math.round(fClosed.reduce((s, d) => s + (d.mrr || 0), 0));
@@ -354,9 +355,9 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
     }
     return { rep, closzr, shared };
   };
-  const m0Split = countSplit(fm0, d => ({ hs: d.closeDate?.startsWith(cm) ?? false, cz: d.claudioCloseDate?.startsWith(cm) ?? false }));
-  const m1Split = countSplit(fm1, d => ({ hs: d.closeDate?.startsWith(nmKey) ?? false, cz: d.claudioCloseDate?.startsWith(nmKey) ?? false }));
-  const m2Split = countSplit(fm2, d => ({ hs: d.closeDate ? d.closeDate >= m2Key : false, cz: d.claudioCloseDate ? d.claudioCloseDate >= m2Key : false }));
+  const m0Split = countSplit(fm0, d => ({ hs: d.closeDate?.startsWith(cm) ?? false, cz: (d.claudioCloseDate?.startsWith(cm) ?? false) && !d.belowForecast }));
+  const m1Split = countSplit(fm1, d => ({ hs: d.closeDate?.startsWith(nmKey) ?? false, cz: (d.claudioCloseDate?.startsWith(nmKey) ?? false) && !d.belowForecast }));
+  const m2Split = countSplit(fm2, d => ({ hs: d.closeDate ? d.closeDate >= m2Key : false, cz: (d.claudioCloseDate ? d.claudioCloseDate >= m2Key : false) && !d.belowForecast }));
 
   const targetM1 = useMemo(() => {
     if (teamFilters.size === 0) return F.targets.filter(t => t.month === nmKey).reduce((s, t) => s + (t.monthly_target || 0), 0);
@@ -372,7 +373,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
 
   const pct = (v: number, t: number) => t > 0 ? Math.round(v / t * 100) : 0;
   const pctTone = (p: number) => p >= 70 ? "var(--green)" : p >= 30 ? "var(--amber)" : "var(--red)";
-  const toggle = (p: Panel) => { setPanel(p); setExpandedId(null); setViewFilter("all"); };
+  const toggle = (p: Panel) => { setPanel(p); setExpandedId(null); setViewFilter("all"); setBelowFcOpen(false); };
 
   const sortDeals = (deals: ForecastDeal[]) => {
     const arr = [...deals];
@@ -447,12 +448,12 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
     const mk = viewMonthKey(panel);
     let hs = 0, cz = 0, shared = 0;
     for (const d of deals) {
-      const h = matchHs(d, mk), c = matchCz(d, mk);
+      const h = matchHs(d, mk), c = matchCz(d, mk) && !d.belowForecast;
       if (h) hs++;
       if (c) cz++;
       if (h && c) shared++;
     }
-    return { all: deals.length, hs, cz, shared };
+    return { all: deals.filter(d => !d.belowForecast).length, hs, cz, shared };
   };
 
   const dealDotColor = (d: ForecastDeal) => {
@@ -464,12 +465,43 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
     return undefined;
   };
 
-  const renderDealRows = (deals: ForecastDeal[], showPush = false) =>
-    sortDeals(applyView(deals)).map(d => (
-      <FcRow key={d.id} d={d} open={expandedId === d.id} showPushChip={showPush}
-        dotColor={dealDotColor(d)}
-        onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)} onOpen={onOpen} />
-    ));
+  const renderDealRows = (deals: ForecastDeal[], showPush = false) => {
+    const viewed = sortDeals(applyView(deals));
+    const main = viewed.filter(d => !d.belowForecast);
+    const below = viewed.filter(d => d.belowForecast);
+    const belowMrr = Math.round(below.reduce((s, d) => s + (d.mrr || 0), 0));
+    return (
+      <>
+        {main.map(d => (
+          <FcRow key={d.id} d={d} open={expandedId === d.id} showPushChip={showPush}
+            dotColor={dealDotColor(d)}
+            onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)} onOpen={onOpen} />
+        ))}
+        {below.length > 0 && (
+          <>
+            <div onClick={() => setBelowFcOpen(!belowFcOpen)} style={{
+              display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", cursor: "pointer",
+              background: "var(--paper-2)", borderTop: "1px dashed var(--line)", borderBottom: belowFcOpen ? "1px solid var(--line-2)" : "none",
+            }}>
+              <Icon name="chevDown" size={14} style={{ color: "var(--ink-3)", transform: belowFcOpen ? "none" : "rotate(-90deg)", transition: "transform .18s", flex: "none" }} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".04em" }}>
+                Below forecast
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--amber-ink)", background: "var(--amber-tint)", padding: "1px 8px", borderRadius: "var(--r-pill)" }}>
+                {below.length} deals · {fmtEur(belowMrr)}
+              </span>
+              <span style={{ fontSize: 11, color: "var(--ink-4)" }}>prob 5–39% — not counted in Closzr forecast</span>
+            </div>
+            {belowFcOpen && below.map(d => (
+              <FcRow key={d.id} d={d} open={expandedId === d.id} showPushChip={showPush}
+                dotColor="var(--amber)"
+                onToggle={() => setExpandedId(expandedId === d.id ? null : d.id || null)} onOpen={onOpen} />
+            ))}
+          </>
+        )}
+      </>
+    );
+  };
 
   const monthLabel = (offset: number) => {
     const d = new Date();
@@ -718,8 +750,7 @@ export default function ForecastView({ onOpen }: { onOpen: (row: any, tab?: stri
             {panel === "m1" && renderDealRows(fm1)}
             {panel === "m2" && renderDealRows(fm2, true)}
             {((panel === "m0" && !fm0.length) || (panel === "m1" && !fm1.length) || (panel === "m2" && !fm2.length)) && (
-              <div className="cz-empty">No deals for these filters.</div>
-            )}
+              <div className="cz-empty">No deals for these filters.</div>)}
           </div>
         )}
       </div>

@@ -181,6 +181,7 @@ function toForecastDeal(d: RawDealUI, row: DealRow): ForecastDeal {
     forecastAccelerators: joinTexts(d.forecast_accelerators),
     hsCategory: d.forecast_category || "",
     closeDate: d.close_date_hs || null,
+    belowForecast: (d.close_probability ?? 0) >= 5 && (d.close_probability ?? 0) < 40,
   };
 }
 
@@ -257,7 +258,7 @@ async function loadData(): Promise<CZData> {
     .filter(d => !closzrActiveIds.has(d.id))
     .map(d => {
       const raw = rawById.get(d.id!);
-      return { ...d, closesThisMonth: true, closesNextMonth: false, pushable: false, pushAction: null, momentum: null, confidence: null, claudioCloseDate: null, forecastReasoning: raw?.deal_assessment || null, forecastRisks: null, forecastAccelerators: null, hsCategory: WON_DISPLAY_LABEL, closeDate: d.last } as ForecastDeal;
+      return { ...d, closesThisMonth: true, closesNextMonth: false, pushable: false, pushAction: null, momentum: null, confidence: null, claudioCloseDate: null, forecastReasoning: raw?.deal_assessment || null, forecastRisks: null, forecastAccelerators: null, hsCategory: WON_DISPLAY_LABEL, closeDate: d.last, belowForecast: false } as ForecastDeal;
     });
   const closzrWonActive = closzrActive.map(d => {
     if (closedIds.has(d.id!)) {
@@ -282,14 +283,16 @@ async function loadData(): Promise<CZData> {
   );
 
   // M0/M1/M2 — deals assigned by either close date (can appear in multiple)
+  // Exclude < 5% prob (likely Closzr date errors); 5-39% shown but don't count in Closzr totals
   const m2Date = new Date(nmDate.getFullYear(), nmDate.getMonth() + 1, 1);
   const m2Key = m2Date.toISOString().slice(0, 7);
   const hasMonth = (d: ForecastDeal, mk: string) =>
     (d.closeDate && d.closeDate.startsWith(mk)) || (d.claudioCloseDate && d.claudioCloseDate.startsWith(mk));
-  const m0Deals = activeFcDeals.filter(d => hasMonth(d, cm));
-  const m1Deals = activeFcDeals.filter(d => hasMonth(d, nmKey));
+  const minProb = (d: ForecastDeal) => (d.prob ?? 0) >= 5;
+  const m0Deals = activeFcDeals.filter(d => hasMonth(d, cm) && minProb(d));
+  const m1Deals = activeFcDeals.filter(d => hasMonth(d, nmKey) && minProb(d));
   const m0m1Ids = new Set([...m0Deals, ...m1Deals].map(d => d.id));
-  const m2Deals = activeFcDeals.filter(d => hasMonth(d, m2Key) || (d.pushable && !m0m1Ids.has(d.id)));
+  const m2Deals = activeFcDeals.filter(d => (hasMonth(d, m2Key) || (d.pushable && !m0m1Ids.has(d.id))) && minProb(d));
 
   const forecast: ForecastData = {
     target: targetTotal,

@@ -57,6 +57,7 @@ export type ForecastDeal = DealRow & {
   forecastAccelerators: string | null;
   hsCategory: string;
   closeDate: string | null;
+  belowForecast: boolean;
 };
 
 export type ClosedDeal = DealRow & {
